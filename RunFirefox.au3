@@ -7,7 +7,7 @@
 #AutoIt3Wrapper_Compile_Both=y
 #AutoIt3Wrapper_Res_Comment=Firefox Portable
 #AutoIt3Wrapper_Res_Description=Firefox Portable
-#AutoIt3Wrapper_Res_Fileversion=2.6.8.0
+#AutoIt3Wrapper_Res_Fileversion=2.6.9.0
 #AutoIt3Wrapper_Res_LegalCopyright=Ryan <github-benzBrake@woai.ru>
 #AutoIt3Wrapper_Res_Language=2052
 #AutoIt3Wrapper_Res_requestedExecutionLevel=None
@@ -18,7 +18,7 @@
 #cs ----------------------------------------------------------------------------
 	AutoIt Version:   3.3.14.2
 	Author:           Ryan, 甲壳虫
-	Link:			  https://github.com/benzBrake/RunFirefox
+	Link              https://github.com/benzBrake/RunFirefox
 	OldLink:          http://code.taobao.org/p/RunFirefox/wiki/index/
 	Script Function:
 	自定义Firefox程序和配置文件夹的路径，用来制作Firefox便携版，便携版可设为默认浏览器。
@@ -158,15 +158,12 @@ For $i = 1 To $cmdline[0]
 	EndIf
 Next
 
-FileDelete($FirefoxDir & "\defaults\pref\myfirefox.js")
-FileDelete($FirefoxDir & "\myfirefox.cfg")
+FileDelete($FirefoxDir & "\defaults\pref\runfirefox.js")
 Local $FirefoxIsRunning = ProfileInUse($ProfileDir)
 If Not $FirefoxIsRunning Then
 	Local $config = CheckPrefs()
 	If $config Then
-		FileWrite($FirefoxDir & "\defaults\pref\myfirefox.js", 'pref("general.config.obscure_value", 0);' & @CRLF & _
-				'pref("general.config.filename", "myfirefox.cfg");' & @CRLF)
-		FileWrite($FirefoxDir & "\myfirefox.cfg", $config)
+		FileWrite($FirefoxDir & "\defaults\pref\runfirefox.js", $config)
 	EndIf
 EndIf
 

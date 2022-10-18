@@ -1,19 +1,25 @@
 ﻿#NoTrayIcon
-#Region ;**** Directives created by AutoIt3Wrapper_GUI ****
-#AutoIt3Wrapper_Icon=firefox.ico
+#Region ;**** 由 AccAu3Wrapper_GUI 创建指令 ****
+#AutoIt3Wrapper_Icon=FireDoge.ico
+#AutoIt3Wrapper_Outfile=RunFirefox.exe
+#AutoIt3Wrapper_Outfile_x64=RunFirefox_x64.exe
+#AutoIt3Wrapper_UseUpx=y
 #AutoIt3Wrapper_Compile_Both=y
-#AutoIt3Wrapper_UseX64=y
 #AutoIt3Wrapper_Res_Comment=Firefox Portable
 #AutoIt3Wrapper_Res_Description=Firefox Portable
-#AutoIt3Wrapper_Res_Fileversion=2.6.7.0
-#AutoIt3Wrapper_Res_LegalCopyright=甲壳虫<jdchenjian@gmail.com>
+#AutoIt3Wrapper_Res_Fileversion=2.6.8.0
+#AutoIt3Wrapper_Res_LegalCopyright=Ryan <github-benzBrake@woai.ru>
+#AutoIt3Wrapper_Res_Language=2052
+#AutoIt3Wrapper_Res_requestedExecutionLevel=None
 #AutoIt3Wrapper_AU3Check_Parameters=-q
 #AutoIt3Wrapper_Run_Au3Stripper=y
-#EndRegion ;**** Directives created by AutoIt3Wrapper_GUI ****
+#Au3Stripper_Parameters=/sf=1 /sv=1
+#EndRegion ;**** 由 AccAu3Wrapper_GUI 创建指令 ****
 #cs ----------------------------------------------------------------------------
-	AutoIt Version:   3.3.14.0
-	Author:           甲壳虫
-	Link:             http://code.taobao.org/p/MyFirefox/wiki/index/
+	AutoIt Version:   3.3.14.2
+	Author:           Ryan, 甲壳虫
+	Link:			  https://github.com/benzBrake/RunFirefox
+	OldLink:          http://code.taobao.org/p/RunFirefox/wiki/index/
 	Script Function:
 	自定义Firefox程序和配置文件夹的路径，用来制作Firefox便携版，便携版可设为默认浏览器。
 #ce
@@ -30,12 +36,14 @@
 #include <WinAPIReg.au3>
 #include <Security.au3>
 #include <WinAPIMisc.au3>
+#include <FileConstants.au3>
+#include "_String.au3"
 #include "AppUserModelId.au3"
 
 Opt("GUIOnEventMode", 1)
 Opt("WinTitleMatchMode", 4)
 
-Global Const $AppVersion = "2.6.7" ; 版本
+Global Const $AppVersion = "2.6.8" ; 版本
 Global $FirstRun, $FirefoxExe, $FirefoxDir
 Global $TaskBarDir = @AppDataDir & "\Microsoft\Internet Explorer\Quick Launch\User Pinned\TaskBar"
 Global $AppPID, $TaskBarLastChange
@@ -161,6 +169,9 @@ If Not $FirefoxIsRunning Then
 		FileWrite($FirefoxDir & "\myfirefox.cfg", $config)
 	EndIf
 EndIf
+
+;~ Fix Addons not Found
+UpdateAddonStarup()
 
 ;~ Start Firefox
 $AppPID = Run($FirefoxPath & ' -profile "' & $ProfileDir & '" ' & $Params, $FirefoxDir)
@@ -347,7 +358,7 @@ Func OnExit()
 EndFunc   ;==>OnExit
 
 
-;~ 查检 MyFirefox更新
+;~ 查检 RunFirefox更新
 Func CheckAppUpdate()
 	Local $var, $match, $LatestAppVer, $msg, $update, $url
 	Local $slatest = "latest", $surl = "url", $supdate = "update"
@@ -358,7 +369,7 @@ Func CheckAppUpdate()
 	IniWrite($inifile, "Settings", "AppUpdateLastCheck", $AppUpdateLastCheck)
 
 	HttpSetProxy(0) ; Use IE defaults for proxy
-	$var = BinaryToString(InetRead("http://code.taobao.org/svn/MyFirefox/Update.txt", 27), 4)
+	$var = BinaryToString(InetRead("http://code.taobao.org/svn/RunFirefox/Update.txt", 27), 4)
 	$var = StringStripWS($var, 3) ; 去掉开头、结尾的空字符
 	$match = StringRegExp($var, '(?im)^' & $slatest & '=(\S+)', 1)
 	If @error Then Return
@@ -370,28 +381,28 @@ Func CheckAppUpdate()
 	$match = StringRegExp($var, '(?im)' & $supdate & '=(.+)', 1)
 	If @error Then Return
 	$update = StringReplace($match[0], "\n", @CRLF)
-	$msg = MsgBox(68, 'MyFirefox', "MyFirefox " & $LatestAppVer & " 已发布，更新内容：" & _
+	$msg = MsgBox(68, 'RunFirefox', "RunFirefox " & $LatestAppVer & " 已发布，更新内容：" & _
 			@CRLF & @CRLF & $update & @CRLF & @CRLF & "是否自动更新？")
 	If $msg <> 6 Then Return
 
-	Local $temp = @ScriptDir & "\MyFirefox_temp"
-	$file = $temp & "\MyFirefox.zip"
+	Local $temp = @ScriptDir & "\RunFirefox_temp"
+	$file = $temp & "\RunFirefox.zip"
 	If Not FileExists($temp) Then DirCreate($temp)
 	Opt("TrayAutoPause", 0)
 	Opt("TrayMenuMode", 3) ; Default tray menu items (Script Paused/Exit) will not be shown.
 	TraySetState(1)
 	TraySetClick(8)
-	TraySetToolTip("MyFirefox")
+	TraySetToolTip("RunFirefox")
 	Local $hCancelAppUpdate = TrayCreateItem("取消更新...")
-	TrayTip("", "开始下载 MyFirefox", 10, 1)
+	TrayTip("", "开始下载 RunFirefox", 10, 1)
 	Local $hDownload = InetGet($url, $file, 19, 1)
 	Local $DownloadSuccessful, $DownloadCancelled, $UpdateSuccessful, $error
 	Do
 		Switch TrayGetMsg()
 			Case $TRAY_EVENT_PRIMARYDOWN
-				TrayTip("", "正在下载 MyFirefox" & @CRLF & "已下载 " & Round(InetGetInfo($hDownload, 0) / 1024) & " KB", 5, 1)
+				TrayTip("", "正在下载 RunFirefox" & @CRLF & "已下载 " & Round(InetGetInfo($hDownload, 0) / 1024) & " KB", 5, 1)
 			Case $hCancelAppUpdate
-				$msg = MsgBox(4 + 32 + 256, "MyFirefox", "正在下载 MyFirefox，确定要取消吗？")
+				$msg = MsgBox(4 + 32 + 256, "RunFirefox", "正在下载 RunFirefox，确定要取消吗？")
 				If $msg = 6 Then
 					$DownloadCancelled = 1
 					ExitLoop
@@ -402,12 +413,12 @@ Func CheckAppUpdate()
 	InetClose($hDownload)
 	If Not $DownloadCancelled Then
 		If $DownloadSuccessful Then
-			TrayTip("", "正在应用 MyFirefox 更新", 10, 1)
+			TrayTip("", "正在应用 RunFirefox 更新", 10, 1)
 			FileSetAttrib($file, "+A")
 			_Zip_UnzipAll($file, $temp)
-			If FileExists($temp & "\MyFirefox.exe") Then
+			If FileExists($temp & "\RunFirefox.exe") Then
 				FileMove(@ScriptFullPath, @ScriptDir & "\" & @ScriptName & ".bak", 9)
-				FileMove($temp & "\MyFirefox.exe", @ScriptFullPath, 9)
+				FileMove($temp & "\RunFirefox.exe", @ScriptFullPath, 9)
 				FileDelete($file)
 				DirCopy($temp, @ScriptDir, 1)
 				$UpdateSuccessful = 1
@@ -418,11 +429,11 @@ Func CheckAppUpdate()
 			$error = "下载更新文件失败。"
 		EndIf
 		If $UpdateSuccessful Then
-			MsgBox(64, "MyFirefox", "MyFirefox 已更新至 " & $LatestAppVer & " ！" & @CRLF & "原 MyFirefox 已备份为 " & @ScriptName & ".bak。")
+			MsgBox(64, "RunFirefox", "RunFirefox 已更新至 " & $LatestAppVer & " ！" & @CRLF & "原 RunFirefox 已备份为 " & @ScriptName & ".bak。")
 		Else
-			$msg = MsgBox(20, "MyFirefox", "MyFirefox 自动更新失败：" & @CRLF & $error & @CRLF & @CRLF & "是否去软件发布页手动下载 MyFirefox？")
+			$msg = MsgBox(20, "RunFirefox", "RunFirefox 自动更新失败：" & @CRLF & $error & @CRLF & @CRLF & "是否去软件发布页手动下载 RunFirefox？")
 			If $msg = 6 Then ; Yes
-				ShellExecute("http://code.taobao.org/p/MyFirefox/src/release/")
+				ShellExecute("https://github.com/benzBrake/RunFirefox")
 			EndIf
 		EndIf
 	EndIf
@@ -433,8 +444,8 @@ EndFunc   ;==>CheckAppUpdate
 
 
 Func DeleteCfgFiles()
-	FileDelete($FirefoxDir & "\defaults\pref\myfirefox.js")
-	FileDelete($FirefoxDir & "\myfirefox.cfg")
+	FileDelete($FirefoxDir & "\defaults\pref\runfirefox.js")
+	FileDelete($FirefoxDir & "\runfirefox.cfg")
 EndFunc   ;==>DeleteCfgFiles
 
 Func CheckPrefs()
@@ -533,7 +544,7 @@ Func CheckPinnedPrograms($browser_path)
 							If $shortcut_appid Then
 								$AppUserModelId = $shortcut_appid
 							Else ; if no window appid found,set an id for the window
-								$AppUserModelId = "MyFirefox." & StringTrimLeft(_WinAPI_HashString(@ScriptFullPath, 0, 16), 2)
+								$AppUserModelId = "RunFirefox." & StringTrimLeft(_WinAPI_HashString(@ScriptFullPath, 0, 16), 2)
 							EndIf
 						EndIf
 						_WindowAppId($hWnd_browser, $AppUserModelId)
@@ -659,6 +670,66 @@ Func CheckDefaultBrowser($BrowserPath)
 	EndIf
 EndFunc   ;==>CheckDefaultBrowser
 
+Func UpdateAddonStarup()
+	; Extract mozlz4
+	Local $mozlz4Exe, $addonStarup, $addonStarupLz4
+	If @OSArch = "X86" Then
+		$mozlz4Exe = @ScriptDir & "\" & "mozlz4-win32.exe"
+		FileInstall("mozlz4-win32.exe", $mozlz4Exe)
+	Else
+		$mozlz4Exe = @ScriptDir & "\" & "mozlz4-win64.exe"
+		FileInstall("mozlz4-win32.exe", $mozlz4Exe)
+	EndIf
+
+	$addonStarupLz4 = $ProfileDir & "\" & "addonStartup.json.lz4";
+	$addonStarup = $ProfileDir & "\" & "addonStartup.json";
+	
+	; Extract addonStartup.json.lz4
+	If FileExists($addonStarupLz4) Then
+		FileDelete($addonStarup);
+		RunWait($mozlz4Exe & ' ' & $addonStarupLz4 & ' ' & $addonStarup, @ScriptDir, @SW_HIDE);
+	EndIf
+
+	If FileExists($addonStarup) Then
+		Local $fileOpen, $fileContent, $matches
+		$fileOpen = FileOpen($addonStarup, $FO_READ)
+			If $fileOpen = -1 Then
+			Return SetError(1, 0, "An error occurred when reading the file " & $addonStarup)
+		EndIf
+		$fileContent = FileRead($fileOpen)
+		FileClose($fileOpen)
+		$matches = StringRegExp($fileContent, 'jar:file[^"]+', $STR_REGEXPARRAYGLOBALMATCH)
+		For $i = 0 to UBound($matches) -1
+			; 替换有所文件地址﻿
+			Local $prevPath = $matches[$i];
+			Local $tempPath = StringReplace($prevPath, "jar:file:///", "")
+			$tempPath = StringReplace($tempPath, "!/", "")
+			Local $dir, $name, $newPath = ""
+			SplitPath($tempPath, $dir, $name, "/")
+			If (_StringEndsWith($dir, "/browser/features")) Then
+				$newPath = "jar:file:///" & $FirefoxDir & "/browser/features/" & $name & "!/";
+			EndIf
+			If (_StringEndsWith($dir, "/extensions")) Then
+				$newPath = "jar:file:///" & $ProfileDir & "/extensions/" & $name & "!/";
+			EndIf
+			If $newPath <> "" Then
+				$newPath = StringReplace($newPath, "\", "/")
+				$fileContent = StringReplace($fileContent, $prevPath, $newPath)
+			EndIf
+		Next
+		$fileOpen = FileOpen($addonStarup, $FO_OVERWRITE)
+			If $fileOpen = -1 Then
+			Return SetError(1, 0, "An error occurred when reading the file " & $addonStarup)
+		EndIf
+		FileWrite($fileOpen, $fileContent)
+		FileClose($fileOpen)
+		RunWait($mozlz4Exe & ' -z ' & $addonStarup & ' ' & $addonStarupLz4, @ScriptDir, @SW_HIDE);
+		FileDelete($addonStarup)
+	EndIf
+	
+	FileDelete(@ScriptDir & "\" & "mozlz4-win32.exe")
+	FileDelete(@ScriptDir & "\" & "mozlz4-win64.exe")
+EndFunc
 
 Func Settings()
 	$DefaultProfDir = IniRead(@AppDataDir & '\Mozilla\Firefox\profiles.ini', 'Profile0', 'Path', '') ; 读取Firefox原版配置文件夹路径
@@ -668,12 +739,12 @@ Func Settings()
 	EndIf
 
 	Opt("ExpandEnvStrings", 0)
-	$hSettings = GUICreate("MyFirefox - 打造自己的 Firefox 便携版", 500, 490)
+	$hSettings = GUICreate("RunFirefox - 打造自己的 Firefox 便携版", 500, 490)
 	GUISetOnEvent($GUI_EVENT_CLOSE, "ExitApp")
-	GUICtrlCreateLabel("MyFirefox " & $AppVersion & " by 甲壳虫 <jdchenjian@gmail.com>", 5, 10, 490, -1, $SS_CENTER)
+	GUICtrlCreateLabel("RunFirefox " & $AppVersion & " by Ryan <github-benzBrake@woai.ru>", 5, 10, 490, -1, $SS_CENTER)
 	GUICtrlSetCursor(-1, 0)
 	GUICtrlSetColor(-1, 0x0000FF)
-	GUICtrlSetTip(-1, "点击打开 MyFirefox 主页")
+	GUICtrlSetTip(-1, "点击打开 RunFirefox 主页")
 	GUICtrlSetOnEvent(-1, "Website")
 
 	;常规
@@ -720,11 +791,11 @@ Func Settings()
 	GUICtrlSetOnEvent(-1, "GetProfileDir")
 	$hCopyProfile = GUICtrlCreateCheckbox(" 从系统中提取 Firefox 配置文件", 30, 240, -1, 20)
 
-	$hCheckAppUpdate = GUICtrlCreateCheckbox(" MyFirefox 发布新版时通知我", 20, 360)
+	$hCheckAppUpdate = GUICtrlCreateCheckbox(" RunFirefox 发布新版时通知我", 20, 360)
 	If $CheckAppUpdate Then
 		GUICtrlSetState(-1, $GUI_CHECKED)
 	EndIf
-	$hRunInBackground = GUICtrlCreateCheckbox(" MyFirefox 在后台运行直至浏览器退出", 20, 390)
+	$hRunInBackground = GUICtrlCreateCheckbox(" RunFirefox 在后台运行直至浏览器退出", 20, 390)
 	GUICtrlSetOnEvent(-1, "RunInBackground")
 	If $RunInBackground Then
 		GUICtrlSetState($hRunInBackground, $GUI_CHECKED)
@@ -758,7 +829,7 @@ Func Settings()
 	If $Params <> "" Then
 		GUICtrlSetData(-1, StringReplace($Params, " -", @CRLF & "-"))
 	EndIf
-	GUICtrlSetTip(-1, "Firefox 命令行参数，每行写一个参数。" & @CRLF & "支持%TEMP%等环境变量，" & @CRLF & "特别地，%APP%代表 MyFirefox 所在目录")
+	GUICtrlSetTip(-1, "Firefox 命令行参数，每行写一个参数。" & @CRLF & "支持%TEMP%等环境变量，" & @CRLF & "特别地，%APP%代表 RunFirefox 所在目录")
 
 	; 外部程序
 	GUICtrlCreateTabItem("外部程序")
@@ -887,7 +958,7 @@ Func DownloadFirefox()
 	EndIf
 
 	ClipPut($FirefoxURL)
-	Local $msg = MsgBox(65, "MyFirefox", "请下载 Firefox 安装包，用 WinRAR、7z 等解压软件打开安装包，" & _
+	Local $msg = MsgBox(65, "RunFirefox", "请下载 Firefox 安装包，用 WinRAR、7z 等解压软件打开安装包，" & _
 			"将其中的 core 文件夹提取出来，即得到 Firefox 便携版所需的程序文件。" & @CRLF & @CRLF & _
 			'下载地址已复制到剪贴板，点击"确定"将在浏览器中打开下载页面。', 0, $hSettings)
 	If $msg = 1 Then
@@ -899,9 +970,9 @@ Func RunInBackground()
 	If GUICtrlRead($hRunInBackground) = $GUI_CHECKED Then
 		Return
 	EndIf
-	Local $msg = MsgBox(36 + 256, "MyFirefox", '允许 MyFirefox 在后台运行可以带来更好的用户体验。若取消此选项，请注意以下几点：' & @CRLF & @CRLF & _
-			'1. 将浏览器锁定到任务栏或设为默认浏览器后，需再运行一次 MyFirefox 才能生效；' & @CRLF & _
-			'2. MyFirefox 设置界面中带“#”符号的功能/选项将不会执行，包括浏览器退出后关闭外部程序、运行外部程序等。' & @CRLF & @CRLF & _
+	Local $msg = MsgBox(36 + 256, "RunFirefox", '允许 RunFirefox 在后台运行可以带来更好的用户体验。若取消此选项，请注意以下几点：' & @CRLF & @CRLF & _
+			'1. 将浏览器锁定到任务栏或设为默认浏览器后，需再运行一次 RunFirefox 才能生效；' & @CRLF & _
+			'2. RunFirefox 设置界面中带“#”符号的功能/选项将不会执行，包括浏览器退出后关闭外部程序、运行外部程序等。' & @CRLF & @CRLF & _
 			'确定要取消此选项吗？', 0, $hSettings)
 	If $msg <> 6 Then
 		GUICtrlSetState($hRunInBackground, $GUI_CHECKED)
@@ -988,7 +1059,7 @@ Func SettingsApply()
 
 	;Firefox path
 	If Not FileExists($FirefoxPath) Then
-		MsgBox(16, "MyFirefox", "Firefox 路径错误，请重新设置。" & @CRLF & @CRLF & $FirefoxPath, 0, $hSettings)
+		MsgBox(16, "RunFirefox", "Firefox 路径错误，请重新设置。" & @CRLF & @CRLF & $FirefoxPath, 0, $hSettings)
 		GUICtrlSetState($hFirefoxPath, $GUI_FOCUS)
 		Return SetError(1)
 	EndIf
@@ -999,12 +1070,12 @@ Func SettingsApply()
 	Local $var = FileRead($ChannelPath)
 	If Not StringInStr($var, 'pref("app.update.channel", "' & $Channel & '");') Then
 		FileDelete($ChannelPath)
-		FileWrite($ChannelPath, '// Changed by MyFirefox' & @CRLF & 'pref("app.update.channel", "' & $Channel & '");' & @CRLF)
+		FileWrite($ChannelPath, '// Changed by RunFirefox' & @CRLF & 'pref("app.update.channel", "' & $Channel & '");' & @CRLF)
 	EndIf
 
 	;profiles dir
 	If $ProfileDir = "" Then
-		MsgBox(16, "MyFirefox", "请设置配置文件夹！", 0, $hSettings)
+		MsgBox(16, "RunFirefox", "请设置配置文件夹！", 0, $hSettings)
 		GUICtrlSetState($hProfileDir, $GUI_FOCUS)
 		Return SetError(2)
 	ElseIf Not FileExists($ProfileDir) Then
@@ -1014,11 +1085,11 @@ Func SettingsApply()
 	; 提取Firefox原版配置文件
 	If GUICtrlRead($hCopyProfile) = $GUI_CHECKED Then
 		While ProfileInUse($ProfileDir)
-			$msg = MsgBox(49, "MyFirefox", "浏览器正运行，无法提取配置文件！" & @CRLF & "请关闭 Firefox 后继续。", 0, $hSettings)
+			$msg = MsgBox(49, "RunFirefox", "浏览器正运行，无法提取配置文件！" & @CRLF & "请关闭 Firefox 后继续。", 0, $hSettings)
 			If $msg <> 1 Then ExitLoop
 		WEnd
 		If $msg = 1 Then
-			SplashTextOn("MyFirefox", "正在提取配置文件，请稍候 ...", 300, 100)
+			SplashTextOn("RunFirefox", "正在提取配置文件，请稍候 ...", 300, 100)
 			Local $var = DirCopy($DefaultProfDir, $ProfileDir, 1)
 			SplashOff()
 			If $var Then
@@ -1038,7 +1109,7 @@ EndFunc   ;==>SettingsApply
 
 ;~ 打开网站
 Func Website()
-	ShellExecute("http://code.taobao.org/p/MyFirefox/wiki/index/")
+	ShellExecute("https://github.com/benzBrake/RunFirefox")
 EndFunc   ;==>Website
 
 
@@ -1088,16 +1159,17 @@ EndFunc   ;==>ProfileInUse
 ; #FUNCTION# ;===============================================================================
 ; Name...........: SplitPath
 ; Description ...: 路径分割
-; Syntax.........: SplitPath($path, ByRef $dir, ByRef $file)
+; Syntax.........: SplitPath($path, ByRef $dir, ByRef $file, [...$spliter])
 ;                  $path - 路径
 ;                  $dir - 目录
 ;                  $file - 文件名
 ; Return values .: Success -
 ;                  Failure -
 ; Author ........: 甲壳虫
+; Mode ..........: Ryan
 ;============================================================================================
-Func SplitPath($path, ByRef $dir, ByRef $file)
-	Local $pos = StringInStr($path, "\", 0, -1)
+Func SplitPath($path, ByRef $dir, ByRef $file, $spliter = "\")
+	Local $pos = StringInStr($path, $spliter, 0, -1)
 	If $pos = 0 Then
 		$dir = "."
 		$file = $path

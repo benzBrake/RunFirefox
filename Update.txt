@@ -1,7 +1,0 @@
-﻿
-latest=2.6.7
-url=http://code.taobao.org/svn/MyFirefox/release/MyFirefox_v2.6.7.zip
-update=修正无效的 Firefox 下载链接。
-latest_x64=2.6.7
-url_x64=http://code.taobao.org/svn/MyFirefox/release/MyFirefox_v2.6.7_x64.zip
-update_x64=修正无效的 Firefox 下载链接。

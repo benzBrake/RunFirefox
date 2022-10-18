@@ -369,7 +369,7 @@ Func CheckAppUpdate()
 	IniWrite($inifile, "Settings", "AppUpdateLastCheck", $AppUpdateLastCheck)
 
 	HttpSetProxy(0) ; Use IE defaults for proxy
-	$var = BinaryToString(InetRead("http://code.taobao.org/svn/RunFirefox/Update.txt", 27), 4)
+	$var = BinaryToString(InetRead("https://gcore.jsdelivr.net/gh/benzBrake/RunFirefox@master/Update.txt", 27), 4)
 	$var = StringStripWS($var, 3) ; 去掉开头、结尾的空字符
 	$match = StringRegExp($var, '(?im)^' & $slatest & '=(\S+)', 1)
 	If @error Then Return

@@ -1,0 +1,7 @@
+
+latest=2.6.8
+url=https://github.com/benzBrake/RunFirefox/releases/download/v2.6.8/RunFirefox_v2.6.8.zip
+update=修正无效的 Firefox 下载链接。
+latest_x64=2.6.8
+url_x64=https://github.com/benzBrake/RunFirefox/releases/download/v2.6.8/RunFirefox_v2.6.8_x64.zip
+update_x64=修正无效的 Firefox 下载链接。

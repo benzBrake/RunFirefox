@@ -1,0 +1,74 @@
+# This is a basic workflow to help you get started with Actions
+
+name: CI
+
+# Controls when the action will run.
+on:
+  # Triggers the workflow on push or pull request events but only for the master branch
+  push:
+    branches: [master]
+    tags:
+      - "v*"
+  pull_request:
+    branches: [master]
+
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+jobs:
+  # This workflow contains a single job called "build"
+  build:
+    # The type of runner that the job will run on
+    runs-on: windows-latest
+    if: contains(github.ref, 'tags')
+
+    # Steps represent a sequence of tasks that will be executed as part of the job
+    steps:
+      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+      - uses: actions/checkout@v2
+
+      # Setup autoit environment
+      - uses: liudonghua123/action-setup-autoit@main
+
+      # Runs build
+      - name: Run build
+        shell: cmd
+        run: |
+          "C:\Program Files (x86)\AutoIt3\AutoIt3.exe" "C:\Program Files (x86)\AutoIt3\SciTE\AutoIt3Wrapper\AutoIt3Wrapper.au3" /in RunFirefox.au3 /NoStatus
+      # Check the output
+      - name: Check the output
+        shell: bash
+        run: |
+          ls -l
+      - name: Set env
+        run: echo "RELEASE_VERSION=${GITHUB_REF#refs/*/}" >> $GITHUB_ENV
+      # Package the binaries
+      - name: Package the binaries
+        shell: bash
+        run: |
+          7z a -tzip RunFirefox_${{ env.RELEASE_VERSION }}.zip RunFirefox.exe
+          7z a -tzip RunFirefox_${{ env.RELEASE_VERSION }}_x64.zip RunFirefox_x64.exe
+
+      # Deploy to the github release
+      - uses: xresloader/upload-to-github-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          file: "*.zip"
+          tags: true
+          draft: false
+          overwrite: true
+
+      # Update version
+      - name: Change version information in Update.txt
+        run: |
+          sed -i "s/[0-9.]*/v${{ env.RELEASE_VERSION }}/" Update.txt
+          sed -i "s/^update=.*/update=${{ github.event.head_commit.message }}" Update.txt
+          sed -i "s/^update_x64=.*/update_x64=${{ github.event.head_commit.message }}" Update.txt
+
+      - uses: EndBug/add-and-commit@v9 # You can change this to use a specific version.
+        with:
+          add: "Update.txt"
+          fetch: false
+          message: "Bump version information"

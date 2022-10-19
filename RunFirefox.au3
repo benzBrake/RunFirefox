@@ -43,7 +43,7 @@
 Opt("GUIOnEventMode", 1)
 Opt("WinTitleMatchMode", 4)
 
-Global Const $AppVersion = "2.6.8" ; 版本
+Global Const $AppVersion = "2.6.9" ; 版本
 Global $FirstRun, $FirefoxExe, $FirefoxDir
 Global $TaskBarDir = @AppDataDir & "\Microsoft\Internet Explorer\Quick Launch\User Pinned\TaskBar"
 Global $AppPID, $TaskBarLastChange

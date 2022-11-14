@@ -1,13 +1,13 @@
 ﻿#NoTrayIcon
 #Region ;**** 由 AccAu3Wrapper_GUI 创建指令 ****
-#AutoIt3Wrapper_Icon=FireDoge.ico
+#AutoIt3Wrapper_Icon=Firefox.ico
 #AutoIt3Wrapper_Outfile=RunFirefox.exe
 #AutoIt3Wrapper_Outfile_x64=RunFirefox_x64.exe
 #AutoIt3Wrapper_UseUpx=y
 #AutoIt3Wrapper_Compile_Both=y
 #AutoIt3Wrapper_Res_Comment=Firefox Portable
 #AutoIt3Wrapper_Res_Description=Firefox Portable
-#AutoIt3Wrapper_Res_Fileversion=2.7.0.0
+#AutoIt3Wrapper_Res_Fileversion=2.7.1.0
 #AutoIt3Wrapper_Res_LegalCopyright=Ryan <github-benzBrake@woai.ru>
 #AutoIt3Wrapper_Res_Language=2052
 #AutoIt3Wrapper_Res_requestedExecutionLevel=None
@@ -43,7 +43,7 @@
 Opt("GUIOnEventMode", 1)
 Opt("WinTitleMatchMode", 4)
 
-Global Const $AppVersion = "2.6.9" ; 版本
+Global Const $AppVersion = "2.7.1" ; 版本
 Global $FirstRun, $FirefoxExe, $FirefoxDir
 Global $TaskBarDir = @AppDataDir & "\Microsoft\Internet Explorer\Quick Launch\User Pinned\TaskBar"
 Global $AppPID, $TaskBarLastChange

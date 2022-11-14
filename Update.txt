@@ -1,7 +1,7 @@
 
-latest=2.6.9
-url=https://github.com/benzBrake/RunFirefox/releases/download/v2.6.9/RunFirefox_v2.6.9.zip
-update=修复可能引起 userChrome.js 环境失效的问题
-latest_x64=2.6.9
-url_x64=https://github.com/benzBrake/RunFirefox/releases/download/v2.6.9/RunFirefox_v2.6.9_x64.zip
-update_x64=修复可能引起 userChrome.js 环境失效的问题
+latest={VERSION}
+url=https://github.com/benzBrake/RunFirefox/releases/download/v{VERSION}/RunFirefox_v{VERSION}.zip
+update={MESSAGE}
+latest_x64={VERSION}
+url_x64=https://github.com/benzBrake/RunFirefox/releases/download/v{VERSION}/RunFirefox_v{VERSION}_x64.zip
+update_x64={MESSAGE}

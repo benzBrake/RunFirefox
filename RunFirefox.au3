@@ -7,7 +7,7 @@
 #AutoIt3Wrapper_Compile_Both=y
 #AutoIt3Wrapper_Res_Comment=Firefox Portable
 #AutoIt3Wrapper_Res_Description=Firefox Portable
-#AutoIt3Wrapper_Res_Fileversion=2.6.9.0
+#AutoIt3Wrapper_Res_Fileversion=2.7.0.0
 #AutoIt3Wrapper_Res_LegalCopyright=Ryan <github-benzBrake@woai.ru>
 #AutoIt3Wrapper_Res_Language=2052
 #AutoIt3Wrapper_Res_requestedExecutionLevel=None
@@ -680,6 +680,7 @@ Func UpdateAddonStarup()
 
 	$addonStarupLz4 = $ProfileDir & "\" & "addonStartup.json.lz4";
 	$addonStarup = $ProfileDir & "\" & "addonStartup.json";
+	$extensions = $ProfileDir & "\" & "extensions.json";
 	
 	; Extract addonStartup.json.lz4
 	If FileExists($addonStarupLz4) Then
@@ -690,42 +691,74 @@ Func UpdateAddonStarup()
 	If FileExists($addonStarup) Then
 		Local $fileOpen, $fileContent, $matches
 		$fileOpen = FileOpen($addonStarup, $FO_READ)
-			If $fileOpen = -1 Then
-			Return SetError(1, 0, "An error occurred when reading the file " & $addonStarup)
+		If $fileOpen <> -1 Then
+			$fileContent = FileRead($fileOpen)
+			FileClose($fileOpen)
+			$fileContent = ReplaceDirectory($fileContent)
+			$fileOpen = FileOpen($addonStarup, $FO_OVERWRITE)
+			If $fileOpen <> -1 Then
+				FileWrite($fileOpen, $fileContent)
+				FileClose($fileOpen)
+				RunWait($mozlz4Exe & ' -z ' & $addonStarup & ' ' & $addonStarupLz4, @ScriptDir, @SW_HIDE);
+			EndIf
 		EndIf
-		$fileContent = FileRead($fileOpen)
-		FileClose($fileOpen)
-		$matches = StringRegExp($fileContent, 'jar:file[^"]+', $STR_REGEXPARRAYGLOBALMATCH)
-		For $i = 0 to UBound($matches) -1
-			; 替换有所文件地址﻿
-			Local $prevPath = $matches[$i];
-			Local $tempPath = StringReplace($prevPath, "jar:file:///", "")
-			$tempPath = StringReplace($tempPath, "!/", "")
-			Local $dir, $name, $newPath = ""
-			SplitPath($tempPath, $dir, $name, "/")
-			If (_StringEndsWith($dir, "/browser/features")) Then
-				$newPath = "jar:file:///" & $FirefoxDir & "/browser/features/" & $name & "!/";
-			EndIf
-			If (_StringEndsWith($dir, "/extensions")) Then
-				$newPath = "jar:file:///" & $ProfileDir & "/extensions/" & $name & "!/";
-			EndIf
-			If $newPath <> "" Then
-				$newPath = StringReplace($newPath, "\", "/")
-				$fileContent = StringReplace($fileContent, $prevPath, $newPath)
-			EndIf
-		Next
-		$fileOpen = FileOpen($addonStarup, $FO_OVERWRITE)
-			If $fileOpen = -1 Then
-			Return SetError(1, 0, "An error occurred when reading the file " & $addonStarup)
-		EndIf
-		FileWrite($fileOpen, $fileContent)
-		FileClose($fileOpen)
-		RunWait($mozlz4Exe & ' -z ' & $addonStarup & ' ' & $addonStarupLz4, @ScriptDir, @SW_HIDE);
 		FileDelete($addonStarup)
 	EndIf
 	
+	If FileExists($extensions) Then
+		Local $fileOpen, $fileContent, $matches
+		$fileOpen = FileOpen($extensions, $FO_READ)
+		If $fileOpen <> -1 Then
+			$fileContent = FileRead($fileOpen)
+			FileClose($fileOpen)
+			$fileContent = ReplaceDirectory($fileContent)
+			$fileOpen = FileOpen($extensions, $FO_OVERWRITE)
+			If $fileOpen <> -1 Then
+				FileWrite($fileOpen, $fileContent)
+				FileClose($fileOpen)
+			EndIf
+		EndIf
+	EndIf
 	FileDelete(@ScriptDir & "\" & "mozlz4-win32.exe")
 	FileDelete(@ScriptDir & "\" & "mozlz4-win64.exe")
+EndFunc
+
+Func ReplaceDirectory($content)
+	Local $matches = StringRegExp($content, 'jar:file[^"]+', $STR_REGEXPARRAYGLOBALMATCH)
+	For $i = 0 to UBound($matches) -1
+		; 替换有所文件地址
+		Local $prevPath = $matches[$i];
+		Local $tempPath = StringReplace($prevPath, "jar:file:///", "")
+		$tempPath = StringReplace($tempPath, "!/", "")
+		Local $dir, $name, $newPath = ""
+		SplitPath($tempPath, $dir, $name, "/")
+		If (_StringEndsWith($dir, "/browser/features")) Then
+			$newPath = "jar:file:///" & $FirefoxDir & "/browser/features/" & $name & "!/";
+		EndIf
+		If (_StringEndsWith($dir, "/extensions")) Then
+			$newPath = "jar:file:///" & $ProfileDir & "/extensions/" & $name & "!/";
+		EndIf
+		If $newPath <> "" Then
+			$newPath = StringReplace($newPath, "\", "/")
+			$content = StringReplace($content, $prevPath, $newPath)
+		EndIf
+	Next
+	$matches = StringRegExp($content, '"path":"[^"]*', $STR_REGEXPARRAYGLOBALMATCH)
+		For $i = 0 to UBound($matches) -1
+			; 替换有所文件地址
+			Local $prevPath = $matches[$i];
+			Local $tempPath = StringReplace($prevPath, '"path":"', "")
+			Local $dir, $name, $newPath = ""
+			SplitPath($tempPath, $dir, $name, "\\")
+			If (_StringEndsWith($dir, "\\extensions")) Then
+				$newPath = $ProfileDir & "\extensions\" & $name
+				$newPath = StringReplace($newPath, "\", "\\")
+			EndIf
+			If $newPath <> "" Then
+				$content = StringReplace($content, $prevPath, $newPath)
+			EndIf
+		Next
+	return $content
 EndFunc
 
 Func Settings()

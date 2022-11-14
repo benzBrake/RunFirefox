@@ -94,7 +94,7 @@ jobs:
           sed -i "s/{VERSION}/${{ steps.get_version.outputs.VERSION }}/g" Update_FireDoge.txt
           sed -i "s/{MESSAGE}/update=${{ github.event.head_commit.message }}/g" Update_RunFloorp.txt
           sed -i "s/RunFirefox/FireDoge/g" Update_FireDoge.txt
-          sed -i "s/{VERSION}/${{ steps.get_version.outputs.VERSION }}/g" Update_FireDoge.txt
+          sed -i "s/{VERSION}/${{ steps.get_version.outputs.VERSION }}/g" Update_RunFloorp.txt
           sed -i "s/{MESSAGE}/update=${{ github.event.head_commit.message }}/g" Update_RunFloorp.txt
           sed -i "s/RunFirefox/RunFloorp/g" Update_RunFloorp.txt
 

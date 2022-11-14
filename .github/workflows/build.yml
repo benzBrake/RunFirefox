@@ -31,11 +31,27 @@ jobs:
       # Setup autoit environment
       - uses: liudonghua123/action-setup-autoit@main
 
+      # Duplicate script for other icons
+      - name: Duplicate scripts
+        shell: bash
+        run: |
+          cp RunFirefox.au3 FireDoge.au3
+          cp RunFirefox.au3 RunFloorp.au3
+          sed -i "s/Firefox.ico/FireDoge.ico/" FireDoge.au3
+          sed -i "s/Update.txt/Update_FireDoge.txt/" FireDoge.au3
+          sed -i "s/RunFirefox.exe/FireDoge.exe/" FireDoge.au3
+          sed -i "s/RunFirefox_x64.exe/FireDoge_x64.exe/" FireDoge.au3
+          sed -i "s/Firefox.ico/Floorp.ico/" RunFloorp.au3
+          sed -i "s/Update.txt/Update_RunFloop.txt/" RunFloorp.au3
+          sed -i "s/RunFirefox.exe/RunFloorp.exe/" RunFloorp.au3
+          sed -i "s/RunFirefox_x64.exe/RunFloorp_x64.exe/" RunFloorp.au3
       # Runs build
-      - name: Run build
+      - name: Build scripts
         shell: cmd
         run: |
           "C:\Program Files (x86)\AutoIt3\AutoIt3.exe" "C:\Program Files (x86)\AutoIt3\SciTE\AutoIt3Wrapper\AutoIt3Wrapper.au3" /in RunFirefox.au3 /NoStatus
+          "C:\Program Files (x86)\AutoIt3\AutoIt3.exe" "C:\Program Files (x86)\AutoIt3\SciTE\AutoIt3Wrapper\AutoIt3Wrapper.au3" /in FireDoge.au3 /NoStatus
+          "C:\Program Files (x86)\AutoIt3\AutoIt3.exe" "C:\Program Files (x86)\AutoIt3\SciTE\AutoIt3Wrapper\AutoIt3Wrapper.au3" /in RunFloorp.au3 /NoStatus
       # Check the output
       - name: Check the output
         shell: bash
@@ -51,6 +67,10 @@ jobs:
         run: |
           7z a -tzip RunFirefox_${{ steps.get_version.outputs.VERSION }}.zip RunFirefox.exe
           7z a -tzip RunFirefox_${{ steps.get_version.outputs.VERSION }}_x64.zip RunFirefox_x64.exe
+          7z a -tzip FireDoge_${{ steps.get_version.outputs.VERSION }}.zip FireDoge.exe
+          7z a -tzip FireDoge_${{ steps.get_version.outputs.VERSION }}_x64.zip FireDoge_x64.exe
+          7z a -tzip RunFloorp_${{ steps.get_version.outputs.VERSION }}.zip RunFloorp.exe
+          7z a -tzip RunFloorp_${{ steps.get_version.outputs.VERSION }}_x64.zip RunFloorp_x64.exe
 
       # Deploy to the github release
       - uses: xresloader/upload-to-github-release@v1
@@ -65,12 +85,22 @@ jobs:
       # Update version
       - name: Change version information in Update.txt
         run: |
-          sed -i "s/[0-9.]*/${{ steps.get_version.outputs.VERSION }}/" Update.txt
-          sed -i "s/^update=.*/update=${{ github.event.head_commit.message }}/" Update.txt
-          sed -i "s/^update_x64=.*/update_x64=${{ github.event.head_commit.message }}/" Update.txt
+          rm Update.txt
+          rm Update_FireDoge.txt
+          rm Update_RunFloorp.txt
+          cp Update_Template.txt Update.txt
+          cp Update_Template.txt Update_FireDoge.txt
+          cp Update_Template.txt Update_RunFloorp.txt
+          sed -i "s/{VERSION}/${{ steps.get_version.outputs.VERSION }}/g" Update_FireDoge.txt
+          sed -i "s/{MESSAGE}/update=${{ github.event.head_commit.message }}/g" Update_RunFloorp.txt
+          sed -i "s/RunFirefox/FireDoge/g" Update_FireDoge.txt
+          sed -i "s/{VERSION}/${{ steps.get_version.outputs.VERSION }}/g" Update_FireDoge.txt
+          sed -i "s/{MESSAGE}/update=${{ github.event.head_commit.message }}/g" Update_RunFloorp.txt
+          sed -i "s/RunFirefox/RunFloorp/g" Update_RunFloorp.txt
 
       - uses: EndBug/add-and-commit@v9 # You can change this to use a specific version.
         with:
-          add: "Update.txt"
+          push: origin HEAD:master
+          add: "*.txt"
           fetch: false
-          message: "Bump version information"
+          message: "Bump update information"

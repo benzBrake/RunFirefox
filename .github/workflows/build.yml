@@ -91,16 +91,16 @@ jobs:
           cp Update_Template.txt Update.txt
           cp Update_Template.txt Update_FireDoge.txt
           cp Update_Template.txt Update_RunFloorp.txt
-          sed -i "s/{VERSION}/${{ steps.get_version.outputs.VERSION }}/g" Update_FireDoge.txt
-          sed -i "s/{MESSAGE}/update=${{ github.event.head_commit.message }}/g" Update_RunFloorp.txt
+          sed -i "s/EXE_VERSION/${{ steps.get_version.outputs.VERSION }}/g" Update_FireDoge.txt
+          sed -i "s/EXE_MESSAGE/update=${{ github.event.head_commit.message }}/g" Update_RunFloorp.txt
           sed -i "s/RunFirefox/FireDoge/g" Update_FireDoge.txt
-          sed -i "s/{VERSION}/${{ steps.get_version.outputs.VERSION }}/g" Update_RunFloorp.txt
-          sed -i "s/{MESSAGE}/update=${{ github.event.head_commit.message }}/g" Update_RunFloorp.txt
+          sed -i "s/EXE_VERSION/${{ steps.get_version.outputs.VERSION }}/g" Update_RunFloorp.txt
+          sed -i "s/EXE_MESSAGE/update=${{ github.event.head_commit.message }}/g" Update_RunFloorp.txt
           sed -i "s/RunFirefox/RunFloorp/g" Update_RunFloorp.txt
 
       - uses: EndBug/add-and-commit@v9 # You can change this to use a specific version.
         with:
           push: origin HEAD:master
           add: "*.txt"
-          fetch: false
+          fetch: true
           message: "Bump update information"

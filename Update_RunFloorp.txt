@@ -1,7 +1,7 @@
 
-latest={2.7.1}
-url=https://github.com/benzBrake/RunFloorp/releases/download/v{2.7.1}/RunFloorp_v{2.7.1}.zip
-update=update=fix: file not exists
-latest_x64={2.7.1}
-url_x64=https://github.com/benzBrake/RunFloorp/releases/download/v{2.7.1}/RunFloorp_v{2.7.1}_x64.zip
-update_x64=update=fix: file not exists
+latest=2.7.1
+url=https://github.com/benzBrake/RunFloorp/releases/download/v2.7.1/RunFloorp_v2.7.1.zip
+update=update=fix: ci version bump again
+latest_x64=2.7.1
+url_x64=https://github.com/benzBrake/RunFloorp/releases/download/v2.7.1/RunFloorp_v2.7.1_x64.zip
+update_x64=update=fix: ci version bump again

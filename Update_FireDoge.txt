@@ -1,7 +1,7 @@
 
-latest={2.7.1}
-url=https://github.com/benzBrake/FireDoge/releases/download/v{2.7.1}/FireDoge_v{2.7.1}.zip
-update={MESSAGE}
-latest_x64={2.7.1}
-url_x64=https://github.com/benzBrake/FireDoge/releases/download/v{2.7.1}/FireDoge_v{2.7.1}_x64.zip
-update_x64={MESSAGE}
+latest=2.7.1
+url=https://github.com/benzBrake/FireDoge/releases/download/v2.7.1/FireDoge_v2.7.1.zip
+update=EXE_MESSAGE
+latest_x64=2.7.1
+url_x64=https://github.com/benzBrake/FireDoge/releases/download/v2.7.1/FireDoge_v2.7.1_x64.zip
+update_x64=EXE_MESSAGE

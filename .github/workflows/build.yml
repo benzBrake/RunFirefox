@@ -26,7 +26,7 @@ jobs:
     # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
 
       # Setup autoit environment
       - uses: liudonghua123/action-setup-autoit@main
@@ -41,14 +41,16 @@ jobs:
         shell: bash
         run: |
           ls -l
-      - name: Set env
-        run: echo "RELEASE_VERSION=${GITHUB_REF#refs/*/}" >> $GITHUB_ENV
+      - name: Get the version
+        id: get_version
+        run: echo ::set-output name=VERSION::${GITHUB_REF#*\/v}
+        shell: bash
       # Package the binaries
       - name: Package the binaries
         shell: bash
         run: |
-          7z a -tzip RunFirefox_${{ env.RELEASE_VERSION }}.zip RunFirefox.exe
-          7z a -tzip RunFirefox_${{ env.RELEASE_VERSION }}_x64.zip RunFirefox_x64.exe
+          7z a -tzip RunFirefox_${{ steps.get_version.outputs.VERSION }}.zip RunFirefox.exe
+          7z a -tzip RunFirefox_${{ steps.get_version.outputs.VERSION }}_x64.zip RunFirefox_x64.exe
 
       # Deploy to the github release
       - uses: xresloader/upload-to-github-release@v1
@@ -63,9 +65,9 @@ jobs:
       # Update version
       - name: Change version information in Update.txt
         run: |
-          sed -i "s/[0-9.]*/v${{ env.RELEASE_VERSION }}/" Update.txt
-          sed -i "s/^update=.*/update=${{ github.event.head_commit.message }}" Update.txt
-          sed -i "s/^update_x64=.*/update_x64=${{ github.event.head_commit.message }}" Update.txt
+          sed -i "s/[0-9.]*/${{ steps.get_version.outputs.VERSION }}/" Update.txt
+          sed -i "s/^update=.*/update=${{ github.event.head_commit.message }}/" Update.txt
+          sed -i "s/^update_x64=.*/update_x64=${{ github.event.head_commit.message }}/" Update.txt
 
       - uses: EndBug/add-and-commit@v9 # You can change this to use a specific version.
         with:

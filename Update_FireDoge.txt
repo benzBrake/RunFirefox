@@ -1,7 +1,7 @@
 
 latest=2.7.1
-url=https://github.com/benzBrake/FireDoge/releases/download/v2.7.1/FireDoge_v2.7.1.zip
-update=EXE_MESSAGE
+url=https://github.com/benzBrake/RunFirefox/releases/download/v2.7.1/FireDoge_v2.7.1.zip
+update尝试修复移位后扩展图标丢失
 latest_x64=2.7.1
-url_x64=https://github.com/benzBrake/FireDoge/releases/download/v2.7.1/FireDoge_v2.7.1_x64.zip
-update_x64=EXE_MESSAGE
+url_x64=https://github.com/benzBrake/RunFirefox/releases/download/v2.7.1/FireDoge_v2.7.1_x64.zip
+update_x64=尝试修复移位后扩展图标丢失

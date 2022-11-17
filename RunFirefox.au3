@@ -7,7 +7,7 @@
 #AutoIt3Wrapper_Compile_Both=y
 #AutoIt3Wrapper_Res_Comment=Firefox Portable
 #AutoIt3Wrapper_Res_Description=Firefox Portable
-#AutoIt3Wrapper_Res_Fileversion=2.7.1.0
+#AutoIt3Wrapper_Res_Fileversion=2.7.2.0
 #AutoIt3Wrapper_Res_LegalCopyright=Ryan <github-benzBrake@woai.ru>
 #AutoIt3Wrapper_Res_Language=2052
 #AutoIt3Wrapper_Res_requestedExecutionLevel=None
@@ -43,7 +43,7 @@
 Opt("GUIOnEventMode", 1)
 Opt("WinTitleMatchMode", 4)
 
-Global Const $AppVersion = "2.7.1" ; 版本
+Global Const $AppVersion = "2.7.2" ; 版本
 Global $FirstRun, $FirefoxExe, $FirefoxDir
 Global $TaskBarDir = @AppDataDir & "\Microsoft\Internet Explorer\Quick Launch\User Pinned\TaskBar"
 Global $AppPID, $TaskBarLastChange
@@ -169,6 +169,7 @@ EndIf
 
 ;~ Fix Addons not Found
 UpdateAddonStarup()
+UpdateExtensionsJson()
 
 ;~ Start Firefox
 $AppPID = Run($FirefoxPath & ' -profile "' & $ProfileDir & '" ' & $Params, $FirefoxDir)
@@ -680,7 +681,6 @@ Func UpdateAddonStarup()
 
 	$addonStarupLz4 = $ProfileDir & "\" & "addonStartup.json.lz4";
 	$addonStarup = $ProfileDir & "\" & "addonStartup.json";
-	$extensions = $ProfileDir & "\" & "extensions.json";
 	
 	; Extract addonStartup.json.lz4
 	If FileExists($addonStarupLz4) Then
@@ -694,7 +694,7 @@ Func UpdateAddonStarup()
 		If $fileOpen <> -1 Then
 			$fileContent = FileRead($fileOpen)
 			FileClose($fileOpen)
-			$fileContent = ReplaceDirectory($fileContent)
+			$fileContent = ReplaceJarPath($fileContent)
 			$fileOpen = FileOpen($addonStarup, $FO_OVERWRITE)
 			If $fileOpen <> -1 Then
 				FileWrite($fileOpen, $fileContent)
@@ -704,26 +704,12 @@ Func UpdateAddonStarup()
 		EndIf
 		FileDelete($addonStarup)
 	EndIf
-	
-	If FileExists($extensions) Then
-		Local $fileOpen, $fileContent, $matches
-		$fileOpen = FileOpen($extensions, $FO_READ)
-		If $fileOpen <> -1 Then
-			$fileContent = FileRead($fileOpen)
-			FileClose($fileOpen)
-			$fileContent = ReplaceDirectory($fileContent)
-			$fileOpen = FileOpen($extensions, $FO_OVERWRITE)
-			If $fileOpen <> -1 Then
-				FileWrite($fileOpen, $fileContent)
-				FileClose($fileOpen)
-			EndIf
-		EndIf
-	EndIf
+
 	FileDelete(@ScriptDir & "\" & "mozlz4-win32.exe")
 	FileDelete(@ScriptDir & "\" & "mozlz4-win64.exe")
 EndFunc
 
-Func ReplaceDirectory($content)
+Func ReplaceJarPath($content)
 	Local $matches = StringRegExp($content, 'jar:file[^"]+', $STR_REGEXPARRAYGLOBALMATCH)
 	For $i = 0 to UBound($matches) -1
 		; 替换有所文件地址
@@ -743,22 +729,50 @@ Func ReplaceDirectory($content)
 			$content = StringReplace($content, $prevPath, $newPath)
 		EndIf
 	Next
-	$matches = StringRegExp($content, '"path":"[^"]*', $STR_REGEXPARRAYGLOBALMATCH)
-		For $i = 0 to UBound($matches) -1
-			; 替换有所文件地址
-			Local $prevPath = $matches[$i];
-			Local $tempPath = StringReplace($prevPath, '"path":"', "")
-			Local $dir, $name, $newPath = ""
-			SplitPath($tempPath, $dir, $name, "\\")
-			If (_StringEndsWith($dir, "\\extensions")) Then
-				$newPath = $ProfileDir & "\extensions\" & $name
-				$newPath = StringReplace($newPath, "\", "\\")
-			EndIf
-			If $newPath <> "" Then
-				$content = StringReplace($content, $prevPath, $newPath)
-			EndIf
-		Next
 	return $content
+EndFunc
+
+Func UpdateExtensionsJson()
+	Local $extensions
+	$extensions = $ProfileDir & "\" & "extensions.json";
+	If FileExists($extensions) Then
+		Local $fileOpen, $fileContent, $matches
+		$fileOpen = FileOpen($extensions, $FO_READ)
+		If $fileOpen <> -1 Then
+			$fileContent = FileRead($fileOpen)
+			FileClose($fileOpen)
+			$fileContent = ReplaceLocalPath($fileContent)
+			$fileOpen = FileOpen($extensions, $FO_OVERWRITE)
+			If $fileOpen <> -1 Then
+				FileWrite($fileOpen, $fileContent)
+				FileClose($fileOpen)
+			EndIf
+		EndIf
+	EndIf
+EndFunc
+
+Func ReplaceLocalPath($content)
+	Local $matches = StringRegExp($content, '"path":"[^"]+', $STR_REGEXPARRAYGLOBALMATCH)
+	For $i = 0 to UBound($matches) -1
+		Local $prevPath = $matches[$i];
+		$prevPath = StringReplace($prevPath, '"path":"', '')
+		$prevPath = StringReplace($prevPath, '\\', '\')
+		Local $dir, $name, $newPath = ""
+		SplitPath($prevPath, $dir, $name, "\")
+		If (_StringEndsWith($dir, "\browser\features")) Then
+			$newPath = $FirefoxDir & "\browser\features\" & $name;
+		EndIf
+		If (_StringEndsWith($dir, "\extensions")) Then
+			$newPath = $ProfileDir & "\extensions\" & $name;
+		EndIf
+		If $newPath <> "" Then
+			$prevPath = StringReplace($prevPath, "\", "\\")
+			$newPath = StringReplace($newPath, "\", "\\")
+			$content = StringReplace($content, "\\\\", "\\")
+			$content = StringReplace($content, $prevPath, $newPath)
+		EndIf
+	Next
+	Return $content
 EndFunc
 
 Func Settings()

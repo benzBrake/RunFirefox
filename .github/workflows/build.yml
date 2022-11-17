@@ -91,8 +91,10 @@ jobs:
           cp Update_Template.txt Update.txt
           cp Update_Template.txt Update_FireDoge.txt
           cp Update_Template.txt Update_RunFloorp.txt
+          sed -i "s/EXE_VERSION/${{ steps.get_version.outputs.VERSION }}/g" Update.txt
+          sed -i "s/EXE_MESSAGE/${{ github.event.head_commit.message }}/g" Update.txt
           sed -i "s/EXE_VERSION/${{ steps.get_version.outputs.VERSION }}/g" Update_FireDoge.txt
-          sed -i "s/EXE_MESSAGE/${{ github.event.head_commit.message }}/g" Update_RunFloorp.txt
+          sed -i "s/EXE_MESSAGE/${{ github.event.head_commit.message }}/g" Update_FireDoge.txt
           sed -i "s/RunFirefox_/FireDoge_/g" Update_FireDoge.txt
           sed -i "s/EXE_VERSION/${{ steps.get_version.outputs.VERSION }}/g" Update_RunFloorp.txt
           sed -i "s/EXE_MESSAGE/${{ github.event.head_commit.message }}/g" Update_RunFloorp.txt

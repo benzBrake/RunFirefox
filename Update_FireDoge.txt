@@ -1,7 +1,7 @@
 
 latest=2.7.2
-url=https://github.com/benzBrake/RunFirefox/releases/download/v2.7.2/FireDoge_v2.7.2.zip
+url=https://github.com/benzBrake/RunFirefox/releases/download/v2.7.2/FireDoge_2.7.2.zip
 update=fix: 真的修复扩展管理图标丢失问题
 latest_x64=2.7.2
-url_x64=https://github.com/benzBrake/RunFirefox/releases/download/v2.7.2/FireDoge_v2.7.2_x64.zip
+url_x64=https://github.com/benzBrake/RunFirefox/releases/download/v2.7.2/FireDoge_2.7.2_x64.zip
 update_x64=fix: 真的修复扩展管理图标丢失问题

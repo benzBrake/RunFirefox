@@ -7,7 +7,7 @@
 #AutoIt3Wrapper_Compile_Both=y
 #AutoIt3Wrapper_Res_Comment=Firefox Portable
 #AutoIt3Wrapper_Res_Description=Firefox Portable
-#AutoIt3Wrapper_Res_Fileversion=2.7.2.0
+#AutoIt3Wrapper_Res_Fileversion=2.7.3.0
 #AutoIt3Wrapper_Res_LegalCopyright=Ryan <github-benzBrake@woai.ru>
 #AutoIt3Wrapper_Res_Language=2052
 #AutoIt3Wrapper_Res_requestedExecutionLevel=None
@@ -43,7 +43,7 @@
 Opt("GUIOnEventMode", 1)
 Opt("WinTitleMatchMode", 4)
 
-Global Const $AppVersion = "2.7.2" ; 版本
+Global Const $AppVersion = "2.7.3" ; 版本
 Global $FirstRun, $FirefoxExe, $FirefoxDir
 Global $TaskBarDir = @AppDataDir & "\Microsoft\Internet Explorer\Quick Launch\User Pinned\TaskBar"
 Global $AppPID, $TaskBarLastChange
@@ -99,6 +99,8 @@ If Not FileExists($inifile) Then
 	IniWrite($inifile, "Settings", "ExApp", "")
 	IniWrite($inifile, "Settings", "ExAppAutoExit", 1)
 	IniWrite($inifile, "Settings", "ExApp2", "")
+	IniWrite($inifile, "Settings", "LastPlatformDir", "")
+	IniWrite($inifile, "Settings", "LastProfileDir", "")
 EndIf
 
 $CheckAppUpdate = IniRead($inifile, "Settings", "CheckAppUpdate", 1) * 1
@@ -118,6 +120,9 @@ $Params = IniRead($inifile, "Settings", "Params", "")
 $ExApp = IniRead($inifile, "Settings", "ExApp", "")
 $ExAppAutoExit = IniRead($inifile, "Settings", "ExAppAutoExit", 1) * 1
 $ExApp2 = IniRead($inifile, "Settings", "ExApp2", "")
+$LastPlatformDir = IniRead($inifile, "Settings", "LastPlatformDir", 1)
+$LastProfileDir = IniRead($inifile, "Settings", "LastProfileDir", "")
+
 
 If $AppVersion <> IniRead($inifile, "Settings", "AppVersion", "") Then
 	$FirstRun = 1
@@ -168,8 +173,12 @@ If Not $FirefoxIsRunning Then
 EndIf
 
 ;~ Fix Addons not Found
-UpdateAddonStarup()
-UpdateExtensionsJson()
+If $LastPlatformDir <> "" Or $LastProfileDir <> "" Then
+	If $LastPlatformDir <> $FirefoxDir Or $LastProfileDir <> $ProfileDir Then
+		UpdateAddonStarup()
+		UpdateExtensionsJson()
+	EndIf
+EndIf
 
 ;~ Start Firefox
 $AppPID = Run($FirefoxPath & ' -profile "' & $ProfileDir & '" ' & $Params, $FirefoxDir)
@@ -353,6 +362,8 @@ Func OnExit()
 			_WinAPI_RegCloseKey($aREG[$i][2])
 		Next
 	EndIf
+	IniWrite($inifile, "Settings", "LastPlatformDir", $FirefoxDir)
+	IniWrite($inifile, "Settings", "LastProfileDir", $ProfileDir)
 EndFunc   ;==>OnExit
 
 

@@ -41,7 +41,7 @@ jobs:
         shell: bash
         run: |
           sed -i "s/#AutoIt3Wrapper_Res_Fileversion.*/#AutoIt3Wrapper_Res_Fileversion=${{ steps.get_version.outputs.VERSION }}.0/" RunFirefox.au3
-          sed -i "s/Global Const $AppVersion.*/Global Const $AppVersion = \"${{ steps.get_version.outputs.VERSION }}\"/" RunFirefox.au3
+          sed -i "s/Global Const \$AppVersion.*/Global Const \$AppVersion = \"${{ steps.get_version.outputs.VERSION }}\"/" RunFirefox.au3
 
       # Duplicate script for other icons
       - name: Duplicate scripts

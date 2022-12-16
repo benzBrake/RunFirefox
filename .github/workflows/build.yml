@@ -31,6 +31,18 @@ jobs:
       # Setup autoit environment
       - uses: liudonghua123/action-setup-autoit@main
 
+      - name: Get the version
+        id: get_version
+        run: echo ::set-output name=VERSION::${GITHUB_REF#*\/v}
+        shell: bash
+
+      # Force to update the version number if I forgot to update it
+      - name: Update the version.
+        shell: bash
+        run: |
+          sed -i "s/#AutoIt3Wrapper_Res_Fileversion.*/#AutoIt3Wrapper_Res_Fileversion=${{ steps.get_version.outputs.VERSION }}.0/" RunFirefox.au3
+          sed -i "s/Global Const $AppVersion.*/Global Const $AppVersion = \"${{ steps.get_version.outputs.VERSION }}\"/" RunFirefox.au3
+
       # Duplicate script for other icons
       - name: Duplicate scripts
         shell: bash
@@ -38,13 +50,16 @@ jobs:
           cp RunFirefox.au3 FireDoge.au3
           cp RunFirefox.au3 RunFloorp.au3
           sed -i "s/Firefox.ico/FireDoge.ico/" FireDoge.au3
+          sed -i "s/Global Const $CustomArch.*/Global Const $CustomArch = \"FireDoge\"/" FireDoge.au3
           sed -i "s/Update.txt/Update_FireDoge.txt/" FireDoge.au3
           sed -i "s/RunFirefox.exe/FireDoge.exe/" FireDoge.au3
           sed -i "s/RunFirefox_x64.exe/FireDoge_x64.exe/" FireDoge.au3
           sed -i "s/Firefox.ico/Floorp.ico/" RunFloorp.au3
+          sed -i "s/Global Const $CustomArch.*/Global Const $CustomArch = \"RunFloorp\"/" RunFloorp.au3
           sed -i "s/Update.txt/Update_RunFloop.txt/" RunFloorp.au3
           sed -i "s/RunFirefox.exe/RunFloorp.exe/" RunFloorp.au3
           sed -i "s/RunFirefox_x64.exe/RunFloorp_x64.exe/" RunFloorp.au3
+
       # Runs build
       - name: Build scripts
         shell: cmd
@@ -52,15 +67,13 @@ jobs:
           "C:\Program Files (x86)\AutoIt3\AutoIt3.exe" "C:\Program Files (x86)\AutoIt3\SciTE\AutoIt3Wrapper\AutoIt3Wrapper.au3" /in RunFirefox.au3 /NoStatus
           "C:\Program Files (x86)\AutoIt3\AutoIt3.exe" "C:\Program Files (x86)\AutoIt3\SciTE\AutoIt3Wrapper\AutoIt3Wrapper.au3" /in FireDoge.au3 /NoStatus
           "C:\Program Files (x86)\AutoIt3\AutoIt3.exe" "C:\Program Files (x86)\AutoIt3\SciTE\AutoIt3Wrapper\AutoIt3Wrapper.au3" /in RunFloorp.au3 /NoStatus
+
       # Check the output
       - name: Check the output
         shell: bash
         run: |
           ls -l
-      - name: Get the version
-        id: get_version
-        run: echo ::set-output name=VERSION::${GITHUB_REF#*\/v}
-        shell: bash
+
       # Package the binaries
       - name: Package the binaries
         shell: bash
@@ -103,6 +116,6 @@ jobs:
       - uses: EndBug/add-and-commit@v9 # You can change this to use a specific version.
         with:
           push: origin HEAD:master
-          add: "*.txt"
+          add: "*.txt RunFirefox.au3"
           fetch: true
           message: "Bump update information"

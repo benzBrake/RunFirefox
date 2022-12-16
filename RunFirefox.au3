@@ -43,6 +43,7 @@
 Opt("GUIOnEventMode", 1)
 Opt("WinTitleMatchMode", 4)
 
+Global Const $CustomArch = "RunFirefox"
 Global Const $AppVersion = "2.7.3" ; 版本
 Global $FirstRun, $FirefoxExe, $FirefoxDir
 Global $TaskBarDir = @AppDataDir & "\Microsoft\Internet Explorer\Quick Launch\User Pinned\TaskBar"
@@ -425,9 +426,13 @@ Func CheckAppUpdate()
 			TrayTip("", "正在应用 RunFirefox 更新", 10, 1)
 			FileSetAttrib($file, "+A")
 			_Zip_UnzipAll($file, $temp)
-			If FileExists($temp & "\RunFirefox.exe") Then
+			$FileName = $CustomArch & ".exe"
+			If @OSArch = "X64" Then
+				$FileName = $CustomArch & "_x64.exe"
+			EndIf
+			If FileExists($temp & "\" & $FileName) Then
 				FileMove(@ScriptFullPath, @ScriptDir & "\" & @ScriptName & ".bak", 9)
-				FileMove($temp & "\RunFirefox.exe", @ScriptFullPath, 9)
+				FileMove($temp & "\" & $FileName, @ScriptFullPath, 9)
 				FileDelete($file)
 				DirCopy($temp, @ScriptDir, 1)
 				$UpdateSuccessful = 1

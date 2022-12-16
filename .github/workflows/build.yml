@@ -55,7 +55,7 @@ jobs:
           sed -i "s/RunFirefox.exe/FireDoge.exe/" FireDoge.au3
           sed -i "s/RunFirefox_x64.exe/FireDoge_x64.exe/" FireDoge.au3
           sed -i "s/Firefox.ico/Floorp.ico/" RunFloorp.au3
-          sed -i "s/Global Const $CustomArch.*/Global Const $CustomArch = \"RunFloorp\"/" RunFloorp.au3
+          sed -i "s/Global Const \$CustomArch.*/Global Const \$CustomArch = \"RunFloorp\"/" RunFloorp.au3
           sed -i "s/Update.txt/Update_RunFloop.txt/" RunFloorp.au3
           sed -i "s/RunFirefox.exe/RunFloorp.exe/" RunFloorp.au3
           sed -i "s/RunFirefox_x64.exe/RunFloorp_x64.exe/" RunFloorp.au3

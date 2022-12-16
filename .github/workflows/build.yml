@@ -50,7 +50,7 @@ jobs:
           cp RunFirefox.au3 FireDoge.au3
           cp RunFirefox.au3 RunFloorp.au3
           sed -i "s/Firefox.ico/FireDoge.ico/" FireDoge.au3
-          sed -i "s/Global Const $CustomArch.*/Global Const $CustomArch = \"FireDoge\"/" FireDoge.au3
+          sed -i "s/Global Const \$CustomArch.*/Global Const \$CustomArch = \"FireDoge\"/" FireDoge.au3
           sed -i "s/Update.txt/Update_FireDoge.txt/" FireDoge.au3
           sed -i "s/RunFirefox.exe/FireDoge.exe/" FireDoge.au3
           sed -i "s/RunFirefox_x64.exe/FireDoge_x64.exe/" FireDoge.au3

@@ -1,7 +1,7 @@
 
-latest=2.7.3
-url=https://github.com/benzBrake/RunFirefox/releases/download/v2.7.3/FireDoge_2.7.3.zip
-update=feat: 检测到没有移位后不再处理扩展路径，优化冷启动速度
-latest_x64=2.7.3
-url_x64=https://github.com/benzBrake/RunFirefox/releases/download/v2.7.3/FireDoge_2.7.3_x64.zip
-update_x64=feat: 检测到没有移位后不再处理扩展路径，优化冷启动速度
+latest=2.7.4
+url=https://download.fastgit.org/benzBrake/RunFirefox/releases/download/v2.7.4/FireDoge_2.7.4.zip
+update=修正自动构建错误  is undefined
+latest_x64=2.7.4
+url_x64=https://download.fastgit.org/benzBrake/RunFirefox/releases/download/v2.7.4/FireDoge_2.7.4_x64.zip
+update_x64=修正自动构建错误  is undefined

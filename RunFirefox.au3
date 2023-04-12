@@ -1,10 +1,12 @@
 ﻿#NoTrayIcon
 #Region ;**** 由 AccAu3Wrapper_GUI 创建指令 ****
 #AutoIt3Wrapper_Icon=Firefox.ico
-#AutoIt3Wrapper_Outfile=RunFirefox.exe
-#AutoIt3Wrapper_Outfile_x64=RunFirefox_x64.exe
-#AutoIt3Wrapper_UseUpx=y
-#AutoIt3Wrapper_Compile_Both=y
+#AutoIt3Wrapper_OutFile=RunFirefox.exe
+#AutoIt3Wrapper_OutFile_x64=RunFirefox_x64.exe
+#AutoIt3Wrapper_UseUpx=Y
+#AutoIt3Wrapper_Compile_both=Y
+#AutoIt3Wrapper_UseX64=n
+#AutoIt3Wrapper_Change2CUI=Y
 #AutoIt3Wrapper_Res_Comment=Firefox Portable
 #AutoIt3Wrapper_Res_Description=Firefox Portable
 #AutoIt3Wrapper_Res_Fileversion=2.7.5.0
@@ -12,7 +14,7 @@
 #AutoIt3Wrapper_Res_Language=2052
 #AutoIt3Wrapper_Res_requestedExecutionLevel=None
 #AutoIt3Wrapper_AU3Check_Parameters=-q
-#AutoIt3Wrapper_Run_Au3Stripper=y
+#AutoIt3Wrapper_Run_Au3Stripper=Y
 #Au3Stripper_Parameters=/sf=1 /sv=1
 #EndRegion ;**** 由 AccAu3Wrapper_GUI 创建指令 ****
 #cs ----------------------------------------------------------------------------
@@ -39,6 +41,7 @@
 #include <FileConstants.au3>
 #include "_String.au3"
 #include "AppUserModelId.au3"
+#include <Array.au3>
 
 Opt("GUIOnEventMode", 1)
 Opt("WinTitleMatchMode", 4)
@@ -52,7 +55,7 @@ Global $CheckAppUpdate, $AppUpdateLastCheck, $RunInBackground, $FirefoxPath, $Pr
 Global $CustomPluginsDir, $CustomCacheDir, $CacheSize, $CacheSizeSmart, $CheckDefaultBrowser, $Params
 Global $ExApp, $ExAppAutoExit, $ExApp2
 
-Global $DefaultProfDir, $hSettings, $hFirefoxPath, $hProfileDir
+Global $DefaultProfDir, $hSettings, $hFirefoxPath, $hProfileDir, $hlanguage
 Global $hCopyProfile, $hCustomPluginsDir, $hGetPluginsDir
 Global $hCustomCacheDir, $hGetCacheDir, $hCacheSize, $hCacheSizeSmart
 Global $hParams, $hStatus, $SettingsOK
@@ -127,9 +130,14 @@ $ExAppAutoExit = IniRead($inifile, "Settings", "ExAppAutoExit", 1) * 1
 $ExApp2 = IniRead($inifile, "Settings", "ExApp2", "")
 $LastPlatformDir = IniRead($inifile, "Settings", "LastPlatformDir", 1)
 $LastProfileDir = IniRead($inifile, "Settings", "LastProfileDir", "")
+$LANGUAGE = IniRead($inifile, "Settings", "Language", "zh-CN")
+If Not $LANGUAGE Then
+	$LANGUAGE = 'zh-CN'
+EndIf
+$LANG_FILE = _GetLangFile()
+$LANGUAGES = _GetLanguages()
 
-
-
+; 检查是否是首次启动（刚下载，刚更新）
 If $AppVersion <> IniRead($inifile, "Settings", "AppVersion", "") Then
 	$FirstRun = 1
 	IniWrite($inifile, "Settings", "AppVersion", $AppVersion)
@@ -408,16 +416,16 @@ Func CheckAppUpdate()
 	TraySetState(1)
 	TraySetClick(8)
 	TraySetToolTip($CustomArch)
-	Local $hCancelAppUpdate = TrayCreateItem("取消更新...")
-	TrayTip("", "开始下载 " & $CustomArch, 10, 1)
+	Local $hCancelAppUpdate = TrayCreateItem(_t("CancelAppUpdate", "取消更新..."))
+	TrayTip("", _t("StartToDownloadApp", "开始下载 RunFirefox"), 10, 1)
 	Local $hDownload = InetGet($url, $file, 19, 1)
 	Local $DownloadSuccessful, $DownloadCancelled, $UpdateSuccessful, $error
 	Do
 		Switch TrayGetMsg()
 			Case $TRAY_EVENT_PRIMARYDOWN
-				TrayTip("", "正在下载 " & $CustomArch & @CRLF & "已下载 " & Round(InetGetInfo($hDownload, 0) / 1024) & " KB", 5, 1)
+				TrayTip("", StringFormat(_t("AppDownloadProgress", "正在下载 RunFirefox\n已下载 %i KB"), Round(InetGetInfo($hDownload, 0) / 1024)), 5, 1)
 			Case $hCancelAppUpdate
-				$msg = MsgBox(4 + 32 + 256, $CustomArch, "正在下载 " & $CustomArch &"，确定要取消吗？")
+				$msg = MsgBox(4 + 32 + 256, $CustomArch, _t("CancelAppUpdateConfirm", "正在下载 RunFirefox，确定要取消吗？"))
 				If $msg = 6 Then
 					$DownloadCancelled = 1
 					ExitLoop
@@ -428,7 +436,7 @@ Func CheckAppUpdate()
 	InetClose($hDownload)
 	If Not $DownloadCancelled Then
 		If $DownloadSuccessful Then
-			TrayTip("", "正在应用 RunFirefox 更新", 10, 1)
+			TrayTip("", _t("ApplyingUpdate", "正在应用 RunFirefox 更新"), 10, 1)
 			FileSetAttrib($file, "+A")
 			_Zip_UnzipAll($file, $temp)
 			$FileName = $CustomArch & ".exe"
@@ -442,15 +450,15 @@ Func CheckAppUpdate()
 				DirCopy($temp, @ScriptDir, 1)
 				$UpdateSuccessful = 1
 			Else
-				$error = "解压更新文件失败。"
+				$error = _t("FailToDeCompressUpdateFile", "解压更新文件失败。")
 			EndIf
 		Else
-			$error = "下载更新文件失败。"
+			$error = _t("FailToDownloadUpdateFile", "下载更新文件失败。")
 		EndIf
 		If $UpdateSuccessful Then
-			MsgBox(64, "RunFirefox", "RunFirefox 已更新至 " & $LatestAppVer & " ！" & @CRLF & "原 RunFirefox 已备份为 " & @ScriptName & ".bak。")
+			MsgBox(64, $CustomArch, StringFormat(_t("UpdateSuccessConfirm", "RunFirefox 已更新至 %s ！\n原 %s 已备份为 %s"), $LatestAppVer, @ScriptName, @ScriptName & ".bak。"))
 		Else
-			$msg = MsgBox(20, $CustomArch, "RunFirefox 自动更新失败：" & @CRLF & $error & @CRLF & @CRLF & "是否去软件发布页手动下载 RunFirefox？")
+			$msg = MsgBox(20, $CustomArch, StringFormat(_t("UpdateFailedConfirm", "RunFirefox 自动更新失败：\n%s\n\n是否去软件发布页手动下载 RunFirefox？"), $error))
 			If $msg = 6 Then ; Yes
 				ShellExecute("https://github.com/benzBrake/RunFirefox")
 			EndIf
@@ -589,7 +597,7 @@ Func AppIdFromRegistry()
 	Else
 		Local $aRoot[3] = ["HKCU\SOFTWARE", $HKLM_Software_32, $HKLM_Software_64]
 	EndIf
-	For $i = 0 To UBound($aRoot)-1
+	For $i = 0 To UBound($aRoot) - 1
 		$appid = RegRead($aRoot[$i] & "\Mozilla\Firefox\TaskBarIDs", $FirefoxDir)
 		If $appid Then ExitLoop
 	Next
@@ -613,7 +621,7 @@ Func CheckDefaultBrowser($BrowserPath)
 		Else
 			Local $aRoot[3] = ["HKCU\SOFTWARE", $HKLM_Software_32, $HKLM_Software_64]
 		EndIf
-		For $i = 0 To UBound($aRoot)-1 ; search FIREFOX.EXE in internetclient
+		For $i = 0 To UBound($aRoot) - 1 ; search FIREFOX.EXE in internetclient
 			$j = 1
 			While 1
 				$InternetClient = RegEnumKey($aRoot[$i] & "\Clients\StartMenuInternet", $j)
@@ -728,11 +736,12 @@ Func UpdateAddonStarup()
 
 	FileDelete(@ScriptDir & "\" & "mozlz4-win32.exe")
 	FileDelete(@ScriptDir & "\" & "mozlz4-win64.exe")
-EndFunc
+EndFunc   ;==>UpdateAddonStarup
 
+; 替换 jar 文件路径
 Func ReplaceJarPath($content)
 	Local $matches = StringRegExp($content, 'jar:file[^"]+', $STR_REGEXPARRAYGLOBALMATCH)
-	For $i = 0 to UBound($matches) -1
+	For $i = 0 To UBound($matches) - 1
 		; 替换有所文件地址
 		Local $prevPath = $matches[$i];
 		Local $tempPath = StringReplace($prevPath, "jar:file:///", "")
@@ -750,8 +759,8 @@ Func ReplaceJarPath($content)
 			$content = StringReplace($content, $prevPath, $newPath)
 		EndIf
 	Next
-	return $content
-EndFunc
+	Return $content
+EndFunc   ;==>ReplaceJarPath
 
 Func UpdateExtensionsJson()
 	Local $extensions
@@ -770,11 +779,11 @@ Func UpdateExtensionsJson()
 			EndIf
 		EndIf
 	EndIf
-EndFunc
+EndFunc   ;==>UpdateExtensionsJson
 
 Func ReplaceLocalPath($content)
 	Local $matches = StringRegExp($content, '"path":"[^"]+', $STR_REGEXPARRAYGLOBALMATCH)
-	For $i = 0 to UBound($matches) -1
+	For $i = 0 To UBound($matches) - 1
 		Local $prevPath = $matches[$i];
 		$prevPath = StringReplace($prevPath, '"path":"', '')
 		$prevPath = StringReplace($prevPath, '\\', '\')
@@ -794,7 +803,7 @@ Func ReplaceLocalPath($content)
 		EndIf
 	Next
 	Return $content
-EndFunc
+EndFunc   ;==>ReplaceLocalPath
 
 Func Settings()
 	$DefaultProfDir = IniRead(@AppDataDir & '\Mozilla\Firefox\profiles.ini', 'Profile0', 'Path', '') ; 读取Firefox原版配置文件夹路径
@@ -804,29 +813,29 @@ Func Settings()
 	EndIf
 
 	Opt("ExpandEnvStrings", 0)
-	$hSettings = GUICreate("RunFirefox - 打造自己的 Firefox 便携版", 500, 490)
+	$hSettings = GUICreate(_t("AppTitle", "RunFirefox - 打造自己的 Firefox 便携版"), 500, 490)
 	GUISetOnEvent($GUI_EVENT_CLOSE, "ExitApp")
-	GUICtrlCreateLabel("RunFirefox " & $AppVersion & " by Ryan <github-benzBrake@woai.ru>", 5, 10, 490, -1, $SS_CENTER)
+	GUICtrlCreateLabel(StringFormat(_t("AppCopyright", "%s by Ryan <github-benzBrake@woai.ru>"), $CustomArch), 5, 10, 490, -1, $SS_CENTER)
 	GUICtrlSetCursor(-1, 0)
 	GUICtrlSetColor(-1, 0x0000FF)
-	GUICtrlSetTip(-1, "点击打开 RunFirefox 主页")
+	GUICtrlSetTip(-1, _t("ClickToOpenPublishPage", "点击打开 RunFirefox 主页"))
 	GUICtrlSetOnEvent(-1, "Website")
 
 	;常规
 	GUICtrlCreateTab(5, 40, 490, 390)
-	GUICtrlCreateTabItem("常规")
+	GUICtrlCreateTabItem(_t("General", "常规"))
 
-	GUICtrlCreateLabel("Firefox 路径", 20, 90, 100, 20)
-	$hFirefoxPath = GUICtrlCreateEdit($FirefoxPath, 120, 85, 310, 20, $ES_AUTOHSCROLL)
-	GUICtrlSetTip(-1, "浏览器主程序路径")
+	GUICtrlCreateLabel(_t("FirefoxPath", "Firefox 路径"), 20, 90, 120, 20)
+	$hFirefoxPath = GUICtrlCreateEdit($FirefoxPath, 140, 85, 270, 20, $ES_AUTOHSCROLL)
+	GUICtrlSetTip(-1, _t("BrowserExecutablePath", "浏览器主程序路径"))
 	GUICtrlSetOnEvent(-1, "OnFirefoxPathChange")
-	GUICtrlCreateButton("浏览", 440, 85, 40, 20)
-	GUICtrlSetTip(-1, "选择便携版浏览器" & @CRLF & "主程序（firefox.exe）")
+	GUICtrlCreateButton(_t("Browse", "浏览"), 420, 85, 60, 20)
+	GUICtrlSetTip(-1, _t("ChoosePortableBrowser", "选择便携版浏览器\n主程序（firefox.exe）"))
 	GUICtrlSetOnEvent(-1, "GetFirefoxPath")
 
-	GUICtrlCreateLabel("更新通道", 20, 130, 100, 20)
-	$hChannel = GUICtrlCreateCombo("", 120, 125, 150, 20, $CBS_DROPDOWNLIST)
-	GUICtrlSetData($hChannel, "esr -企业版|release -正式版|beta -测试版|aurora -曙光版|nightly -每夜更新版|default -不更新", "release -正式版")
+	GUICtrlCreateLabel(_t("UpdateChannel", "更新通道"), 20, 130, 120, 20)
+	$hChannel = GUICtrlCreateCombo("", 140, 125, 150, 20, $CBS_DROPDOWNLIST)
+	GUICtrlSetData($hChannel, "esr|release|beta|aurora|nightly|default", "release")
 	GUICtrlSetOnEvent(-1, "ChangeChannel")
 
 ;~ 	$hDownloadFirefox = GUICtrlCreateLabel("去下载 " & GUICtrlRead($hChannel), 300, 130, 180, 20)
@@ -835,71 +844,84 @@ Func Settings()
 ;~ 	GUICtrlSetTip(-1, "去下载 Firefox")
 ;~ 	GUICtrlSetOnEvent(-1, "DownloadFirefox")
 
-	GUICtrlCreateLabel("下载 Firefox：", 20, 170, 100, 20)
-	$hDownloadFirefox32 = GUICtrlCreateLabel("release 32位", 120, 170, 140, 20)
+	;https://product-details.mozilla.org/1.0/firefox_versions.json 将来实现自动更新
+
+	GUICtrlCreateLabel(_t("DownloadFirefox", "下载 Firefox："), 20, 170, 120, 20)
+	$hDownloadFirefox32 = GUICtrlCreateLabel(StringFormat(_t("DownloadFirefoxX64", "%s 32位"), "release"), 140, 170, 140, 20)
 	GUICtrlSetCursor(-1, 0)
 	GUICtrlSetColor(-1, 0x0000FF)
 	GUICtrlSetOnEvent(-1, "DownloadFirefox")
 
-	$hDownloadFirefox64 = GUICtrlCreateLabel("release 64位", 260, 170, 140, 20)
+	$hDownloadFirefox64 = GUICtrlCreateLabel(StringFormat(_t("DownloadFirefoxX64", "%s 32位"), "release"), 280, 170, 140, 20)
 	GUICtrlSetCursor(-1, 0)
 	GUICtrlSetColor(-1, 0x0000FF)
 	If @OSArch <> "X86" Then
 		GUICtrlSetOnEvent(-1, "DownloadFirefox")
 	EndIf
 
-	GUICtrlCreateLabel("配置文件夹", 20, 210, 100, 20)
-	$hProfileDir = GUICtrlCreateEdit($ProfileDir, 120, 205, 310, 20, $ES_AUTOHSCROLL)
-	GUICtrlSetTip(-1, "浏览器配置文件夹")
-	GUICtrlCreateButton("浏览", 440, 205, 40, 20)
-	GUICtrlSetTip(-1, "指定浏览器配置文件夹")
+	GUICtrlCreateLabel(_t("ProfileDirectory", "配置文件夹"), 20, 210, 120, 20)
+	$hProfileDir = GUICtrlCreateEdit($ProfileDir, 140, 205, 270, 20, $ES_AUTOHSCROLL)
+	GUICtrlSetTip(-1, _t("ProfileDirectoryTooltip", "浏览器配置文件夹"))
+	GUICtrlCreateButton(_t("Browse", "浏览"), 420, 205, 60, 20)
+	GUICtrlSetTip(-1, _t("ChooseProfileDirectory", "指定浏览器配置文件夹"))
 	GUICtrlSetOnEvent(-1, "GetProfileDir")
-	$hCopyProfile = GUICtrlCreateCheckbox(" 从系统中提取 Firefox 配置文件", 30, 240, -1, 20)
+	$hCopyProfile = GUICtrlCreateCheckbox(_t("ExtractProfileFromSystem", " 从系统中提取 Firefox 配置文件"), 30, 240, -1, 20)
 
-	$hCheckAppUpdate = GUICtrlCreateCheckbox(" RunFirefox 发布新版时通知我", 20, 360)
+	GUICtrlCreateLabel(_t("UILanguage", "显示语言"), 20, 280, 100, 20)
+	$hlanguage = GUICtrlCreateCombo("", 140, 276, 100, 20, $CBS_DROPDOWNLIST)
+
+	$sLang = '简体中文'
+	If _ItemExists($LANGUAGES, $LANGUAGE) Then
+		$sLang = _Item($LANGUAGES, $LANGUAGE)
+	EndIf
+	$sLangEnum = _ArrayToString(_GetItems($LANGUAGES))
+	GUICtrlSetData(-1, $sLangEnum, $slang)
+	GUICtrlSetOnEvent(-1, "ChangeLanguage")
+
+	$hCheckAppUpdate = GUICtrlCreateCheckbox(_t("NoticeMeWhenNewVersionPublished", " RunFirefox 发布新版时通知我"), 20, 360)
 	If $CheckAppUpdate Then
 		GUICtrlSetState(-1, $GUI_CHECKED)
 	EndIf
-	$hRunInBackground = GUICtrlCreateCheckbox(" RunFirefox 在后台运行直至浏览器退出", 20, 390)
+	$hRunInBackground = GUICtrlCreateCheckbox(_t("KeepRunFirefoxRunning", " RunFirefox 在后台运行直至浏览器退出"), 20, 390)
 	GUICtrlSetOnEvent(-1, "RunInBackground")
 	If $RunInBackground Then
 		GUICtrlSetState($hRunInBackground, $GUI_CHECKED)
 	EndIf
 
 	; 高级
-	GUICtrlCreateTabItem("高级")
-	GUICtrlCreateLabel("插件目录", 20, 90, 100, 20)
-	$hCustomPluginsDir = GUICtrlCreateEdit($CustomPluginsDir, 120, 85, 310, 20, $ES_AUTOHSCROLL)
-	GUICtrlSetTip(-1, "浏览器插件目录" & @CRLF & "空白=默认位置")
-	$hGetPluginsDir = GUICtrlCreateButton("浏览", 440, 85, 40, 20)
-	GUICtrlSetTip(-1, "指定浏览器插件目录")
+	GUICtrlCreateTabItem(_t("Advanced", "高级"))
+	GUICtrlCreateLabel(_t("PluginsDirectory", "插件目录"), 20, 90, 120, 20)
+	$hCustomPluginsDir = GUICtrlCreateEdit($CustomPluginsDir, 140, 85, 270, 20, $ES_AUTOHSCROLL)
+	GUICtrlSetTip(-1, _t("PluginsDirectoryToolTip", "浏览器插件目录\n空白=默认位置"))
+	$hGetPluginsDir = GUICtrlCreateButton(_t("Browse", "浏览"), 420, 85, 60, 20)
+	GUICtrlSetTip(-1, _t("SpecifyPluginsDirectory", "指定浏览器插件目录"))
 	GUICtrlSetOnEvent(-1, "GetPluginsDir")
 
-	GUICtrlCreateLabel("缓存位置", 20, 130, 100, 20)
-	$hCustomCacheDir = GUICtrlCreateEdit($CustomCacheDir, 120, 125, 310, 20, $ES_AUTOHSCROLL)
-	GUICtrlSetTip(-1, "浏览器缓存位置" & @CRLF & "空白=默认位置")
-	$hGetCacheDir = GUICtrlCreateButton("浏览", 440, 125, 40, 20)
-	GUICtrlSetTip(-1, "指定浏览器缓存位置")
+	GUICtrlCreateLabel(_t("CacheDirectory", "缓存位置"), 20, 130, 120, 20)
+	$hCustomCacheDir = GUICtrlCreateEdit($CustomCacheDir, 140, 125, 270, 20, $ES_AUTOHSCROLL)
+	GUICtrlSetTip(-1, _t("CacheDirectoryTooltip", "浏览器缓存位置\n空白=默认位置"))
+	$hGetCacheDir = GUICtrlCreateButton(_t("Browse", "浏览"), 420, 125, 60, 20)
+	GUICtrlSetTip(-1, _t("SpecifyCacheDirectory", "指定浏览器缓存位置"))
 	GUICtrlSetOnEvent(-1, "GetCacheDir")
 
-	GUICtrlCreateLabel("缓存大小", 20, 170, 100, 20)
-	$hCacheSize = GUICtrlCreateEdit($CacheSize, 120, 165, 60, 20, BitOR($ES_NUMBER, $ES_AUTOHSCROLL))
-	GUICtrlSetTip(-1, "缓存大小" & @CRLF & "空白=默认大小")
-	GUICtrlCreateLabel("MB", 195, 170, 35, 20)
-	$hCacheSizeSmart = GUICtrlCreateCheckbox(" 自动控制缓存大小", 250, 165, -1, 20)
+	GUICtrlCreateLabel(_t("CacheSize", "缓存大小"), 20, 170, 120, 20)
+	$hCacheSize = GUICtrlCreateEdit($CacheSize, 140, 165, 60, 20, BitOR($ES_NUMBER, $ES_AUTOHSCROLL))
+	GUICtrlSetTip(-1, _t("CacheSizeTooltip", "缓存大小\n空白=默认大小"))
+	GUICtrlCreateLabel("MB", 215, 170, 35, 20)
+	$hCacheSizeSmart = GUICtrlCreateCheckbox(_t("CacheSizeControl", " 自动控制缓存大小"), 250, 165, -1, 20)
 	If $CacheSizeSmart Then GUICtrlSetState(-1, $GUI_CHECKED)
 
-	GUICtrlCreateLabel("命令行参数", 20, 325, -1, 20)
+	GUICtrlCreateLabel(_t("CommandLineArguments", "命令行参数"), 20, 325, -1, 20)
 	$hParams = GUICtrlCreateEdit("", 20, 345, 460, 70, BitOR($ES_WANTRETURN, $WS_VSCROLL, $ES_AUTOVSCROLL))
 	If $Params <> "" Then
 		GUICtrlSetData(-1, StringReplace($Params, " -", @CRLF & "-"))
 	EndIf
-	GUICtrlSetTip(-1, "Firefox 命令行参数，每行写一个参数。" & @CRLF & "支持%TEMP%等环境变量，" & @CRLF & "特别地，%APP%代表 RunFirefox 所在目录")
+	GUICtrlSetTip(-1, _t("CommandLineArgumentsTooltip", "Firefox 命令行参数，每行写一个参数。\n支持%TEMP%等环境变量，\n另外，%APP%代表 RunFirefox 所在目录"))
 
 	; 外部程序
-	GUICtrlCreateTabItem("外部程序")
-	GUICtrlCreateLabel("浏览器启动时运行", 20, 90, -1, 20)
-	$hExAppAutoExit = GUICtrlCreateCheckbox(" #浏览器退出后自动关闭", 240, 85, -1, 20)
+	GUICtrlCreateTabItem(_t("ExternalPrograms", "外部程序"))
+	GUICtrlCreateLabel(_t("RunOnBrowserStart", "#浏览器启动时运行"), 20, 90, -1, 20)
+	$hExAppAutoExit = GUICtrlCreateCheckbox(_t("AutoCloseAfterBrowserExit", " #浏览器退出后自动关闭"), 240, 85, -1, 20)
 	If $ExAppAutoExit = 1 Then
 		GUICtrlSetState($hExAppAutoExit, $GUI_CHECKED)
 	EndIf
@@ -907,33 +929,33 @@ Func Settings()
 	If $ExApp <> "" Then
 		GUICtrlSetData(-1, StringReplace($ExApp, "||", @CRLF) & @CRLF)
 	EndIf
-	GUICtrlSetTip(-1, "浏览器启动时运行的外部程序，支持批处理、vbs文件等" & @CRLF & "如需启动参数，可添加在程序路径之后")
-	GUICtrlCreateButton("添加", 440, 110, 40, 20)
-	GUICtrlSetTip(-1, "选择外部程序")
+	GUICtrlSetTip(-1, _t("RunOnBrowserStartTooltip", "浏览器启动时运行的外部程序，支持批处理、vbs文件等\n如需启动参数，可添加在程序路径之后"))
+	GUICtrlCreateButton(_t("Add", "添加"), 440, 110, 40, 20)
+	GUICtrlSetTip(-1, _t("SelectExtraApp", "选择外部程序"))
 	GUICtrlSetOnEvent(-1, "AddExApp")
 
-	GUICtrlCreateLabel("#浏览器退出后运行", 20, 190, -1, 20)
+	GUICtrlCreateLabel(_t("RunAfterBrowserExit", "#浏览器退出后运行"), 20, 190, -1, 20)
 	$hExApp2 = GUICtrlCreateEdit("", 20, 210, 410, 50, BitOR($ES_WANTRETURN, $WS_VSCROLL, $ES_AUTOVSCROLL))
 	If $ExApp2 <> "" Then
 		GUICtrlSetData(-1, StringReplace($ExApp2, "||", @CRLF) & @CRLF)
 	EndIf
-	GUICtrlSetTip(-1, "浏览器退出后运行的外部程序，支持批处理、vbs文件等" & @CRLF & "如需启动参数，可添加在程序路径之后")
-	GUICtrlCreateButton("添加", 440, 210, 40, 20)
-	GUICtrlSetTip(-1, "选择外部程序")
+	GUICtrlSetTip(-1, _t("RunAfterBrowserExitTooltip", "浏览器退出后运行的外部程序，支持批处理、vbs文件等\n如需启动参数，可添加在程序路径之后"))
+	GUICtrlCreateButton(_t("Add", "添加"), 440, 210, 40, 20)
+	GUICtrlSetTip(-1, _t("SelectExtraApp", "选择外部程序"))
 	GUICtrlSetOnEvent(-1, "AddExApp2")
 
 	GUICtrlCreateTabItem("")
-	GUICtrlCreateButton("确定", 235, 440, 70, 20)
-	GUICtrlSetTip(-1, "保存设置并启动浏览器")
+	GUICtrlCreateButton(_t("Confirm", "确定"), 235, 440, 70, 20)
+	GUICtrlSetTip(-1, _t("ConfirmTooltip", "保存设置并启动浏览器"))
 	GUICtrlSetOnEvent(-1, "SettingsOK")
 	GUICtrlSetState(-1, $GUI_FOCUS)
-	GUICtrlCreateButton("取消", 330, 440, 70, 20)
-	GUICtrlSetTip(-1, "取消")
+	GUICtrlCreateButton(_t("Cancel", "取消"), 330, 440, 70, 20)
+	GUICtrlSetTip(-1, _t("CancelTooltip", "不保存设置并退出"))
 	GUICtrlSetOnEvent(-1, "ExitApp")
-	GUICtrlCreateButton("应用", 425, 440, 70, 20)
-	GUICtrlSetTip(-1, "保存设置")
+	GUICtrlCreateButton(_t("Apply", "应用"), 425, 440, 70, 20)
+	GUICtrlSetTip(-1, _t("ApplyTooltip", "保存设置"))
 	GUICtrlSetOnEvent(-1, "SettingsApply")
-	$hStatus = _GUICtrlStatusBar_Create($hSettings, -1, '双击软件目录下的 "' & $AppName & '.vbs" 文件可调出此窗口')
+	$hStatus = _GUICtrlStatusBar_Create($hSettings, -1, StringFormat(_t("DoublieClickToOpenSettingsWindow", '双击软件目录下的 "%s.vbs" 文件可调出此窗口'), $AppName))
 	Opt("ExpandEnvStrings", 1)
 
 ;~ 复制配置文件选项有效/无效
@@ -956,8 +978,8 @@ EndFunc   ;==>Settings
 
 Func AddExApp()
 	Local $path
-	$path = FileOpenDialog("选择浏览器启动时需运行的外部程序", @ScriptDir, _
-			"所有文件 (*.*)", 1 + 2, "", $hSettings)
+	$path = FileOpenDialog(_t("ChooseExtraApp", "选择浏览器启动时需运行的外部程序"), @ScriptDir, _
+			_t("ExtraAppAllFiles", "所有文件 (*.*)"), 1 + 2, "", $hSettings)
 	If $path = "" Then Return
 	$path = RelativePath($path)
 	$ExApp = GUICtrlRead($hExApp) & '"' & $path & '"' & @CRLF
@@ -965,8 +987,8 @@ Func AddExApp()
 EndFunc   ;==>AddExApp
 Func AddExApp2()
 	Local $path
-	$path = FileOpenDialog("选择浏览器启动时需运行的外部程序", @ScriptDir, _
-			"所有文件 (*.*)", 1 + 2, "", $hSettings)
+	$path = FileOpenDialog(_t("ChooseExtraApp", "选择浏览器启动时需运行的外部程序"), @ScriptDir, _
+	_t("ExtraAppAllFiles", "所有文件 (*.*)"), 1 + 2, "", $hSettings)
 	If $path = "" Then Return
 	$path = RelativePath($path)
 	$ExApp2 = GUICtrlRead($hExApp2) & '"' & $path & '"' & @CRLF
@@ -979,11 +1001,10 @@ Func OnFirefoxPathChange()
 EndFunc   ;==>OnFirefoxPathChange
 
 Func ChangeChannel()
-	Local $ChannelString = GUICtrlRead($hChannel)
-	Local $Channel = StringRegExpReplace($ChannelString, " *-.*", "")
+	Local $Channel = GUICtrlRead($hChannel)
 	If $Channel = "default" Then $Channel = "release"
-	GUICtrlSetData($hDownloadFirefox32, $Channel & " 32位")
-	GUICtrlSetData($hDownloadFirefox64, $Channel & " 64位")
+	GUICtrlSetData($hDownloadFirefox32, StringFormat(_t("DownloadFirefoxX86", "%s 32位"), $Channel))
+	GUICtrlSetData($hDownloadFirefox64, StringFormat(_t("DownloadFirefoxX64", "%s 64位"), $Channel))
 EndFunc   ;==>ChangeChannel
 
 Func ShowCurrentChannel()
@@ -1023,9 +1044,7 @@ Func DownloadFirefox()
 	EndIf
 
 	ClipPut($FirefoxURL)
-	Local $msg = MsgBox(65, "RunFirefox", "请下载 Firefox 安装包，用 WinRAR、7z 等解压软件打开安装包，" & _
-			"将其中的 core 文件夹提取出来，即得到 Firefox 便携版所需的程序文件。" & @CRLF & @CRLF & _
-			'下载地址已复制到剪贴板，点击"确定"将在浏览器中打开下载页面。', 0, $hSettings)
+	Local $msg = MsgBox(65, "RunFirefox", _t("ManuallyDownloadMessage", '请下载 Firefox 安装包，用 WinRAR、7z 等解压软件打开安装包，\n将其中的 core 文件夹提取出来，即得到 Firefox 便携版所需的程序文件。\n\n下载地址已复制到剪贴板，点击"确定"将在浏览器中打开下载页面。'), 0, $hSettings)
 	If $msg = 1 Then
 		ShellExecute($FirefoxURL)
 	EndIf
@@ -1035,10 +1054,7 @@ Func RunInBackground()
 	If GUICtrlRead($hRunInBackground) = $GUI_CHECKED Then
 		Return
 	EndIf
-	Local $msg = MsgBox(36 + 256, "RunFirefox", '允许 RunFirefox 在后台运行可以带来更好的用户体验。若取消此选项，请注意以下几点：' & @CRLF & @CRLF & _
-			'1. 将浏览器锁定到任务栏或设为默认浏览器后，需再运行一次 RunFirefox 才能生效；' & @CRLF & _
-			'2. RunFirefox 设置界面中带“#”符号的功能/选项将不会执行，包括浏览器退出后关闭外部程序、运行外部程序等。' & @CRLF & @CRLF & _
-			'确定要取消此选项吗？', 0, $hSettings)
+	Local $msg = MsgBox(36 + 256, "RunFirefox", '允许 RunFirefox 在后台运行可以带来更好的用户体验。若取消此选项，请注意以下几点：\n\n 1. 将浏览器锁定到任务栏或设为默认浏览器后，需再运行一次 RunFirefox 才能生效；\n2. RunFirefox 设置界面中带“#”符号的功能/选项将不会执行，包括浏览器退出后关闭外部程序、运行外部程序等。\n\n确定要取消此选项吗？', 0, $hSettings)
 	If $msg <> 6 Then
 		GUICtrlSetState($hRunInBackground, $GUI_CHECKED)
 	EndIf
@@ -1124,7 +1140,7 @@ Func SettingsApply()
 
 	;Firefox path
 	If Not FileExists($FirefoxPath) Then
-		MsgBox(16, "RunFirefox", "Firefox 路径错误，请重新设置。" & @CRLF & @CRLF & $FirefoxPath, 0, $hSettings)
+		MsgBox(16, "RunFirefox", StringFormat(_t("FirefoxPathErrorMessage", "Firefox 路径错误，请重新设置。\n\n%s"), $FirefoxPath), 0, $hSettings)
 		GUICtrlSetState($hFirefoxPath, $GUI_FOCUS)
 		Return SetError(1)
 	EndIf
@@ -1140,7 +1156,7 @@ Func SettingsApply()
 
 	;profiles dir
 	If $ProfileDir = "" Then
-		MsgBox(16, "RunFirefox", "请设置配置文件夹！", 0, $hSettings)
+		MsgBox(16, "RunFirefox", _t("PleaseProfileFolder", "请设置配置文件夹！"), 0, $hSettings)
 		GUICtrlSetState($hProfileDir, $GUI_FOCUS)
 		Return SetError(2)
 	ElseIf Not FileExists($ProfileDir) Then
@@ -1150,17 +1166,17 @@ Func SettingsApply()
 	; 提取Firefox原版配置文件
 	If GUICtrlRead($hCopyProfile) = $GUI_CHECKED Then
 		While ProfileInUse($ProfileDir)
-			$msg = MsgBox(49, "RunFirefox", "浏览器正运行，无法提取配置文件！" & @CRLF & "请关闭 Firefox 后继续。", 0, $hSettings)
+			$msg = MsgBox(49, "RunFirefox", _t("CannotExtratProfileFromSystem", "浏览器正运行，无法提取配置文件！\n请关闭 Firefox 后继续。"), 0, $hSettings)
 			If $msg <> 1 Then ExitLoop
 		WEnd
 		If $msg = 1 Then
-			SplashTextOn("RunFirefox", "正在提取配置文件，请稍候 ...", 300, 100)
+			SplashTextOn("RunFirefox", _t("ExtractingProfile", "正在提取配置文件，请稍候 ..."), 300, 100)
 			Local $var = DirCopy($DefaultProfDir, $ProfileDir, 1)
 			SplashOff()
 			If $var Then
-				_GUICtrlStatusBar_SetText($hStatus, "提取配置文件成功！")
+				_GUICtrlStatusBar_SetText($hStatus, _t("ExtractProfileSuccess", "提取配置文件成功！"))
 			Else
-				_GUICtrlStatusBar_SetText($hStatus, "提取配置文件失败！")
+				_GUICtrlStatusBar_SetText($hStatus, _t("ExtractProfileFailed", "提取配置文件失败！"))
 			EndIf
 		EndIf
 		GUICtrlSetState($hCopyProfile, $GUI_UNCHECKED)
@@ -1180,7 +1196,7 @@ EndFunc   ;==>Website
 
 ;~ 查找Firefox主程序
 Func GetFirefoxPath()
-	Local $path = FileOpenDialog("选择浏览器主程序（firefox.exe）", @ScriptDir, "可执行文件(*.exe)", 1 + 2, "firefox.exe", $hSettings)
+	Local $path = FileOpenDialog(_t("ChooseFirefoxExecutable", "选择浏览器主程序（firefox.exe）"), @ScriptDir, _t("ExecutableFile", "可执行文件(*.exe)"), 1 + 2, "firefox.exe", $hSettings)
 	FileChangeDir(@ScriptDir) ; FileOpenDialog 会改变 @workingdir，将它改回来
 	If $path = "" Then Return
 	$FirefoxPath = RelativePath($path)
@@ -1190,7 +1206,7 @@ EndFunc   ;==>GetFirefoxPath
 
 ;~ 指定配置文件夹
 Func GetProfileDir()
-	Local $dir = FileSelectFolder("指定 Firefox 配置文件夹", "", 1 + 4, @ScriptDir, $hSettings)
+	Local $dir = FileSelectFolder(_t("SpecifyProfileDirectory", "指定 Firefox 配置文件夹"), "", 1 + 4, @ScriptDir, $hSettings)
 	FileChangeDir(@ScriptDir)
 	If $dir = "" Then Return
 	$ProfileDir = RelativePath($dir)
@@ -1199,7 +1215,7 @@ EndFunc   ;==>GetProfileDir
 
 ;~ 指定插件目录
 Func GetPluginsDir()
-	Local $dir = FileSelectFolder("指定 Firefox 插件目录", "", 1 + 4, @ScriptDir, $hSettings)
+	Local $dir = FileSelectFolder(_t("SpecifyPluginsDirectory", "指定 Firefox 插件目录"), "", 1 + 4, @ScriptDir, $hSettings)
 	FileChangeDir(@ScriptDir)
 	If $dir = "" Then Return
 	$CustomPluginsDir = RelativePath($dir)
@@ -1208,7 +1224,7 @@ EndFunc   ;==>GetPluginsDir
 
 ;~ 指定缓存位置
 Func GetCacheDir()
-	Local $dir = FileSelectFolder("指定 Firefox 缓存文件夹", "", 1 + 4, @ScriptDir, $hSettings)
+	Local $dir = FileSelectFolder(_t("SpecifyCacheDirectory", "指定 Firefox 缓存文件夹"), "", 1 + 4, @ScriptDir, $hSettings)
 	FileChangeDir(@ScriptDir)
 	If $dir = "" Then Return
 	$CustomCacheDir = RelativePath($dir)
@@ -1514,3 +1530,133 @@ Func _Zip_UnzipAll($sZipFile, $sDestPath, $flag = 20)
 		Return SetError(6, 0, 0)
 	EndIf
 EndFunc   ;==>_Zip_UnzipAll
+
+; 语言检测
+Func _GetLangFile()
+	Local $filePath = @ScriptDir & "\" & "Lang.ini"
+	Local $fileCustomPath = @ScriptDir & "\" & "LangCustom.ini"
+	FileInstall("Lang.ini", $filePath, 1)
+	If FileExists($fileCustomPath) Then
+		$filePath = $fileCustomPath
+	EndIf
+	Return $filePath
+EndFunc   ;==>_GetLangFile
+
+; 获取语言支持
+Func _GetLanguages()
+	Local $LDic = _InitDictionary()
+	If $LANG_FILE Then
+		Local $langs = IniReadSectionNames($LANG_FILE)
+		If Not @error Then
+			For $i = 1 To $langs[0] ; 第一个参数存放长度
+				local $title = IniRead($LANG_FILE, $langs[$i], "LangTitle", $langs[$i])
+				_AddItem($LDic, $langs[$i], $title)
+			Next
+		EndIf
+	EndIf
+	If _ItemExists($LDic, "zh-CN") = False Then
+		_AddItem($LDic, "zh-CN", "简体中文");
+	EndIf
+	Return $LDic
+EndFunc
+
+; 获取翻译文本
+Func _t($key, $defaltstr)
+	local $str = $defaltstr;
+	If $LANG_FILE Then
+		If $LANGUAGE <> "zh-CN" Then
+			$str = IniRead($LANG_FILE, $LANGUAGE, $key, $defaltstr);
+		Else
+			$str = $defaltstr
+		EndIf
+	EndIf
+	Return StringReplace($str, "\n", @CRLF) ; 换行符号处理
+EndFunc   ;==>_t
+
+; 更换语言 Thanks MyChrome
+Func ChangeLanguage()
+	$newLang = SaveLang();
+	If $newLang <> $LANGUAGE Then
+		$LANGUAGE = $newLang
+		MsgBox(64, "RunFirefox", _t("RestartToApplyLanguage", "语言设置将在重启 RunFirefox 后生效"))
+		GUIDelete($hSettings)
+		If @Compiled Then
+			ShellExecute(@ScriptName, "-Set", @ScriptDir)
+		Else
+			ShellExecute(@AutoItExe, '"' & @ScriptFullPath & '" -Set', @ScriptDir)
+		EndIf
+	EndIf
+EndFunc   ;==>ChangeLanguage
+; 保存语言
+Func SaveLang()
+	local $slang = GUICtrlRead($hlanguage), $index = -1, $keys = $LANGUAGES.Keys, $newLang = ""
+	For $i = 0 To UBound($keys) - 1
+		Local $key = $keys[$i]
+		if _Item($LANGUAGES, $key) = $sLang Then
+			$index = $i
+		EndIf
+	Next
+	
+	If ($index <> -1) Then
+		$newLang = $keys[$index]
+		IniWrite($inifile, "Settings", "Language", $newLang)
+	EndIf
+	Return $newLang
+EndFunc   ;==>SaveLang
+
+#cs
+	Scripting Dictionary UDF
+
+	Made by GaryFrost <https://www.autoitscript.com/forum/topic/47048-scripting-dictionary/>
+	Modified by Jefrey <jefrey[at]jefrey.ml>
+#ce
+
+Func _InitDictionary()
+	Return ObjCreate("Scripting.Dictionary")
+EndFunc   ;==>_InitDictionary
+
+; Adds a key and item pair to a Dictionary object.
+Func _AddItem($oDictionary, $v_key, $v_item)
+	$oDictionary.ADD($v_key, $v_item)
+	If @error Then Return SetError(1, 1, -1)
+EndFunc   ;==>_AddItem
+
+; Returns true if a specified key exists in the Dictionary object, false if it does not.
+Func _ItemExists($oDictionary, $v_key)
+	Return $oDictionary.Exists($v_key)
+EndFunc   ;==>_ItemExists
+
+; Returns an item for a specified key in a Dictionary object
+Func _Item($oDictionary, $v_key)
+	Return $oDictionary.Item($v_key)
+EndFunc   ;==>_Item
+
+; Sets an item for a specified key in a Dictionary object
+Func _ChangeItem($oDictionary, $v_key, $v_item)
+	$oDictionary.Item($v_key) = $v_item
+EndFunc   ;==>_ChangeItem
+
+; Sets a key in a Dictionary object.
+Func _ChangeKey($oDictionary, $v_key, $v_newKey)
+	$oDictionary.Key($v_key) = $v_newKey
+EndFunc   ;==>_ChangeKey
+
+; Removes a key, item pair from a Dictionary object.
+Func _ItemRemove($oDictionary, $v_key)
+	$oDictionary.Remove($v_key)
+	If @error Then Return SetError(1, 1, -1)
+EndFunc   ;==>_ItemRemove
+
+; Returns the number of items in a collection or Dictionary object.
+Func _ItemCount($oDictionary)
+	Return $oDictionary.Count
+EndFunc   ;==>_ItemCount
+
+; Returns an array containing all the items in a Dictionary object
+Func _GetItems($oDictionary)
+	Return $oDictionary.Items
+EndFunc   ;==>_GetItems
+
+Func _Clear($oDictionary)
+	Return $oDictionary.RemoveAll
+EndFunc

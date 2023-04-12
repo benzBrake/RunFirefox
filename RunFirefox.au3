@@ -109,6 +109,10 @@ $AppUpdateLastCheck = IniRead($inifile, "Settings", "AppUpdateLastCheck", "")
 If Not $AppUpdateLastCheck Then
 	$AppUpdateLastCheck = "2015/01/01 00:00:00"
 EndIf
+$AppUpdateMirror = IniRead($inifile, "Settings", "AppUpdateMirror", "")
+If Not $AppUpdateLastCheck Then
+	$AppUpdateMirror = "https://gcore.jsdelivr.net/gh/benzBrake/RunFirefox@master/"
+EndIf
 $RunInBackground = IniRead($inifile, "Settings", "RunInBackground", 1) * 1
 $FirefoxPath = IniRead($inifile, "Settings", "FirefoxPath", ".\Firefox\firefox.exe")
 $ProfileDir = IniRead($inifile, "Settings", "ProfileDir", ".\profiles")
@@ -123,6 +127,7 @@ $ExAppAutoExit = IniRead($inifile, "Settings", "ExAppAutoExit", 1) * 1
 $ExApp2 = IniRead($inifile, "Settings", "ExApp2", "")
 $LastPlatformDir = IniRead($inifile, "Settings", "LastPlatformDir", 1)
 $LastProfileDir = IniRead($inifile, "Settings", "LastProfileDir", "")
+
 
 
 If $AppVersion <> IniRead($inifile, "Settings", "AppVersion", "") Then
@@ -379,7 +384,7 @@ Func CheckAppUpdate()
 	IniWrite($inifile, "Settings", "AppUpdateLastCheck", $AppUpdateLastCheck)
 
 	HttpSetProxy(0) ; Use IE defaults for proxy
-	$var = BinaryToString(InetRead("https://gcore.jsdelivr.net/gh/benzBrake/RunFirefox@master/Update.txt", 27), 4)
+	$var = BinaryToString(InetRead($AppUpdateMirror & "Update_" & $CustomArch & ".txt", 27), 4)
 	$var = StringStripWS($var, 3) ; 去掉开头、结尾的空字符
 	$match = StringRegExp($var, '(?im)^' & $slatest & '=(\S+)', 1)
 	If @error Then Return
@@ -391,7 +396,7 @@ Func CheckAppUpdate()
 	$match = StringRegExp($var, '(?im)' & $supdate & '=(.+)', 1)
 	If @error Then Return
 	$update = StringReplace($match[0], "\n", @CRLF)
-	$msg = MsgBox(68, 'RunFirefox', "RunFirefox " & $LatestAppVer & " 已发布，更新内容：" & _
+	$msg = MsgBox(68, $CustomArch, $CustomArch & " " & $LatestAppVer & " 已发布，更新内容：" & _
 			@CRLF & @CRLF & $update & @CRLF & @CRLF & "是否自动更新？")
 	If $msg <> 6 Then Return
 
@@ -402,17 +407,17 @@ Func CheckAppUpdate()
 	Opt("TrayMenuMode", 3) ; Default tray menu items (Script Paused/Exit) will not be shown.
 	TraySetState(1)
 	TraySetClick(8)
-	TraySetToolTip("RunFirefox")
+	TraySetToolTip($CustomArch)
 	Local $hCancelAppUpdate = TrayCreateItem("取消更新...")
-	TrayTip("", "开始下载 RunFirefox", 10, 1)
+	TrayTip("", "开始下载 " & $CustomArch, 10, 1)
 	Local $hDownload = InetGet($url, $file, 19, 1)
 	Local $DownloadSuccessful, $DownloadCancelled, $UpdateSuccessful, $error
 	Do
 		Switch TrayGetMsg()
 			Case $TRAY_EVENT_PRIMARYDOWN
-				TrayTip("", "正在下载 RunFirefox" & @CRLF & "已下载 " & Round(InetGetInfo($hDownload, 0) / 1024) & " KB", 5, 1)
+				TrayTip("", "正在下载 " & $CustomArch & @CRLF & "已下载 " & Round(InetGetInfo($hDownload, 0) / 1024) & " KB", 5, 1)
 			Case $hCancelAppUpdate
-				$msg = MsgBox(4 + 32 + 256, "RunFirefox", "正在下载 RunFirefox，确定要取消吗？")
+				$msg = MsgBox(4 + 32 + 256, $CustomArch, "正在下载 " & $CustomArch &"，确定要取消吗？")
 				If $msg = 6 Then
 					$DownloadCancelled = 1
 					ExitLoop
@@ -445,7 +450,7 @@ Func CheckAppUpdate()
 		If $UpdateSuccessful Then
 			MsgBox(64, "RunFirefox", "RunFirefox 已更新至 " & $LatestAppVer & " ！" & @CRLF & "原 RunFirefox 已备份为 " & @ScriptName & ".bak。")
 		Else
-			$msg = MsgBox(20, "RunFirefox", "RunFirefox 自动更新失败：" & @CRLF & $error & @CRLF & @CRLF & "是否去软件发布页手动下载 RunFirefox？")
+			$msg = MsgBox(20, $CustomArch, "RunFirefox 自动更新失败：" & @CRLF & $error & @CRLF & @CRLF & "是否去软件发布页手动下载 RunFirefox？")
 			If $msg = 6 Then ; Yes
 				ShellExecute("https://github.com/benzBrake/RunFirefox")
 			EndIf

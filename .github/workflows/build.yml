@@ -51,12 +51,10 @@ jobs:
           cp RunFirefox.au3 RunFloorp.au3
           sed -i "s/Firefox.ico/FireDoge.ico/" FireDoge.au3
           sed -i "s/Global Const \$CustomArch.*/Global Const \$CustomArch = \"FireDoge\"/" FireDoge.au3
-          sed -i "s/Update.txt/Update_FireDoge.txt/" FireDoge.au3
           sed -i "s/RunFirefox.exe/FireDoge.exe/" FireDoge.au3
           sed -i "s/RunFirefox_x64.exe/FireDoge_x64.exe/" FireDoge.au3
           sed -i "s/Firefox.ico/Floorp.ico/" RunFloorp.au3
           sed -i "s/Global Const \$CustomArch.*/Global Const \$CustomArch = \"RunFloorp\"/" RunFloorp.au3
-          sed -i "s/Update.txt/Update_RunFloop.txt/" RunFloorp.au3
           sed -i "s/RunFirefox.exe/RunFloorp.exe/" RunFloorp.au3
           sed -i "s/RunFirefox_x64.exe/RunFloorp_x64.exe/" RunFloorp.au3
 
@@ -101,11 +99,11 @@ jobs:
           rm Update.txt
           rm Update_FireDoge.txt
           rm Update_RunFloorp.txt
-          cp Update_Template.txt Update.txt
+          cp Update_Template.txt Update_RunFirefox.txt
           cp Update_Template.txt Update_FireDoge.txt
           cp Update_Template.txt Update_RunFloorp.txt
-          sed -i "s/EXE_VERSION/${{ steps.get_version.outputs.VERSION }}/g" Update.txt
-          sed -i "s/EXE_MESSAGE/${{ github.event.head_commit.message }}/g" Update.txt
+          sed -i "s/EXE_VERSION/${{ steps.get_version.outputs.VERSION }}/g" Update_RunFirefox.txt
+          sed -i "s/EXE_MESSAGE/${{ github.event.head_commit.message }}/g" Update_RunFirefox.txt
           sed -i "s/EXE_VERSION/${{ steps.get_version.outputs.VERSION }}/g" Update_FireDoge.txt
           sed -i "s/EXE_MESSAGE/${{ github.event.head_commit.message }}/g" Update_FireDoge.txt
           sed -i "s/RunFirefox_/FireDoge_/g" Update_FireDoge.txt

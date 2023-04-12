@@ -1,7 +1,0 @@
-
-latest=2.7.4
-url=https://download.fastgit.org/benzBrake/RunFirefox/releases/download/v2.7.4/RunFirefox_2.7.4.zip
-update=修正自动构建错误  is undefined
-latest_x64=2.7.4
-url_x64=https://download.fastgit.org/benzBrake/RunFirefox/releases/download/v2.7.4/RunFirefox_2.7.4_x64.zip
-update_x64=修正自动构建错误  is undefined

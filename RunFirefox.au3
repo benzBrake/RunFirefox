@@ -6,7 +6,6 @@
 #AutoIt3Wrapper_UseUpx=Y
 #AutoIt3Wrapper_Compile_both=Y
 #AutoIt3Wrapper_UseX64=n
-#AutoIt3Wrapper_Change2CUI=Y
 #AutoIt3Wrapper_Res_Comment=Firefox Portable
 #AutoIt3Wrapper_Res_Description=Firefox Portable
 #AutoIt3Wrapper_Res_Fileversion=2.7.5.0

@@ -83,8 +83,24 @@ jobs:
           7z a -tzip RunFloorp_${{ steps.get_version.outputs.VERSION }}.zip RunFloorp.exe
           7z a -tzip RunFloorp_${{ steps.get_version.outputs.VERSION }}_x64.zip RunFloorp_x64.exe
 
-      # Deploy to the github release
-      - uses: xresloader/upload-to-github-release@v1
+      - name: Generate Changelog
+        id: changelog
+        uses: github-script@v4
+        with:
+          script: |
+            const {data: commits} = await github.repos.listCommits({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              sha: context.sha,
+              since: env.LAST_RELEASE_COMMIT_HASH // 上次发布的提交哈希值
+            });
+            const changes = commits.map(c => `- ${c.commit.message}`).join('\n');
+            console.log(changes);
+            return changes;
+
+      - name: Deploy to the github release
+        id: deploy
+        uses: xresloader/upload-to-github-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
@@ -92,6 +108,19 @@ jobs:
           tags: true
           draft: false
           overwrite: true
+
+      - name: Update release
+        id: update_release
+        uses: actions/create-release@v1.0.6
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ steps.get_version.outputs.VERSION }} # 标签名称
+          release_name: Release ${{ steps.get_version.outputs.VERSION }} # 发布名称
+          body: ${{ steps.changelog.outputs.result }} # 发布说明
+          draft: false # 是否为草稿
+          prerelease: false # 是否为预发布版
+          update: true # 强制更新发布说明
 
       # Update version
       - name: Change version information in Update.txt

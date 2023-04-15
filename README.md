@@ -1,5 +1,7 @@
 # RunFirefox
 
+[English Version](README-en_US.md)
+
 从 MyFirefox 修改而来，是 Firefox 的便携版引导器
 
 1. 自定义Firefox浏览器程序文件、数据文件夹、缓存文件夹的位置等。

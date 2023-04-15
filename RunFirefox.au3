@@ -1,11 +1,10 @@
 ﻿#NoTrayIcon
 #Region ;**** 由 AccAu3Wrapper_GUI 创建指令 ****
-#AutoIt3Wrapper_Icon=Firefox.ico
-#AutoIt3Wrapper_OutFile=RunFirefox.exe
-#AutoIt3Wrapper_OutFile_x64=RunFirefox_x64.exe
-#AutoIt3Wrapper_UseUpx=Y
-#AutoIt3Wrapper_Compile_both=Y
-#AutoIt3Wrapper_UseX64=n
+#AutoIt3Wrapper_Icon=icons\Firefox.ico
+#AutoIt3Wrapper_Outfile=RunFirefox.exe
+#AutoIt3Wrapper_Outfile_x64=RunFirefox_x64.exe
+#AutoIt3Wrapper_UseUpx=y
+#AutoIt3Wrapper_Compile_Both=y
 #AutoIt3Wrapper_Res_Comment=Firefox Portable
 #AutoIt3Wrapper_Res_Description=Firefox Portable
 #AutoIt3Wrapper_Res_Fileversion=2.7.5.0
@@ -13,7 +12,7 @@
 #AutoIt3Wrapper_Res_Language=2052
 #AutoIt3Wrapper_Res_requestedExecutionLevel=None
 #AutoIt3Wrapper_AU3Check_Parameters=-q
-#AutoIt3Wrapper_Run_Au3Stripper=Y
+#AutoIt3Wrapper_Run_Au3Stripper=y
 #Au3Stripper_Parameters=/sf=1 /sv=1
 #EndRegion ;**** 由 AccAu3Wrapper_GUI 创建指令 ****
 #cs ----------------------------------------------------------------------------
@@ -41,7 +40,8 @@
 #include <Array.au3>
 #include "libs\_String.au3"
 #include "libs\AppUserModelId.au3"
-#include "libs\scriptingdic.au3"
+#include "libs\Polices.au3"
+#include "libs\ScriptingDictionary.au3"
 
 Opt("GUIOnEventMode", 1)
 Opt("WinTitleMatchMode", 4)
@@ -51,7 +51,7 @@ Global Const $AppVersion = "2.7.5"
 Global $FirstRun, $FirefoxExe, $FirefoxDir
 Global $TaskBarDir = @AppDataDir & "\Microsoft\Internet Explorer\Quick Launch\User Pinned\TaskBar"
 Global $AppPID, $TaskBarLastChange
-Global $CheckAppUpdate, $AppUpdateLastCheck, $RunInBackground, $FirefoxPath, $ProfileDir
+Global $AllowBrowserUpdate, $CheckAppUpdate, $AppUpdateLastCheck, $RunInBackground, $FirefoxPath, $ProfileDir
 Global $CustomPluginsDir, $CustomCacheDir, $CacheSize, $CacheSizeSmart, $CheckDefaultBrowser, $Params
 Global $ExApp, $ExAppAutoExit, $ExApp2
 
@@ -59,7 +59,7 @@ Global $DefaultProfDir, $hSettings, $hFirefoxPath, $hProfileDir, $hlanguage
 Global $hCopyProfile, $hCustomPluginsDir, $hGetPluginsDir
 Global $hCustomCacheDir, $hGetCacheDir, $hCacheSize, $hCacheSizeSmart
 Global $hParams, $hStatus, $SettingsOK
-Global $hCheckAppUpdate, $hRunInBackground, $hChannel, $hDownloadFirefox32, $hDownloadFirefox64, $FirefoxURL
+Global $hAllowBrowserUpdate, $hCheckAppUpdate, $hRunInBackground, $hChannel, $hDownloadFirefox32, $hDownloadFirefox64, $FirefoxURL
 Global $hExApp, $hExAppAutoExit, $hExApp2
 Global $aExApp, $aExApp2, $aExAppPID[2]
 
@@ -92,6 +92,7 @@ If Not FileExists($inifile) Then
 	IniWrite($inifile, "Settings", "CheckAppUpdate", 1)
 	IniWrite($inifile, "Settings", "AppUpdateLastCheck", "2015/01/01 00:00:00")
 	IniWrite($inifile, "Settings", "RunInBackground", 1)
+	IniWrite($inifile, "Settings", "AllowBrowserUpdate", 1)
 	IniWrite($inifile, "Settings", "FirefoxPath", ".\Firefox\firefox.exe")
 	IniWrite($inifile, "Settings", "ProfileDir", ".\profiles")
 	IniWrite($inifile, "Settings", "CustomPluginsDir", "")
@@ -116,6 +117,7 @@ $AppUpdateMirror = IniRead($inifile, "Settings", "AppUpdateMirror", "")
 If Not $AppUpdateLastCheck Then
 	$AppUpdateMirror = "https://gcore.jsdelivr.net/gh/benzBrake/RunFirefox@master/"
 EndIf
+$AllowBrowserUpdate = IniRead($inifile, "Settings", "AllowBrowserUpdate", 1) * 1
 $RunInBackground = IniRead($inifile, "Settings", "RunInBackground", 1) * 1
 $FirefoxPath = IniRead($inifile, "Settings", "FirefoxPath", ".\Firefox\firefox.exe")
 $ProfileDir = IniRead($inifile, "Settings", "ProfileDir", ".\profiles")
@@ -156,6 +158,9 @@ EndIf
 $FirefoxPath = FullPath($FirefoxPath)
 SplitPath($FirefoxPath, $FirefoxDir, $FirefoxExe)
 $ProfileDir = FullPath($ProfileDir)
+
+;~ 创建禁用自动更新策略
+UpdatePolices($FirefoxDir, $AllowBrowserUpdate)
 
 If IsAdmin() And $cmdline[0] = 1 And $cmdline[1] = "-SetDefaultGlobal" Then
 	CheckDefaultBrowser($FirefoxPath)
@@ -698,7 +703,7 @@ Func CheckDefaultBrowser($BrowserPath)
 EndFunc   ;==>CheckDefaultBrowser
 
 Func UpdateAddonStarup()
-	; Extract mozlz4
+; Extract mozlz4
 	Local $mozlz4Exe, $addonStarup, $addonStarupLz4
 	If @OSArch = "X86" Then
 		$mozlz4Exe = @ScriptDir & "\" & "mozlz4-win32.exe"
@@ -825,11 +830,12 @@ Func Settings()
 	GUICtrlCreateTab(5, 40, 490, 390)
 	GUICtrlCreateTabItem(_t("General", "常规"))
 
-	GUICtrlCreateLabel(_t("FirefoxPath", "Firefox 路径"), 20, 90, 120, 20)
-	$hFirefoxPath = GUICtrlCreateEdit($FirefoxPath, 140, 85, 270, 20, $ES_AUTOHSCROLL)
+	GUICtrlCreateGroup(_t("BrowserFiles", "浏览器程序文件"), 10, 70, 480, 120)
+	GUICtrlCreateLabel(_t("FirefoxPath", "Firefox 路径"), 20, 100, 120, 20)
+	$hFirefoxPath = GUICtrlCreateEdit($FirefoxPath, 140, 95, 270, 20, $ES_AUTOHSCROLL)
 	GUICtrlSetTip(-1, _t("BrowserExecutablePath", "浏览器主程序路径"))
 	GUICtrlSetOnEvent(-1, "OnFirefoxPathChange")
-	GUICtrlCreateButton(_t("Browse", "浏览"), 420, 85, 60, 20)
+	GUICtrlCreateButton(_t("Browse", "浏览"), 420, 95, 60, 20)
 	GUICtrlSetTip(-1, _t("ChoosePortableBrowser", "选择便携版浏览器\n主程序（firefox.exe）"))
 	GUICtrlSetOnEvent(-1, "GetFirefoxPath")
 
@@ -837,6 +843,11 @@ Func Settings()
 	$hChannel = GUICtrlCreateCombo("", 140, 125, 150, 20, $CBS_DROPDOWNLIST)
 	GUICtrlSetData($hChannel, "esr|release|beta|aurora|nightly|default", "release")
 	GUICtrlSetOnEvent(-1, "ChangeChannel")
+
+	$hAllowBrowserUpdate = GUICtrlCreateCheckbox(_t("BrowserAutoUpdate", " 自动更新"),310, 125, -1, 20)
+	If $AllowBrowserUpdate Then
+		GUICtrlSetState(-1, $GUI_CHECKED)
+	EndIf
 
 ;~ 	$hDownloadFirefox = GUICtrlCreateLabel("去下载 " & GUICtrlRead($hChannel), 300, 130, 180, 20)
 ;~ 	GUICtrlSetCursor(-1, 0)
@@ -846,30 +857,31 @@ Func Settings()
 
 	;https://product-details.mozilla.org/1.0/firefox_versions.json 将来实现自动更新
 
-	GUICtrlCreateLabel(_t("DownloadFirefox", "下载 Firefox："), 20, 170, 120, 20)
-	$hDownloadFirefox32 = GUICtrlCreateLabel(StringFormat(_t("DownloadFirefoxX64", "%s 32位"), "release"), 140, 170, 140, 20)
+	GUICtrlCreateLabel(_t("DownloadFirefox", "下载 Firefox："), 20, 160, 120, 20)
+	$hDownloadFirefox32 = GUICtrlCreateLabel(StringFormat(_t("DownloadFirefoxX64", "%s 32位"), "release"), 140, 160, 140, 20)
 	GUICtrlSetCursor(-1, 0)
 	GUICtrlSetColor(-1, 0x0000FF)
 	GUICtrlSetOnEvent(-1, "DownloadFirefox")
 
-	$hDownloadFirefox64 = GUICtrlCreateLabel(StringFormat(_t("DownloadFirefoxX64", "%s 32位"), "release"), 280, 170, 140, 20)
+	$hDownloadFirefox64 = GUICtrlCreateLabel(StringFormat(_t("DownloadFirefoxX64", "%s 32位"), "release"), 280, 160, 140, 20)
 	GUICtrlSetCursor(-1, 0)
 	GUICtrlSetColor(-1, 0x0000FF)
 	If @OSArch <> "X86" Then
 		GUICtrlSetOnEvent(-1, "DownloadFirefox")
 	EndIf
 
-	GUICtrlCreateLabel(_t("ProfileDirectory", "配置文件夹"), 20, 210, 120, 20)
-	$hProfileDir = GUICtrlCreateEdit($ProfileDir, 140, 205, 270, 20, $ES_AUTOHSCROLL)
+	GUICtrlCreateGroup(_t("ProfileFiles", "浏览器用户数据文件"), 10, 200, 480, 80)
+	GUICtrlCreateLabel(_t("ProfileDirectory", "配置文件夹"), 20, 230, 120, 20)
+	$hProfileDir = GUICtrlCreateEdit($ProfileDir, 140, 225, 270, 20, $ES_AUTOHSCROLL)
 	GUICtrlSetTip(-1, _t("ProfileDirectoryTooltip", "浏览器配置文件夹"))
-	GUICtrlCreateButton(_t("Browse", "浏览"), 420, 205, 60, 20)
+	GUICtrlCreateButton(_t("Browse", "浏览"), 420, 225, 60, 20)
 	GUICtrlSetTip(-1, _t("ChooseProfileDirectory", "指定浏览器配置文件夹"))
 	GUICtrlSetOnEvent(-1, "GetProfileDir")
-	$hCopyProfile = GUICtrlCreateCheckbox(_t("ExtractProfileFromSystem", " 从系统中提取 Firefox 配置文件"), 30, 240, -1, 20)
+	$hCopyProfile = GUICtrlCreateCheckbox(_t("ExtractProfileFromSystem", " 从系统中提取 Firefox 配置文件"), 30, 250, -1, 20)
 
-	GUICtrlCreateLabel(_t("UILanguage", "显示语言"), 20, 280, 100, 20)
-	$hlanguage = GUICtrlCreateCombo("", 140, 276, 100, 20, $CBS_DROPDOWNLIST)
-
+	GUICtrlCreateGroup(_t("RunFirefoxOptions", "RunFirefox 设置"), 10, 290, 480, 120)
+	GUICtrlCreateLabel(_t("UILanguage", "显示语言"), 20, 320, 100, 20)
+	$hlanguage = GUICtrlCreateCombo("", 140, 315, 100, 20, $CBS_DROPDOWNLIST)
 	$sLang = '简体中文'
 	If _ItemExists($LANGUAGES, $LANGUAGE) Then
 		$sLang = _Item($LANGUAGES, $LANGUAGE)
@@ -878,11 +890,11 @@ Func Settings()
 	GUICtrlSetData(-1, $sLangEnum, $slang)
 	GUICtrlSetOnEvent(-1, "ChangeLanguage")
 
-	$hCheckAppUpdate = GUICtrlCreateCheckbox(_t("NoticeMeWhenNewVersionPublished", " RunFirefox 发布新版时通知我"), 20, 360)
+	$hCheckAppUpdate = GUICtrlCreateCheckbox(_t("NoticeMeWhenNewVersionPublished", " RunFirefox 发布新版时通知我"), 20, 350)
 	If $CheckAppUpdate Then
 		GUICtrlSetState(-1, $GUI_CHECKED)
 	EndIf
-	$hRunInBackground = GUICtrlCreateCheckbox(_t("KeepRunFirefoxRunning", " RunFirefox 在后台运行直至浏览器退出"), 20, 390)
+	$hRunInBackground = GUICtrlCreateCheckbox(_t("KeepRunFirefoxRunning", " RunFirefox 在后台运行直至浏览器退出"), 20, 380)
 	GUICtrlSetOnEvent(-1, "RunInBackground")
 	If $RunInBackground Then
 		GUICtrlSetState($hRunInBackground, $GUI_CHECKED)
@@ -1081,6 +1093,12 @@ Func SettingsApply()
 
 	Opt("ExpandEnvStrings", 0)
 	$FirefoxPath = RelativePath(GUICtrlRead($hFirefoxPath))
+	
+	If GUICtrlRead($hAllowBrowserUpdate) = $GUI_CHECKED Then
+		$AllowBrowserUpdate = 1
+	Else
+		$AllowBrowserUpdate = 0
+	EndIf
 	$ProfileDir = RelativePath(GUICtrlRead($hProfileDir))
 	$CustomPluginsDir = RelativePath(GUICtrlRead($hCustomPluginsDir))
 	$CustomCacheDir = RelativePath(GUICtrlRead($hCustomCacheDir))
@@ -1121,6 +1139,7 @@ Func SettingsApply()
 
 	IniWrite($inifile, "Settings", "CheckAppUpdate", $CheckAppUpdate)
 	IniWrite($inifile, "Settings", "RunInBackground", $RunInBackground)
+	IniWrite($inifile, "Settings", "AllowBrowserUpdate", $AllowBrowserUpdate)
 	IniWrite($inifile, "Settings", "FirefoxPath", $FirefoxPath)
 	IniWrite($inifile, "Settings", "ProfileDir", $ProfileDir)
 	IniWrite($inifile, "Settings", "CustomPluginsDir", $CustomPluginsDir)
@@ -1530,6 +1549,11 @@ Func _Zip_UnzipAll($sZipFile, $sDestPath, $flag = 20)
 		Return SetError(6, 0, 0)
 	EndIf
 EndFunc   ;==>_Zip_UnzipAll
+
+; 切换自动更新状态
+Func ChangeAutoUpdateStatus()
+
+EndFunc
 
 ; 语言检测
 Func _GetLangFile()

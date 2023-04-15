@@ -1,1 +1,0 @@
-CreateObject("shell.application").ShellExecute "RunFirefox.au3", "-set"

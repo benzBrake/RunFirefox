@@ -1,6 +1,5 @@
 #include "JSON.au3"
 #include <Array.au3>
-#include "ArrayX.au3"
 #include <FileConstants.au3>
 Func UpdatePolices($FirefoxDir, $AllowBrowserUpdate)
 	Local $policiesFolder = $FirefoxDir & "\distribution"

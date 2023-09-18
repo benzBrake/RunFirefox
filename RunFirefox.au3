@@ -703,8 +703,9 @@ Func CheckDefaultBrowser($BrowserPath)
 EndFunc   ;==>CheckDefaultBrowser
 
 Func UpdateAddonStarup()
-; Extract mozlz4
 	Local $mozlz4Exe, $addonStarup, $addonStarupLz4
+
+	; Extract mozlz4
 	If @OSArch = "X86" Then
 		$mozlz4Exe = @ScriptDir & "\" & "mozlz4-win32.exe"
 		FileInstall("mozlz4-win32.exe", $mozlz4Exe)
@@ -825,6 +826,11 @@ Func Settings()
 	GUICtrlSetColor(-1, 0x0000FF)
 	GUICtrlSetTip(-1, _t("ClickToOpenPublishPage", "点击打开 RunFirefox 主页"))
 	GUICtrlSetOnEvent(-1, "Website")
+	GUICtrlCreateLabel(_t("AppOriginalCopyright", "原版 by 甲壳虫"), 5, 30, 490, -1, $SS_CENTER)
+	GUICtrlSetCursor(-1, 0)
+	GUICtrlSetColor(-1, 0x0000FF)
+	GUICtrlSetTip(-1, _t("ClickToOpenPublishPage", "点击打开甲壳虫原版主页"))
+	GUICtrlSetOnEvent(-1, "OriginalWebsite")
 
 	;常规
 	GUICtrlCreateTab(5, 40, 490, 390)
@@ -1212,6 +1218,10 @@ Func Website()
 	ShellExecute("https://github.com/benzBrake/RunFirefox")
 EndFunc   ;==>Website
 
+;~ 打开原版网站
+Func OriginalWebsite()
+	ShellExecute("https://github.com/cnjackchen/my-firefox")
+EndFunc   ;==>Website
 
 ;~ 查找Firefox主程序
 Func GetFirefoxPath()

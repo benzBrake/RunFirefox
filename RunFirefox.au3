@@ -1,10 +1,11 @@
 ﻿#NoTrayIcon
-#Region ;**** 由 AccAu3Wrapper_GUI 创建指令 ****
+#Region ;**** Directives created by AutoIt3Wrapper_GUI ****
 #AutoIt3Wrapper_Icon=icons\Firefox.ico
 #AutoIt3Wrapper_Outfile=RunFirefox.exe
 #AutoIt3Wrapper_Outfile_x64=RunFirefox_x64.exe
 #AutoIt3Wrapper_UseUpx=y
 #AutoIt3Wrapper_Compile_Both=y
+#AutoIt3Wrapper_UseX64=y
 #AutoIt3Wrapper_Res_Comment=Firefox Portable
 #AutoIt3Wrapper_Res_Description=Firefox Portable
 #AutoIt3Wrapper_Res_Fileversion=2.7.8.0
@@ -14,7 +15,7 @@
 #AutoIt3Wrapper_AU3Check_Parameters=-q
 #AutoIt3Wrapper_Run_Au3Stripper=y
 #Au3Stripper_Parameters=/sf=1 /sv=1
-#EndRegion ;**** 由 AccAu3Wrapper_GUI 创建指令 ****
+#EndRegion ;**** Directives created by AutoIt3Wrapper_GUI ****
 #cs ----------------------------------------------------------------------------
 	AutoIt Version:   3.3.14.2
 	Author:           Ryan, 甲壳虫
@@ -159,8 +160,11 @@ $FirefoxPath = FullPath($FirefoxPath)
 SplitPath($FirefoxPath, $FirefoxDir, $FirefoxExe)
 $ProfileDir = FullPath($ProfileDir)
 
+;~ 创建禁止检查默认浏览器策略，使用 RunFirefox 后检测默认浏览器结果不准确
+UpdatePolices($FirefoxDir, "DontCheckDefaultBrowser", true)
+
 ;~ 创建禁用自动更新策略
-UpdatePolices($FirefoxDir, $AllowBrowserUpdate)
+UpdatePolices($FirefoxDir, "DisableAppUpdate", $AllowBrowserUpdate == 0)
 
 If IsAdmin() And $cmdline[0] = 1 And $cmdline[1] = "-SetDefaultGlobal" Then
 	CheckDefaultBrowser($FirefoxPath)
@@ -833,10 +837,10 @@ Func Settings()
 	GUICtrlSetOnEvent(-1, "OriginalWebsite")
 
 	;常规
-	GUICtrlCreateTab(5, 40, 490, 390)
+	GUICtrlCreateTab(5, 50, 490, 390)
 	GUICtrlCreateTabItem(_t("General", "常规"))
 
-	GUICtrlCreateGroup(_t("BrowserFiles", "浏览器程序文件"), 10, 70, 480, 120)
+	GUICtrlCreateGroup(_t("BrowserFiles", "浏览器程序文件"), 10, 80, 480, 120)
 	GUICtrlCreateLabel(_t("FirefoxPath", "Firefox 路径"), 20, 100, 120, 20)
 	$hFirefoxPath = GUICtrlCreateEdit($FirefoxPath, 140, 95, 270, 20, $ES_AUTOHSCROLL)
 	GUICtrlSetTip(-1, _t("BrowserExecutablePath", "浏览器主程序路径"))
@@ -876,7 +880,7 @@ Func Settings()
 		GUICtrlSetOnEvent(-1, "DownloadFirefox")
 	EndIf
 
-	GUICtrlCreateGroup(_t("ProfileFiles", "浏览器用户数据文件"), 10, 200, 480, 80)
+	GUICtrlCreateGroup(_t("ProfileFiles", "浏览器用户数据文件"), 10, 210, 480, 80)
 	GUICtrlCreateLabel(_t("ProfileDirectory", "配置文件夹"), 20, 230, 120, 20)
 	$hProfileDir = GUICtrlCreateEdit($ProfileDir, 140, 225, 270, 20, $ES_AUTOHSCROLL)
 	GUICtrlSetTip(-1, _t("ProfileDirectoryTooltip", "浏览器配置文件夹"))
@@ -885,8 +889,8 @@ Func Settings()
 	GUICtrlSetOnEvent(-1, "GetProfileDir")
 	$hCopyProfile = GUICtrlCreateCheckbox(_t("ExtractProfileFromSystem", " 从系统中提取 Firefox 配置文件"), 30, 250, -1, 20)
 
-	GUICtrlCreateGroup(_t("RunFirefoxOptions", "RunFirefox 设置"), 10, 290, 480, 120)
-	GUICtrlCreateLabel(_t("UILanguage", "显示语言"), 20, 320, 100, 20)
+	GUICtrlCreateGroup(_t("RunFirefoxOptions", "RunFirefox 设置"), 10, 300, 480, 120)
+	GUICtrlCreateLabel(_t("UILanguage", "显示语言/Language"), 20, 320, 120, 20)
 	$hlanguage = GUICtrlCreateCombo("", 140, 315, 100, 20, $CBS_DROPDOWNLIST)
 	$sLang = '简体中文'
 	If _ItemExists($LANGUAGES, $LANGUAGE) Then

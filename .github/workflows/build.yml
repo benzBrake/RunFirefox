@@ -33,7 +33,7 @@ jobs:
 
       - name: Get the version
         id: get_version
-        run: echo ::set-output name=VERSION::${GITHUB_REF#*\/v}
+        run: echo "VERSION=${GITHUB_REF#*\/v}" >> $GITHUB_OUTPUT
         shell: bash
 
       # Force to update the version number if I forgot to update it
@@ -92,6 +92,23 @@ jobs:
           tags: true
           draft: false
           overwrite: true
+
+      # Create changelog
+      - name: Create changelog text
+        id: changelog
+        uses: endaft/action-changelog@v0.0.3
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          exclude_types: other,doc,chore
+
+      # Update release log
+      - name: Update release
+        uses: ColinPitrat/update-release@v1.0.1
+        with:
+          files: "README.md"
+          token: ${{ secrets.GITHUB_TOKEN }}
+          tag: v${{ steps.get_version.outputs.VERSION }}
+          body: ${{ steps.changelog.outputs.changes }}
 
       # Update version
       - name: Change version information in Update.txt

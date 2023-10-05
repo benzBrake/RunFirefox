@@ -1,7 +1,7 @@
 
-latest=2.7.8
-url=https://cdn.jsdelivr.net/gh/benzBrake/RunFirefox@releases/download/v2.7.8/RunFirefox_2.7.8.zip
-update=feat: 新增浏览器自动更新开关
-latest_x64=2.7.8
-url_x64=https://cdn.jsdelivr.net/gh/benzBrake/RunFirefox@releases/download/v2.7.8/RunFirefox_2.7.8_x64.zip
-update_x64=feat: 新增浏览器自动更新开关
+latest=2.7.9
+url=https://ghproxy.com/https://github.com/benzBrake/RunFirefox/releases/download/v2.7.9/RunFirefox_2.7.9.zip
+update=feat: CI 收集更新日志
+latest_x64=2.7.9
+url_x64=https://ghproxy.com/https://github.com/benzBrake/RunFirefox/releases/download/v2.7.9/RunFirefox_2.7.9_x64.zip
+update_x64=feat: CI 收集更新日志

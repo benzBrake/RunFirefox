@@ -8,7 +8,7 @@
 #AutoIt3Wrapper_UseX64=y
 #AutoIt3Wrapper_Res_Comment=Firefox Portable
 #AutoIt3Wrapper_Res_Description=Firefox Portable
-#AutoIt3Wrapper_Res_Fileversion=2.7.8.0
+#AutoIt3Wrapper_Res_Fileversion=2.7.9.0
 #AutoIt3Wrapper_Res_LegalCopyright=Ryan <github-benzBrake@woai.ru>
 #AutoIt3Wrapper_Res_Language=2052
 #AutoIt3Wrapper_Res_requestedExecutionLevel=None
@@ -48,7 +48,7 @@ Opt("GUIOnEventMode", 1)
 Opt("WinTitleMatchMode", 4)
 
 Global Const $CustomArch = "RunFirefox"
-Global Const $AppVersion = "2.7.8"
+Global Const $AppVersion = "2.7.9"
 Global $FirstRun, $FirefoxExe, $FirefoxDir
 Global $TaskBarDir = @AppDataDir & "\Microsoft\Internet Explorer\Quick Launch\User Pinned\TaskBar"
 Global $AppPID, $TaskBarLastChange

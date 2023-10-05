@@ -96,7 +96,7 @@ jobs:
       # Update version
       - name: Change version information in Update.txt
         run: |
-          rm Update.txt
+          rm Update_RunFirefox.txt
           rm Update_FireDoge.txt
           rm Update_RunFloorp.txt
           cp Update_Template.txt Update_RunFirefox.txt

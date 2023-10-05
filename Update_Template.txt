@@ -1,7 +1,7 @@
 
 latest=EXE_VERSION
-url=https://cdn.jsdelivr.net/gh/benzBrake/RunFirefox@releases/download/vEXE_VERSION/RunFirefox_EXE_VERSION.zip
+url=https://ghproxy.com/https://github.com/benzBrake/RunFirefox/releases/download/vEXE_VERSION/RunFirefox_EXE_VERSION.zip
 update=EXE_MESSAGE
 latest_x64=EXE_VERSION
-url_x64=https://cdn.jsdelivr.net/gh/benzBrake/RunFirefox@releases/download/vEXE_VERSION/RunFirefox_EXE_VERSION_x64.zip
+url_x64=https://ghproxy.com/https://github.com/benzBrake/RunFirefox/releases/download/vEXE_VERSION/RunFirefox_EXE_VERSION_x64.zip
 update_x64=EXE_MESSAGE

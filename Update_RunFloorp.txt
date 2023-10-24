@@ -1,7 +1,0 @@
-
-latest=2.7.9
-url=https://ghproxy.com/https://github.com/benzBrake/RunFirefox/releases/download/v2.7.9/RunFloorp_2.7.9.zip
-update=feat: CI 收集更新日志
-latest_x64=2.7.9
-url_x64=https://ghproxy.com/https://github.com/benzBrake/RunFirefox/releases/download/v2.7.9/RunFloorp_2.7.9_x64.zip
-update_x64=feat: CI 收集更新日志

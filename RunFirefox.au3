@@ -43,12 +43,13 @@
 #include "libs\AppUserModelId.au3"
 #include "libs\Polices.au3"
 #include "libs\ScriptingDictionary.au3"
+#include "libs\UpgradeHelper.au3"
 
 Opt("GUIOnEventMode", 1)
 Opt("WinTitleMatchMode", 4)
 
-Global Const $CustomArch = "RunFirefox"
-Global Const $AppVersion = "2.7.9"
+Global Const $CustomArch = "RunFloorp"
+Global Const $AppVersion = "2.7.8"
 Global $FirstRun, $FirefoxExe, $FirefoxDir
 Global $TaskBarDir = @AppDataDir & "\Microsoft\Internet Explorer\Quick Launch\User Pinned\TaskBar"
 Global $AppPID, $TaskBarLastChange
@@ -85,8 +86,8 @@ Else ; 64-bit Autoit
 EndIf
 
 FileChangeDir(@ScriptDir)
-$AppName = StringRegExpReplace(@ScriptName, "\.[^.]*$", "")
-$inifile = @ScriptDir & "\" & $AppName & ".ini"
+$ScriptNameWithOutSuffix = StringRegExpReplace(@ScriptName, "\.[^.]*$", "")
+$inifile = @ScriptDir & "\" & $ScriptNameWithOutSuffix & ".ini"
 If Not FileExists($inifile) Then
 	$FirstRun = 1
 	IniWrite($inifile, "Settings", "AppVersion", $AppVersion)
@@ -151,7 +152,7 @@ EnvSet("APP", @ScriptDir)
 
 ;~ 第一个启动参数为“-set”，或第一次运行，Firefox、配置文件夹、插件目录不存在，则显示设置窗口
 If ($cmdline[0] = 1 And $cmdline[1] = "-set") Or $FirstRun Or Not FileExists($FirefoxPath) Or Not FileExists($ProfileDir) Then
-	CreateSettingsShortcut(@ScriptDir & "\" & $AppName & ".vbs")
+	CreateSettingsShortcut(@ScriptDir & "\" & $ScriptNameWithOutSuffix & ".vbs")
 	Settings()
 EndIf
 
@@ -177,7 +178,7 @@ If $CustomPluginsDir <> "" Then
 	EnvSet("MOZ_PLUGIN_PATH", $CustomPluginsDir) ; 设置环境变量
 EndIf
 
-; 给带空格的外部参数加上引号。
+;~ 给带空格的外部参数加上引号。
 For $i = 1 To $cmdline[0]
 	If StringInStr($cmdline[$i], " ") Then
 		$Params &= ' "' & $cmdline[$i] & '"'
@@ -207,7 +208,7 @@ EndIf
 $AppPID = Run($FirefoxPath & ' -profile "' & $ProfileDir & '" ' & $Params, $FirefoxDir)
 
 FileChangeDir(@ScriptDir)
-CreateSettingsShortcut(@ScriptDir & "\" & $AppName & ".vbs")
+CreateSettingsShortcut(@ScriptDir & "\" & $ScriptNameWithOutSuffix & ".vbs")
 
 If $FirefoxIsRunning Then
 	$exe = StringRegExpReplace(@AutoItExe, ".*\\", "")
@@ -392,30 +393,34 @@ EndFunc   ;==>OnExit
 
 ;~ 查检 RunFirefox更新
 Func CheckAppUpdate()
-	Local $var, $match, $LatestAppVer, $msg, $update, $url
-	Local $slatest = "latest", $surl = "url", $supdate = "update"
-	If @AutoItX64 Then
-		$surl &= "_x64"
-	EndIf
+	Local $AppUpdateLastCheck, $repo = 'benzBrake/RunFirefox', $latestVersion, $releaseNotes, $downloadUrl, $MirrorAddress = 'https://ghproxy.com/'
 	$AppUpdateLastCheck = _NowCalc()
 	IniWrite($inifile, "Settings", "AppUpdateLastCheck", $AppUpdateLastCheck)
 
 	HttpSetProxy(0) ; Use IE defaults for proxy
-	$var = BinaryToString(InetRead($AppUpdateMirror & "Update_" & $CustomArch & ".txt", 27), 4)
-	$var = StringStripWS($var, 3) ; 去掉开头、结尾的空字符
-	$match = StringRegExp($var, '(?im)^' & $slatest & '=(\S+)', 1)
-	If @error Then Return
-	$LatestAppVer = $match[0]
-	If VersionCompare($LatestAppVer, $AppVersion) <= 0 Then Return
-	$match = StringRegExp($var, '(?im)^' & $surl & '=(\S+)', 1)
-	If @error Then Return
-	$url = $match[0]
-	$match = StringRegExp($var, '(?im)' & $supdate & '=(.+)', 1)
-	If @error Then Return
-	$update = StringReplace($match[0], "\n", @CRLF)
-	$msg = MsgBox(68, $CustomArch, $CustomArch & " " & $LatestAppVer & " 已发布，更新内容：" & _
-			@CRLF & @CRLF & $update & @CRLF & @CRLF & "是否自动更新？")
+	$latestVersion = GetLatestReleaseVersion($repo, $MirrorAddress);
+	;~ 获取的版本号不对则返回
+	If Not _StringStartsWith($latestVersion, 'v') Then Return
+	;~ 去除版本号开头的 v
+	$latestVersion = StringTrimLeft($latestVersion, 1)
+	;~ 比较版本号，如果版本号相同则返回
+	If VersionCompare($latestVersion, $AppVersion) <= 0 Then Return
+	;~ 获取更新日志
+	$releaseNotes = GetReleaseNotesByVersion($repo, "v" & $latestVersion, $MirrorAddress);
+
+	$UpdateAvailable = _t("UpdateAvailable", "{AppName} {Version} 已发布，更新内容：\n\n\n{Notes}\n是否自动更新？")
+	$UpdateAvailable = StringReplace($UpdateAvailable, "{AppName}", $CustomArch)
+	$UpdateAvailable = StringReplace($UpdateAvailable, "{Version}", $latestVersion)
+	$UpdateAvailable = StringReplace($UpdateAvailable, "{Notes}", $releaseNotes)
+	$msg = MsgBox(68, $CustomArch, $UpdateAvailable);
 	If $msg <> 6 Then Return
+
+	;~ 拼接下载链接
+	$archStr = '';
+	If @AutoItX64 Then
+		$archStr &= "_x64"
+	EndIf
+	$downloadUrl = $MirrorAddress & 'https://github.com/' & $repo & '/releases/download/v' & $latestVersion & '/' & $CustomArch & '_' & $latestVersion & $archStr &'.zip'
 
 	Local $temp = @ScriptDir & "\RunFirefox_temp"
 	$file = $temp & "\RunFirefox.zip"
@@ -426,15 +431,15 @@ Func CheckAppUpdate()
 	TraySetClick(8)
 	TraySetToolTip($CustomArch)
 	Local $hCancelAppUpdate = TrayCreateItem(_t("CancelAppUpdate", "取消更新..."))
-	TrayTip("", _t("StartToDownloadApp", "开始下载 RunFirefox"), 10, 1)
-	Local $hDownload = InetGet($url, $file, 19, 1)
+	TrayTip("", _t("StartToDownloadApp", "开始下载 {AppName}"), 10, 1)
+	Local $hDownload = InetGet($downloadUrl, $file, 19, 1)
 	Local $DownloadSuccessful, $DownloadCancelled, $UpdateSuccessful, $error
 	Do
 		Switch TrayGetMsg()
 			Case $TRAY_EVENT_PRIMARYDOWN
-				TrayTip("", StringFormat(_t("AppDownloadProgress", "正在下载 RunFirefox\n已下载 %i KB"), Round(InetGetInfo($hDownload, 0) / 1024)), 5, 1)
+				TrayTip("", _t("AppDownloadProgress", "正在下载 {AppName}\n已下载 %i KB", Round(InetGetInfo($hDownload, 0) / 1024)), 5, 1)
 			Case $hCancelAppUpdate
-				$msg = MsgBox(4 + 32 + 256, $CustomArch, _t("CancelAppUpdateConfirm", "正在下载 RunFirefox，确定要取消吗？"))
+				$msg = MsgBox(4 + 32 + 256, $CustomArch,_t("CancelAppUpdateConfirm", "正在下载 {AppName}，确定要取消吗？"))
 				If $msg = 6 Then
 					$DownloadCancelled = 1
 					ExitLoop
@@ -445,7 +450,7 @@ Func CheckAppUpdate()
 	InetClose($hDownload)
 	If Not $DownloadCancelled Then
 		If $DownloadSuccessful Then
-			TrayTip("", _t("ApplyingUpdate", "正在应用 RunFirefox 更新"), 10, 1)
+			TrayTip("", _t("ApplyingUpdate", "正在应用 {AppName} 更新"), 10, 1)
 			FileSetAttrib($file, "+A")
 			_Zip_UnzipAll($file, $temp)
 			$FileName = $CustomArch & ".exe"
@@ -465,11 +470,15 @@ Func CheckAppUpdate()
 			$error = _t("FailToDownloadUpdateFile", "下载更新文件失败。")
 		EndIf
 		If $UpdateSuccessful Then
-			MsgBox(64, $CustomArch, StringFormat(_t("UpdateSuccessConfirm", "RunFirefox 已更新至 %s ！\n原 %s 已备份为 %s"), $LatestAppVer, @ScriptName, @ScriptName & ".bak。"))
+			Local $UpdateSuccessfulMsg = _t("UpdateSuccessConfirm", "{AppName} 已更新至 {Version} ！\n原 {ScriptName} 已备份为 {ScriptNameBak}")
+			$UpdateSuccessfulMsg = StringReplace($UpdateSuccessfulMsg, "{Version}", $latestVersion)
+			$UpdateSuccessfulMsg = StringReplace($UpdateSuccessfulMsg, "{ScriptNameBak}", @ScriptName & ".bak")
+			MsgBox(64, $CustomArch, $UpdateSuccessfulMsg)
 		Else
-			$msg = MsgBox(20, $CustomArch, StringFormat(_t("UpdateFailedConfirm", "RunFirefox 自动更新失败：\n%s\n\n是否去软件发布页手动下载 RunFirefox？"), $error))
+			Local $UpdateFailedConfirmMsg = _t("UpdateFailedConfirm", "{AppName} 自动更新失败：\n%s\n\n是否去软件发布页手动下载 {AppName}？", $error)
+			$msg = MsgBox(20, $CustomArch, $UpdateFailedConfirmMsg)
 			If $msg = 6 Then ; Yes
-				ShellExecute("https://github.com/benzBrake/RunFirefox")
+				ShellExecute("https://github.com/benzBrake/RunFirefox/releases")
 			EndIf
 		EndIf
 	EndIf
@@ -720,7 +729,7 @@ Func UpdateAddonStarup()
 
 	$addonStarupLz4 = $ProfileDir & "\" & "addonStartup.json.lz4";
 	$addonStarup = $ProfileDir & "\" & "addonStartup.json";
-	
+
 	; Extract addonStartup.json.lz4
 	If FileExists($addonStarupLz4) Then
 		FileDelete($addonStarup);
@@ -823,17 +832,17 @@ Func Settings()
 	EndIf
 
 	Opt("ExpandEnvStrings", 0)
-	$hSettings = GUICreate(_t("AppTitle", "RunFirefox - 打造自己的 Firefox 便携版"), 500, 490)
+	$hSettings = GUICreate(_t("AppTitle", "{AppName} - 打造自己的 Firefox 便携版"), 500, 490)
 	GUISetOnEvent($GUI_EVENT_CLOSE, "ExitApp")
-	GUICtrlCreateLabel(StringFormat(_t("AppCopyright", "%s by Ryan <github-benzBrake@woai.ru>"), $CustomArch), 5, 10, 490, -1, $SS_CENTER)
+	GUICtrlCreateLabel(_t("AppCopyright", "{AppName} by Ryan <github-benzBrake@woai.ru>"), 5, 10, 490, -1, $SS_CENTER)
 	GUICtrlSetCursor(-1, 0)
 	GUICtrlSetColor(-1, 0x0000FF)
-	GUICtrlSetTip(-1, _t("ClickToOpenPublishPage", "点击打开 RunFirefox 主页"))
+	GUICtrlSetTip(-1, _t("ClickToOpenPublishPage", "点击打开 {AppName} 主页"))
 	GUICtrlSetOnEvent(-1, "Website")
 	GUICtrlCreateLabel(_t("AppOriginalCopyright", "原版 by 甲壳虫"), 5, 30, 490, -1, $SS_CENTER)
 	GUICtrlSetCursor(-1, 0)
 	GUICtrlSetColor(-1, 0x0000FF)
-	GUICtrlSetTip(-1, _t("ClickToOpenPublishPage", "点击打开甲壳虫原版主页"))
+	GUICtrlSetTip(-1, _t("ClickToOpenOriginalPage", "点击打开甲壳虫原版主页"))
 	GUICtrlSetOnEvent(-1, "OriginalWebsite")
 
 	;常规
@@ -868,12 +877,12 @@ Func Settings()
 	;https://product-details.mozilla.org/1.0/firefox_versions.json 将来实现自动更新
 
 	GUICtrlCreateLabel(_t("DownloadFirefox", "下载 Firefox："), 20, 160, 120, 20)
-	$hDownloadFirefox32 = GUICtrlCreateLabel(StringFormat(_t("DownloadFirefoxX64", "%s 32位"), "release"), 140, 160, 140, 20)
+	$hDownloadFirefox32 = GUICtrlCreateLabel(_t("DownloadFirefoxX64", "%s 32位", "release"), 140, 160, 140, 20)
 	GUICtrlSetCursor(-1, 0)
 	GUICtrlSetColor(-1, 0x0000FF)
 	GUICtrlSetOnEvent(-1, "DownloadFirefox")
 
-	$hDownloadFirefox64 = GUICtrlCreateLabel(StringFormat(_t("DownloadFirefoxX64", "%s 32位"), "release"), 280, 160, 140, 20)
+	$hDownloadFirefox64 = GUICtrlCreateLabel(_t("DownloadFirefoxX64", "%s 32位", "release"), 280, 160, 140, 20)
 	GUICtrlSetCursor(-1, 0)
 	GUICtrlSetColor(-1, 0x0000FF)
 	If @OSArch <> "X86" Then
@@ -889,7 +898,7 @@ Func Settings()
 	GUICtrlSetOnEvent(-1, "GetProfileDir")
 	$hCopyProfile = GUICtrlCreateCheckbox(_t("ExtractProfileFromSystem", " 从系统中提取 Firefox 配置文件"), 30, 250, -1, 20)
 
-	GUICtrlCreateGroup(_t("RunFirefoxOptions", "RunFirefox 设置"), 10, 300, 480, 120)
+	GUICtrlCreateGroup(_t("RunFirefoxOptions", "{AppName} 设置"), 10, 300, 480, 120)
 	GUICtrlCreateLabel(_t("UILanguage", "显示语言/Language"), 20, 320, 120, 20)
 	$hlanguage = GUICtrlCreateCombo("", 140, 315, 100, 20, $CBS_DROPDOWNLIST)
 	$sLang = '简体中文'
@@ -900,11 +909,11 @@ Func Settings()
 	GUICtrlSetData(-1, $sLangEnum, $slang)
 	GUICtrlSetOnEvent(-1, "ChangeLanguage")
 
-	$hCheckAppUpdate = GUICtrlCreateCheckbox(_t("NoticeMeWhenNewVersionPublished", " RunFirefox 发布新版时通知我"), 20, 350)
+	$hCheckAppUpdate = GUICtrlCreateCheckbox(_t("NoticeMeWhenNewVersionPublished", " {AppName} 发布新版时通知我"), 20, 350)
 	If $CheckAppUpdate Then
 		GUICtrlSetState(-1, $GUI_CHECKED)
 	EndIf
-	$hRunInBackground = GUICtrlCreateCheckbox(_t("KeepRunFirefoxRunning", " RunFirefox 在后台运行直至浏览器退出"), 20, 380)
+	$hRunInBackground = GUICtrlCreateCheckbox(_t("KeepRunFirefoxRunning", " {AppName} 在后台运行直至浏览器退出"), 20, 380)
 	GUICtrlSetOnEvent(-1, "RunInBackground")
 	If $RunInBackground Then
 		GUICtrlSetState($hRunInBackground, $GUI_CHECKED)
@@ -967,6 +976,10 @@ Func Settings()
 	GUICtrlSetOnEvent(-1, "AddExApp2")
 
 	GUICtrlCreateTabItem("")
+	GUICtrlCreateButton(_t("CheckForUpdateManually", "检查更新"), 80, 440, 130, 20)
+	GUICtrlSetTip(-1, _t("ConfirmTooltip", "立即更新 {AppName}"))
+	GUICtrlSetOnEvent(-1, "CheckAppUpdate")
+	GUICtrlCreateTabItem("")
 	GUICtrlCreateButton(_t("Confirm", "确定"), 235, 440, 70, 20)
 	GUICtrlSetTip(-1, _t("ConfirmTooltip", "保存设置并启动浏览器"))
 	GUICtrlSetOnEvent(-1, "SettingsOK")
@@ -977,7 +990,7 @@ Func Settings()
 	GUICtrlCreateButton(_t("Apply", "应用"), 425, 440, 70, 20)
 	GUICtrlSetTip(-1, _t("ApplyTooltip", "保存设置"))
 	GUICtrlSetOnEvent(-1, "SettingsApply")
-	$hStatus = _GUICtrlStatusBar_Create($hSettings, -1, StringFormat(_t("DoublieClickToOpenSettingsWindow", '双击软件目录下的 "%s.vbs" 文件可调出此窗口'), $AppName))
+	$hStatus = _GUICtrlStatusBar_Create($hSettings, -1, _t("DoublieClickToOpenSettingsWindow", '双击软件目录下的 "%s.vbs" 文件可调出此窗口', $ScriptNameWithOutSuffix))
 	Opt("ExpandEnvStrings", 1)
 
 ;~ 复制配置文件选项有效/无效
@@ -1025,8 +1038,8 @@ EndFunc   ;==>OnFirefoxPathChange
 Func ChangeChannel()
 	Local $Channel = GUICtrlRead($hChannel)
 	If $Channel = "default" Then $Channel = "release"
-	GUICtrlSetData($hDownloadFirefox32, StringFormat(_t("DownloadFirefoxX86", "%s 32位"), $Channel))
-	GUICtrlSetData($hDownloadFirefox64, StringFormat(_t("DownloadFirefoxX64", "%s 64位"), $Channel))
+	GUICtrlSetData($hDownloadFirefox32, _t("DownloadFirefoxX86", "%s 32位", $Channel))
+	GUICtrlSetData($hDownloadFirefox64, _t("DownloadFirefoxX64", "%s 64位", $Channel))
 EndFunc   ;==>ChangeChannel
 
 Func ShowCurrentChannel()
@@ -1103,7 +1116,7 @@ Func SettingsApply()
 
 	Opt("ExpandEnvStrings", 0)
 	$FirefoxPath = RelativePath(GUICtrlRead($hFirefoxPath))
-	
+
 	If GUICtrlRead($hAllowBrowserUpdate) = $GUI_CHECKED Then
 		$AllowBrowserUpdate = 1
 	Else
@@ -1169,7 +1182,7 @@ Func SettingsApply()
 
 	;Firefox path
 	If Not FileExists($FirefoxPath) Then
-		MsgBox(16, "RunFirefox", StringFormat(_t("FirefoxPathErrorMessage", "Firefox 路径错误，请重新设置。\n\n%s"), $FirefoxPath), 0, $hSettings)
+		MsgBox(16, "RunFirefox", _t("FirefoxPathErrorMessage", "Firefox 路径错误，请重新设置。\n\n%s", $FirefoxPath), 0, $hSettings)
 		GUICtrlSetState($hFirefoxPath, $GUI_FOCUS)
 		Return SetError(1)
 	EndIf
@@ -1599,14 +1612,19 @@ Func _GetLanguages()
 EndFunc
 
 ; 获取翻译文本
-Func _t($key, $defaltstr)
-	local $str = $defaltstr;
+Func _t($key, $defaultString, $replaceString = "")
+	local $str = $defaultString;
 	If $LANG_FILE Then
 		If $LANGUAGE <> "zh-CN" Then
-			$str = IniRead($LANG_FILE, $LANGUAGE, $key, $defaltstr);
+			$str = IniRead($LANG_FILE, $LANGUAGE, $key, $defaultString);
 		Else
-			$str = $defaltstr
+			$str = $defaultString
 		EndIf
+	EndIf
+	$str = StringReplace($str, "{AppName}", $CustomArch)
+	$str = StringReplace($str, "{ScriptName}", @ScriptName)
+	If ($replaceString <> "") Then
+		$str = StringFormat($str, $replaceString)
 	EndIf
 	Return StringReplace($str, "\n", @CRLF) ; 换行符号处理
 EndFunc   ;==>_t
@@ -1616,7 +1634,7 @@ Func ChangeLanguage()
 	$newLang = SaveLang();
 	If $newLang <> $LANGUAGE Then
 		$LANGUAGE = $newLang
-		MsgBox(64, "RunFirefox", _t("RestartToApplyLanguage", "语言设置将在重启 RunFirefox 后生效"))
+		MsgBox(64, $CustomArch, _t("RestartToApplyLanguage", "语言设置将在重启 {AppName} 后生效"))
 		GUIDelete($hSettings)
 		If @Compiled Then
 			ShellExecute(@ScriptName, "-Set", @ScriptDir)
@@ -1634,7 +1652,7 @@ Func SaveLang()
 			$index = $i
 		EndIf
 	Next
-	
+
 	If ($index <> -1) Then
 		$newLang = $keys[$index]
 		IniWrite($inifile, "Settings", "Language", $newLang)

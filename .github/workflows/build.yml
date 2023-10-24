@@ -110,24 +110,6 @@ jobs:
           tag: v${{ steps.get_version.outputs.VERSION }}
           body: ${{ steps.changelog.outputs.changes }}
 
-      # Update version
-      - name: Change version information in Update.txt
-        run: |
-          rm Update_RunFirefox.txt
-          rm Update_FireDoge.txt
-          rm Update_RunFloorp.txt
-          cp Update_Template.txt Update_RunFirefox.txt
-          cp Update_Template.txt Update_FireDoge.txt
-          cp Update_Template.txt Update_RunFloorp.txt
-          sed -i "s/EXE_VERSION/${{ steps.get_version.outputs.VERSION }}/g" Update_RunFirefox.txt
-          sed -i "s/EXE_MESSAGE/${{ github.event.head_commit.message }}/g" Update_RunFirefox.txt
-          sed -i "s/EXE_VERSION/${{ steps.get_version.outputs.VERSION }}/g" Update_FireDoge.txt
-          sed -i "s/EXE_MESSAGE/${{ github.event.head_commit.message }}/g" Update_FireDoge.txt
-          sed -i "s/RunFirefox_/FireDoge_/g" Update_FireDoge.txt
-          sed -i "s/EXE_VERSION/${{ steps.get_version.outputs.VERSION }}/g" Update_RunFloorp.txt
-          sed -i "s/EXE_MESSAGE/${{ github.event.head_commit.message }}/g" Update_RunFloorp.txt
-          sed -i "s/RunFirefox_/RunFloorp_/g" Update_RunFloorp.txt
-
       - uses: EndBug/add-and-commit@v9 # You can change this to use a specific version.
         with:
           push: origin HEAD:master

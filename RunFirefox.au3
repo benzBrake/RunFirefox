@@ -48,8 +48,8 @@
 Opt("GUIOnEventMode", 1)
 Opt("WinTitleMatchMode", 4)
 
-Global Const $CustomArch = "RunFloorp"
-Global Const $AppVersion = "2.7.8"
+Global Const $CustomArch = "RunFirefox"
+Global Const $AppVersion = "2.7.9"
 Global $FirstRun, $FirefoxExe, $FirefoxDir
 Global $TaskBarDir = @AppDataDir & "\Microsoft\Internet Explorer\Quick Launch\User Pinned\TaskBar"
 Global $AppPID, $TaskBarLastChange
@@ -108,6 +108,7 @@ If Not FileExists($inifile) Then
 	IniWrite($inifile, "Settings", "ExApp2", "")
 	IniWrite($inifile, "Settings", "LastPlatformDir", "")
 	IniWrite($inifile, "Settings", "LastProfileDir", "")
+	IniWrite($inifile, "Settings", "GithubMirror", "https://github.mfzy.ru")
 EndIf
 
 $CheckAppUpdate = IniRead($inifile, "Settings", "CheckAppUpdate", 1) * 1
@@ -135,6 +136,7 @@ $ExApp2 = IniRead($inifile, "Settings", "ExApp2", "")
 $LastPlatformDir = IniRead($inifile, "Settings", "LastPlatformDir", 1)
 $LastProfileDir = IniRead($inifile, "Settings", "LastProfileDir", "")
 $LANGUAGE = IniRead($inifile, "Settings", "Language", "zh-CN")
+$GithubMirror = IniRead($inifile, "Settings", "GithubMirror", "https://gh.gh2233.ml")
 If Not $LANGUAGE Then
 	$LANGUAGE = 'zh-CN'
 EndIf
@@ -393,7 +395,10 @@ EndFunc   ;==>OnExit
 
 ;~ 查检 RunFirefox更新
 Func CheckAppUpdate()
-	Local $AppUpdateLastCheck, $repo = 'benzBrake/RunFirefox', $latestVersion, $releaseNotes, $downloadUrl, $MirrorAddress = 'https://ghproxy.com/'
+	Local $AppUpdateLastCheck, $repo = 'benzBrake/RunFirefox', $latestVersion, $releaseNotes, $downloadUrl, $MirrorAddress = $GithubMirror
+	if Not _StringEndsWith($MirrorAddress, "/") Then
+		$MirrorAddress = $MirrorAddress & "/"
+	EndIf
 	$AppUpdateLastCheck = _NowCalc()
 	IniWrite($inifile, "Settings", "AppUpdateLastCheck", $AppUpdateLastCheck)
 
@@ -421,6 +426,7 @@ Func CheckAppUpdate()
 		$archStr &= "_x64"
 	EndIf
 	$downloadUrl = $MirrorAddress & 'https://github.com/' & $repo & '/releases/download/v' & $latestVersion & '/' & $CustomArch & '_' & $latestVersion & $archStr &'.zip'
+	ConsoleWrite($downloadUrl)
 
 	Local $temp = @ScriptDir & "\RunFirefox_temp"
 	$file = $temp & "\RunFirefox.zip"
@@ -454,7 +460,7 @@ Func CheckAppUpdate()
 			FileSetAttrib($file, "+A")
 			_Zip_UnzipAll($file, $temp)
 			$FileName = $CustomArch & ".exe"
-			If @OSArch = "X64" Then
+			If @AutoItX64 Then
 				$FileName = $CustomArch & "_x64.exe"
 			EndIf
 			If FileExists($temp & "\" & $FileName) Then

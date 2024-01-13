@@ -116,10 +116,6 @@ $AppUpdateLastCheck = IniRead($inifile, "Settings", "AppUpdateLastCheck", "")
 If Not $AppUpdateLastCheck Then
 	$AppUpdateLastCheck = "2015/01/01 00:00:00"
 EndIf
-$AppUpdateMirror = IniRead($inifile, "Settings", "AppUpdateMirror", "")
-If Not $AppUpdateLastCheck Then
-	$AppUpdateMirror = "https://gcore.jsdelivr.net/gh/benzBrake/RunFirefox@master/"
-EndIf
 $AllowBrowserUpdate = IniRead($inifile, "Settings", "AllowBrowserUpdate", 1) * 1
 $RunInBackground = IniRead($inifile, "Settings", "RunInBackground", 1) * 1
 $FirefoxPath = IniRead($inifile, "Settings", "FirefoxPath", ".\Firefox\firefox.exe")
@@ -136,7 +132,7 @@ $ExApp2 = IniRead($inifile, "Settings", "ExApp2", "")
 $LastPlatformDir = IniRead($inifile, "Settings", "LastPlatformDir", 1)
 $LastProfileDir = IniRead($inifile, "Settings", "LastProfileDir", "")
 $LANGUAGE = IniRead($inifile, "Settings", "Language", "zh-CN")
-$GithubMirror = IniRead($inifile, "Settings", "GithubMirror", "https://gh.gh2233.ml")
+$GithubMirror = IniRead($inifile, "Settings", "GithubMirror", "https://ghmirror.pp.ua")
 If Not $LANGUAGE Then
 	$LANGUAGE = 'zh-CN'
 EndIf

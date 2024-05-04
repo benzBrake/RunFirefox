@@ -510,9 +510,7 @@ Func CheckPrefs()
 		EndIf
 	Else
 		$var = StringReplace($CustomCacheDir, '\', '\\')
-		If Not StringRegExp($prefs, '(?i)(?m)^\Quser_pref("browser.cache.disk.parent_directory",\E *\Q"' & $var & '");\E') Then
-			$cfg &= 'pref("browser.cache.disk.parent_directory", "' & $var & '");' & @CRLF
-		EndIf
+		$cfg &= 'pref("browser.cache.disk.parent_directory", "' & $var & '");' & @CRLF
 	EndIf
 
 	If $CacheSize = "" Or $CacheSize = 250 Then ; 250 is the default
@@ -521,19 +519,13 @@ Func CheckPrefs()
 		EndIf
 	Else
 		$var = $CacheSize * 1024
-		If Not StringRegExp($prefs, '(?i)(?m)^\Quser_pref("browser.cache.disk.capacity",\E *\Q' & $var & ');\E') Then
-			$cfg &= 'pref("browser.cache.disk.capacity", ' & $var & ');' & @CRLF
-		EndIf
+		$cfg &= 'pref("browser.cache.disk.capacity", ' & $var & ');' & @CRLF
 	EndIf
 
 	If $CacheSizeSmart = 1 Then
-		If StringInStr($prefs, 'user_pref("browser.cache.disk.smart_size.enabled",') Then
-			$cfg &= 'clearPref("browser.cache.disk.smart_size.enabled");' & @CRLF
-		EndIf
+		$cfg &= 'pref("browser.cache.disk.smart_size.enabled", true);' & @CRLF
 	Else
-		If Not StringRegExp($prefs, '(?i)(?m)^\Quser_pref("browser.cache.disk.smart_size.enabled",\E *\Qfalse);\E') Then
-			$cfg &= 'pref("browser.cache.disk.smart_size.enabled", false);' & @CRLF
-		EndIf
+		$cfg &= 'pref("browser.cache.disk.smart_size.enabled", false);' & @CRLF
 	EndIf
 	If $cfg Then
 		$cfg = '//' & @CRLF & $cfg

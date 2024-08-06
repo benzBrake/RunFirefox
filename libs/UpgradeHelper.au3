@@ -3,7 +3,7 @@ Func RemoveHTMLTags($str)
     Return StringRegExpReplace($str, '<[^>]*>', '')
 EndFunc
 
-Func GetLatestReleaseVersion($sRepositoryName, $sMirrorAddress = "https://ghproxy.com/")
+Func GetLatestReleaseVersion($sRepositoryName, $sMirrorAddress = "https://mirror.ghproxy.com/")
     ;~ 构建 GitHub releases 页面的 URL
     Local $sURL = $sMirrorAddress & "https://github.com/" & $sRepositoryName & "/releases/"
     ;~ 从 URL 获取页面内容
@@ -28,7 +28,7 @@ Func GetLatestReleaseVersion($sRepositoryName, $sMirrorAddress = "https://ghprox
     Return $sLatestVersion
 EndFunc
 
-Func GetReleaseNotesByVersion($sRepositoryName, $version, $sMirrorAddress = "https://ghproxy.com/")
+Func GetReleaseNotesByVersion($sRepositoryName, $version, $sMirrorAddress = "https://mirror.ghproxy.com/")
     ;~ 构建指定版本的 GitHub releases 页面的 URL
     Local $sURL = $sMirrorAddress & "https://github.com/" & $sRepositoryName & "/releases/tag/" & $version
 

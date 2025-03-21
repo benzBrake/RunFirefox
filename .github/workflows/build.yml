@@ -43,28 +43,28 @@ jobs:
           sed -i "s/#AutoIt3Wrapper_Res_Fileversion.*/#AutoIt3Wrapper_Res_Fileversion=${{ steps.get_version.outputs.VERSION }}.0/" RunFirefox.au3
           sed -i "s/Global Const \$AppVersion.*/Global Const \$AppVersion = \"${{ steps.get_version.outputs.VERSION }}\"/" RunFirefox.au3
 
-      # Duplicate script for other icons
-      - name: Duplicate scripts
+      # Automatically generate scripts for all icons
+      - name: Generate scripts for all icons
         shell: bash
         run: |
-          cp RunFirefox.au3 FireDoge.au3
-          cp RunFirefox.au3 RunFloorp.au3
-          sed -i "s/Firefox.ico/FireDoge.ico/" FireDoge.au3
-          sed -i "s/Global Const \$CustomArch.*/Global Const \$CustomArch = \"FireDoge\"/" FireDoge.au3
-          sed -i "s/RunFirefox.exe/FireDoge.exe/" FireDoge.au3
-          sed -i "s/RunFirefox_x64.exe/FireDoge_x64.exe/" FireDoge.au3
-          sed -i "s/Firefox.ico/Floorp.ico/" RunFloorp.au3
-          sed -i "s/Global Const \$CustomArch.*/Global Const \$CustomArch = \"RunFloorp\"/" RunFloorp.au3
-          sed -i "s/RunFirefox.exe/RunFloorp.exe/" RunFloorp.au3
-          sed -i "s/RunFirefox_x64.exe/RunFloorp_x64.exe/" RunFloorp.au3
+          for icon in icons/*.ico; do
+            basename=$(basename "$icon" .ico)
+            if [ "$basename" != "Firefox" ]; then
+              cp RunFirefox.au3 "Run${basename}.au3"
+              sed -i "s/Firefox.ico/${basename}.ico/" "Run${basename}.au3"
+              sed -i "s/Global Const \$CustomArch.*/Global Const \$CustomArch = \"Run${basename}\"/" "Run${basename}.au3"
+              sed -i "s/RunFirefox.exe/Run${basename}.exe/" "Run${basename}.au3"
+              sed -i "s/RunFirefox_x64.exe/Run${basename}_x64.exe/" "Run${basename}.au3"
+            fi
+          done
 
       # Runs build
       - name: Build scripts
-        shell: cmd
+        shell: bash
         run: |
-          "C:\Program Files (x86)\AutoIt3\AutoIt3.exe" "C:\Program Files (x86)\AutoIt3\SciTE\AutoIt3Wrapper\AutoIt3Wrapper.au3" /in RunFirefox.au3 /NoStatus
-          "C:\Program Files (x86)\AutoIt3\AutoIt3.exe" "C:\Program Files (x86)\AutoIt3\SciTE\AutoIt3Wrapper\AutoIt3Wrapper.au3" /in FireDoge.au3 /NoStatus
-          "C:\Program Files (x86)\AutoIt3\AutoIt3.exe" "C:\Program Files (x86)\AutoIt3\SciTE\AutoIt3Wrapper\AutoIt3Wrapper.au3" /in RunFloorp.au3 /NoStatus
+          for script in *.au3; do
+            "C:\Program Files (x86)\AutoIt3\AutoIt3.exe" "C:\Program Files (x86)\AutoIt3\SciTE\AutoIt3Wrapper\AutoIt3Wrapper.au3" /in "$script" /NoStatus
+          done
 
       # Check the output
       - name: Check the output
@@ -76,12 +76,15 @@ jobs:
       - name: Package the binaries
         shell: bash
         run: |
-          7z a -tzip RunFirefox_${{ steps.get_version.outputs.VERSION }}.zip RunFirefox.exe
-          7z a -tzip RunFirefox_${{ steps.get_version.outputs.VERSION }}_x64.zip RunFirefox_x64.exe
-          7z a -tzip FireDoge_${{ steps.get_version.outputs.VERSION }}.zip FireDoge.exe
-          7z a -tzip FireDoge_${{ steps.get_version.outputs.VERSION }}_x64.zip FireDoge_x64.exe
-          7z a -tzip RunFloorp_${{ steps.get_version.outputs.VERSION }}.zip RunFloorp.exe
-          7z a -tzip RunFloorp_${{ steps.get_version.outputs.VERSION }}_x64.zip RunFloorp_x64.exe
+          for exe in *.exe; do
+            if [[ $exe == *"_x64.exe" ]]; then
+              basename=${exe%_x64.exe}
+              7z a -tzip "${basename}_${{ steps.get_version.outputs.VERSION }}_x64.zip" "$exe"
+            elif [[ $exe == *.exe ]]; then
+              basename=${exe%.exe}
+              7z a -tzip "${basename}_${{ steps.get_version.outputs.VERSION }}.zip" "$exe"
+            fi
+          done
 
       # Deploy to the github release
       - uses: xresloader/upload-to-github-release@v1

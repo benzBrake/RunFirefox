@@ -108,7 +108,7 @@ If Not FileExists($inifile) Then
 	IniWrite($inifile, "Settings", "ExApp2", "")
 	IniWrite($inifile, "Settings", "LastPlatformDir", "")
 	IniWrite($inifile, "Settings", "LastProfileDir", "")
-	IniWrite($inifile, "Settings", "GithubMirror", "https://github.mfzy.ru")
+	IniWrite($inifile, "Settings", "GithubMirror", "https://ghmirror.pp.ua")
 EndIf
 
 $CheckAppUpdate = IniRead($inifile, "Settings", "CheckAppUpdate", 1) * 1
@@ -148,7 +148,7 @@ EndIf
 Opt("ExpandEnvStrings", 1)
 EnvSet("APP", @ScriptDir)
 
-;~ 第一个启动参数为“-set”，或第一次运行，Firefox、配置文件夹、插件目录不存在，则显示设置窗口
+;~ 第一个启动参数为"-"set"，或第一次运行，Firefox、配置文件夹、插件目录不存在，则显示设置窗口
 If ($cmdline[0] = 1 And $cmdline[1] = "-set") Or $FirstRun Or Not FileExists($FirefoxPath) Or Not FileExists($ProfileDir) Then
 	CreateSettingsShortcut(@ScriptDir & "\" & $ScriptNameWithOutSuffix & ".vbs")
 	Settings()
@@ -286,7 +286,7 @@ While 1
 
 	If $hWnd_browser Then
 		$AppIsRunning = WinExists($hWnd_browser)
-	Else ; ProcessExists() is resource consuming than WinExists()
+	Else
 		$AppIsRunning = ProcessExists($AppPID)
 	EndIf
 
@@ -356,13 +356,20 @@ Exit
 Func AppIsRunning($AppPath)
 	Local $exe = StringRegExpReplace($AppPath, '.*\\', '')
 	Local $list = ProcessList($exe)
+	Local $fullPath
 	For $i = 1 To $list[0][0]
-		If StringInStr(GetProcPath($list[$i][1]), $AppPath) Then
+		; 首先检查是否是我们启动的进程
+		If $list[$i][1] = $AppPID Then
+			Return $list[$i][1]
+		EndIf
+		; 如果不是我们启动的进程，再检查路径
+		$fullPath = GetProcPath($list[$i][1])
+		If $fullPath And StringInStr($fullPath, $AppPath) Then
 			Return $list[$i][1]
 		EndIf
 	Next
 	Return 0
-EndFunc   ;==>AppIsRunning
+EndFunc
 
 
 Func GethWndbyPID($pid, $class = "")
@@ -1083,7 +1090,7 @@ Func RunInBackground()
 	If GUICtrlRead($hRunInBackground) = $GUI_CHECKED Then
 		Return
 	EndIf
-	Local $msg = MsgBox(36 + 256, "RunFirefox", '允许 RunFirefox 在后台运行可以带来更好的用户体验。若取消此选项，请注意以下几点：\n\n 1. 将浏览器锁定到任务栏或设为默认浏览器后，需再运行一次 RunFirefox 才能生效；\n2. RunFirefox 设置界面中带“#”符号的功能/选项将不会执行，包括浏览器退出后关闭外部程序、运行外部程序等。\n\n确定要取消此选项吗？', 0, $hSettings)
+	Local $msg = MsgBox(36 + 256, "RunFirefox", '允许 RunFirefox 在后台运行可以带来更好的用户体验。若取消此选项，请注意以下几点：\n\n 1. 将浏览器锁定到任务栏或设为默认浏览器后，需再运行一次 RunFirefox 才能生效；\n2. RunFirefox 设置界面中带"#"符号的功能/选项将不会执行，包括浏览器退出后关闭外部程序、运行外部程序等。\n\n确定要取消此选项吗？', 0, $hSettings)
 	If $msg <> 6 Then
 		GUICtrlSetState($hRunInBackground, $GUI_CHECKED)
 	EndIf
@@ -1326,7 +1333,7 @@ Func RelativePath($path)
 	Return $path
 EndFunc   ;==>RelativePath
 
-;~ 相对于脚本目录的相对路径转换成绝对路径，输出结果结尾没有 “\”。
+;~ 相对于脚本目录的相对路径转换成绝对路径，输出结果结尾没有 "\"。
 Func FullPath($path)
 	If $path = "" Then Return $path
 	If StringLeft($path, 1) = "%" Then Return $path

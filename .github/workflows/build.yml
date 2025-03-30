@@ -1,34 +1,28 @@
-# This is a basic workflow to help you get started with Actions
-
 name: CI
 
-# Controls when the action will run.
 on:
-  # Triggers the workflow on push or pull request events but only for the master branch
   push:
     branches: [master]
     tags:
       - "v*"
   pull_request:
     branches: [master]
-
-  # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
 
-# A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
-  # This workflow contains a single job called "build"
   build:
-    # The type of runner that the job will run on
     runs-on: windows-latest
-    if: contains(github.ref, 'tags')
+    if: startsWith(github.ref, 'refs/tags/v')
 
-    # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
-      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+      - name: Debug Info
+        run: |
+          echo "github.ref: ${{ github.ref }}"
+          echo "github.event_name: ${{ github.event_name }}"
+        shell: bash
+
       - uses: actions/checkout@v3
 
-      # Setup autoit environment
       - uses: liudonghua123/action-setup-autoit@main
 
       - name: Get the version
@@ -36,54 +30,59 @@ jobs:
         run: echo "VERSION=${GITHUB_REF#*\/v}" >> $GITHUB_OUTPUT
         shell: bash
 
-      # Force to update the version number if I forgot to update it
-      - name: Update the version.
+      - name: Update the version
         shell: bash
         run: |
           sed -i "s/#AutoIt3Wrapper_Res_Fileversion.*/#AutoIt3Wrapper_Res_Fileversion=${{ steps.get_version.outputs.VERSION }}.0/" RunFirefox.au3
           sed -i "s/Global Const \$AppVersion.*/Global Const \$AppVersion = \"${{ steps.get_version.outputs.VERSION }}\"/" RunFirefox.au3
 
-      # Duplicate script for other icons
-      - name: Duplicate scripts
+      - name: Generate scripts for all icons
         shell: bash
         run: |
-          cp RunFirefox.au3 FireDoge.au3
-          cp RunFirefox.au3 RunFloorp.au3
-          sed -i "s/Firefox.ico/FireDoge.ico/" FireDoge.au3
-          sed -i "s/Global Const \$CustomArch.*/Global Const \$CustomArch = \"FireDoge\"/" FireDoge.au3
-          sed -i "s/RunFirefox.exe/FireDoge.exe/" FireDoge.au3
-          sed -i "s/RunFirefox_x64.exe/FireDoge_x64.exe/" FireDoge.au3
-          sed -i "s/Firefox.ico/Floorp.ico/" RunFloorp.au3
-          sed -i "s/Global Const \$CustomArch.*/Global Const \$CustomArch = \"RunFloorp\"/" RunFloorp.au3
-          sed -i "s/RunFirefox.exe/RunFloorp.exe/" RunFloorp.au3
-          sed -i "s/RunFirefox_x64.exe/RunFloorp_x64.exe/" RunFloorp.au3
+          for icon in icons/*.ico; do
+            basename=$(basename "$icon" .ico)
+            # 排除原始Firefox图标
+            if [ "$basename" != "Firefox" ]; then
+              cp RunFirefox.au3 "Run${basename}.au3"
+              sed -i "s/Firefox.ico/${basename}.ico/" "Run${basename}.au3"
+              sed -i "s/Global Const \$CustomArch.*/Global Const \$CustomArch = \"Run${basename}\"/" "Run${basename}.au3"
+              sed -i "s/RunFirefox.exe/Run${basename}.exe/" "Run${basename}.au3"
+              sed -i "s/RunFirefox_x64.exe/Run${basename}_x64.exe/" "Run${basename}.au3"
+            fi
+          done
 
-      # Runs build
-      - name: Build scripts
-        shell: cmd
+      - name: Build scripts in parallel
+        shell: pwsh
         run: |
-          "C:\Program Files (x86)\AutoIt3\AutoIt3.exe" "C:\Program Files (x86)\AutoIt3\SciTE\AutoIt3Wrapper\AutoIt3Wrapper.au3" /in RunFirefox.au3 /NoStatus
-          "C:\Program Files (x86)\AutoIt3\AutoIt3.exe" "C:\Program Files (x86)\AutoIt3\SciTE\AutoIt3Wrapper\AutoIt3Wrapper.au3" /in FireDoge.au3 /NoStatus
-          "C:\Program Files (x86)\AutoIt3\AutoIt3.exe" "C:\Program Files (x86)\AutoIt3\SciTE\AutoIt3Wrapper\AutoIt3Wrapper.au3" /in RunFloorp.au3 /NoStatus
+          $autoItPath = "C:\Program Files (x86)\AutoIt3\AutoIt3.exe"
+          $wrapperPath = "C:\Program Files (x86)\AutoIt3\SciTE\AutoIt3Wrapper\AutoIt3Wrapper.au3"
+          
+          # 获取所有需要编译的.au3文件
+          $scripts = Get-ChildItem -Filter *.au3
+          
+          # 并行编译，最多4个同时运行
+          $scripts | ForEach-Object -Parallel {
+              Start-Process -FilePath $using:autoItPath -ArgumentList "`"$using:wrapperPath`" /in `"$($_.FullName)`" /NoStatus" -NoNewWindow -Wait
+          } -ThrottleLimit 4
 
-      # Check the output
       - name: Check the output
         shell: bash
         run: |
           ls -l
 
-      # Package the binaries
       - name: Package the binaries
         shell: bash
         run: |
-          7z a -tzip RunFirefox_${{ steps.get_version.outputs.VERSION }}.zip RunFirefox.exe
-          7z a -tzip RunFirefox_${{ steps.get_version.outputs.VERSION }}_x64.zip RunFirefox_x64.exe
-          7z a -tzip FireDoge_${{ steps.get_version.outputs.VERSION }}.zip FireDoge.exe
-          7z a -tzip FireDoge_${{ steps.get_version.outputs.VERSION }}_x64.zip FireDoge_x64.exe
-          7z a -tzip RunFloorp_${{ steps.get_version.outputs.VERSION }}.zip RunFloorp.exe
-          7z a -tzip RunFloorp_${{ steps.get_version.outputs.VERSION }}_x64.zip RunFloorp_x64.exe
+          for exe in *.exe; do
+            if [[ $exe == *"_x64.exe" ]]; then
+              basename=${exe%_x64.exe}
+              7z a -tzip "${basename}_${{ steps.get_version.outputs.VERSION }}_x64.zip" "$exe"
+            elif [[ $exe == *.exe ]]; then
+              basename=${exe%.exe}
+              7z a -tzip "${basename}_${{ steps.get_version.outputs.VERSION }}.zip" "$exe"
+            fi
+          done
 
-      # Deploy to the github release
       - uses: xresloader/upload-to-github-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -93,7 +92,6 @@ jobs:
           draft: false
           overwrite: true
 
-      # Create changelog
       - name: Create changelog text
         id: changelog
         uses: endaft/action-changelog@v0.0.3
@@ -101,7 +99,6 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           exclude_types: other,doc,chore
 
-      # Update release log
       - name: Update release
         uses: ColinPitrat/update-release@v1.0.1
         with:
@@ -110,7 +107,7 @@ jobs:
           tag: v${{ steps.get_version.outputs.VERSION }}
           body: ${{ steps.changelog.outputs.changes }}
 
-      - uses: EndBug/add-and-commit@v9 # You can change this to use a specific version.
+      - uses: EndBug/add-and-commit@v9
         with:
           push: origin HEAD:master
           add: "*.txt RunFirefox.au3"

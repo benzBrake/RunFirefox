@@ -73,14 +73,22 @@ jobs:
       - name: Package the binaries
         shell: bash
         run: |
-          for exe in *.exe; do
-            if [[ $exe == *"_x64.exe" ]]; then
-              basename=${exe%_x64.exe}
-              7z a -tzip "${basename}_${{ steps.get_version.outputs.VERSION }}_x64.zip" "$exe"
-            elif [[ $exe == *.exe ]]; then
-              basename=${exe%.exe}
-              7z a -tzip "${basename}_${{ steps.get_version.outputs.VERSION }}.zip" "$exe"
+          # 仅处理以Run开头的exe文件
+          for exe in Run*.exe; do
+            # 提取基础名称和架构标识
+            if [[ "$exe" == *_x64.exe ]]; then
+              basename="${exe%_x64.exe}"
+              arch="_x64"
+            else
+              basename="${exe%.exe}"
+              arch=""
             fi
+            
+            # 生成最终文件名
+            zip_name="${basename}_${{ steps.get_version.outputs.VERSION }}${arch}.zip"
+            
+            # 打包命令
+            7z a -tzip "$zip_name" "$exe"
           done
 
       - uses: xresloader/upload-to-github-release@v1

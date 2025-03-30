@@ -108,7 +108,7 @@ If Not FileExists($inifile) Then
 	IniWrite($inifile, "Settings", "ExApp2", "")
 	IniWrite($inifile, "Settings", "LastPlatformDir", "")
 	IniWrite($inifile, "Settings", "LastProfileDir", "")
-	IniWrite($inifile, "Settings", "GithubMirror", "https://github.mfzy.ru")
+	IniWrite($inifile, "Settings", "GithubMirror", "https://mirror.serv00.net/gh")
 EndIf
 
 $CheckAppUpdate = IniRead($inifile, "Settings", "CheckAppUpdate", 1) * 1
@@ -132,7 +132,7 @@ $ExApp2 = IniRead($inifile, "Settings", "ExApp2", "")
 $LastPlatformDir = IniRead($inifile, "Settings", "LastPlatformDir", 1)
 $LastProfileDir = IniRead($inifile, "Settings", "LastProfileDir", "")
 $LANGUAGE = IniRead($inifile, "Settings", "Language", "zh-CN")
-$GithubMirror = IniRead($inifile, "Settings", "GithubMirror", "https://ghmirror.pp.ua")
+$GithubMirror = IniRead($inifile, "Settings", "GithubMirror", "https://mirror.serv00.net/gh")
 If Not $LANGUAGE Then
 	$LANGUAGE = 'zh-CN'
 EndIf

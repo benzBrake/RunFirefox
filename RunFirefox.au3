@@ -50,7 +50,7 @@ Opt("WinTitleMatchMode", 4)
 
 Global Const $CustomArch = "RunFirefox"
 Global Const $AppVersion = "2.7.9"
-Global $FirstRun, $FirefoxExe, $FirefoxDir
+Global $FirstRun, $FirefoxExe, $FirefoxDir, $isZotero = false
 Global $TaskBarDir = @AppDataDir & "\Microsoft\Internet Explorer\Quick Launch\User Pinned\TaskBar"
 Global $AppPID, $TaskBarLastChange
 Global $AllowBrowserUpdate, $CheckAppUpdate, $AppUpdateLastCheck, $RunInBackground, $FirefoxPath, $ProfileDir
@@ -66,7 +66,7 @@ Global $hExApp, $hExAppAutoExit, $hExApp2
 Global $aExApp, $aExApp2, $aExAppPID[2]
 
 Global $hEvent, $ClientKey, $FileAsso, $URLAsso
-Global $aREG[7][3] = [[$HKEY_CURRENT_USER, 'Software\Clients\StartMenuInternet'], _
+Global $fReg[7][3] = [[$HKEY_CURRENT_USER, 'Software\Clients\StartMenuInternet'], _
 		[$HKEY_LOCAL_MACHINE, 'Software\Clients\StartMenuInternet'], _
 		[$HKEY_CLASSES_ROOT, 'ftp'], _
 		[$HKEY_CLASSES_ROOT, 'http'], _
@@ -136,8 +136,8 @@ $GithubMirror = IniRead($inifile, "Settings", "GithubMirror", "https://mirror.se
 If Not $LANGUAGE Then
 	$LANGUAGE = 'zh-CN'
 EndIf
-$LANG_FILE = _GetLangFile()
-$LANGUAGES = _GetLanguages()
+$LANG_FILE = GetLangFile()
+$LANGUAGES = GetLanguages()
 
 ; 检查是否是首次启动（刚下载，刚更新）
 If $AppVersion <> IniRead($inifile, "Settings", "AppVersion", "") Then
@@ -158,6 +158,10 @@ EndIf
 $FirefoxPath = FullPath($FirefoxPath)
 SplitPath($FirefoxPath, $FirefoxDir, $FirefoxExe)
 $ProfileDir = FullPath($ProfileDir)
+
+If $FirefoxExe = "zotero.exe" Then
+	$isZotero = True
+EndIf
 
 ;~ 创建禁止检查默认浏览器策略，使用 RunFirefox 后检测默认浏览器结果不准确
 UpdatePolices($FirefoxDir, "DontCheckDefaultBrowser", true)
@@ -203,7 +207,11 @@ If $LastPlatformDir <> "" Or $LastProfileDir <> "" Then
 EndIf
 
 ;~ Start Firefox
-$AppPID = Run($FirefoxPath & ' -profile "' & $ProfileDir & '" ' & $Params, $FirefoxDir)
+$BaseParams = ' -profile "' & $ProfileDir & '" '
+if $isZotero Then
+	$BaseParams = $BaseParams & ' -datadir ' & $ProfileDir & '\Library '
+EndIf
+$AppPID = Run($FirefoxPath & $BaseParams & $Params , $FirefoxDir)
 
 FileChangeDir(@ScriptDir)
 CreateSettingsShortcut(@ScriptDir & "\" & $ScriptNameWithOutSuffix & ".vbs")
@@ -265,11 +273,11 @@ EndIf
 
 If $CheckDefaultBrowser Then ; register REG for notification
 	$hEvent = _WinAPI_CreateEvent()
-	For $i = 0 To UBound($aREG) - 1
-		If $aREG[$i][1] Then
-			$aREG[$i][2] = _WinAPI_RegOpenKey($aREG[$i][0], $aREG[$i][1], $KEY_NOTIFY)
-			If $aREG[$i][2] Then
-				_WinAPI_RegNotifyChangeKeyValue($aREG[$i][2], $REG_NOTIFY_CHANGE_LAST_SET, 1, 1, $hEvent)
+	For $i = 0 To UBound($fReg) - 1
+		If $fReg[$i][1] Then
+			$fReg[$i][2] = _WinAPI_RegOpenKey($fReg[$i][0], $fReg[$i][1], $KEY_NOTIFY)
+			If $fReg[$i][2] Then
+				_WinAPI_RegNotifyChangeKeyValue($fReg[$i][2], $REG_NOTIFY_CHANGE_LAST_SET, 1, 1, $hEvent)
 			EndIf
 		EndIf
 	Next
@@ -308,9 +316,9 @@ While 1
 		; MsgBox(0, "", "Reg changed!")
 		Sleep(500)
 		CheckDefaultBrowser($FirefoxPath)
-		For $i = 0 To UBound($aREG) - 1
-			If $aREG[$i][2] Then
-				_WinAPI_RegNotifyChangeKeyValue($aREG[$i][2], $REG_NOTIFY_CHANGE_LAST_SET, 1, 1, $hEvent)
+		For $i = 0 To UBound($fReg) - 1
+			If $fReg[$i][2] Then
+				_WinAPI_RegNotifyChangeKeyValue($fReg[$i][2], $REG_NOTIFY_CHANGE_LAST_SET, 1, 1, $hEvent)
 			EndIf
 		Next
 	EndIf
@@ -380,8 +388,8 @@ EndFunc   ;==>GethWndbyPID
 Func OnExit()
 	If $hEvent Then
 		_WinAPI_CloseHandle($hEvent)
-		For $i = 0 To UBound($aREG) - 1
-			_WinAPI_RegCloseKey($aREG[$i][2])
+		For $i = 0 To UBound($fReg) - 1
+			_WinAPI_RegCloseKey($fReg[$i][2])
 		Next
 	EndIf
 	IniWrite($inifile, "Settings", "LastPlatformDir", $FirefoxDir)
@@ -680,9 +688,9 @@ Func CheckDefaultBrowser($BrowserPath)
 			RegDelete('HKCR\' & $aAsso[$i] & '\shell\open\command', 'DelegateExecute')
 			RegWrite('HKCR\' & $aAsso[$i] & '\shell\open\ddeexec', '', 'REG_SZ', '')
 		EndIf
-		If Not $aREG[5 + $i][1] Then
-			$aREG[5 + $i][1] = $aAsso[$i] ; for reg notification
-			$aREG[5 + $i][2] = _WinAPI_RegOpenKey($aREG[5 + $i][0], $aREG[5 + $i][1], $KEY_NOTIFY)
+		If Not $fReg[5 + $i][1] Then
+			$fReg[5 + $i][1] = $aAsso[$i] ; for reg notification
+			$fReg[5 + $i][2] = _WinAPI_RegOpenKey($fReg[5 + $i][0], $fReg[5 + $i][1], $KEY_NOTIFY)
 		EndIf
 	Next
 
@@ -1577,7 +1585,7 @@ Func ChangeAutoUpdateStatus()
 EndFunc
 
 ; 语言检测
-Func _GetLangFile()
+Func GetLangFile()
 	Local $filePath = @ScriptDir & "\" & "Lang.ini"
 	Local $fileCustomPath = @ScriptDir & "\" & "LangCustom.ini"
 	FileInstall("Lang.ini", $filePath, 1)
@@ -1585,10 +1593,10 @@ Func _GetLangFile()
 		$filePath = $fileCustomPath
 	EndIf
 	Return $filePath
-EndFunc   ;==>_GetLangFile
+EndFunc   ;==>GetLangFile
 
 ; 获取语言支持
-Func _GetLanguages()
+Func GetLanguages()
 	Local $LDic = _InitDictionary()
 	If $LANG_FILE Then
 		Local $langs = IniReadSectionNames($LANG_FILE)

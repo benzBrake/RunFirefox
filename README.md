@@ -1,6 +1,6 @@
 # RunFirefox
 
-[English Version](README-en_US.md)
+[English Version](docs/README-en_US.md)
 
 从 MyFirefox 修改而来，是 Firefox 的便携版引导器
 

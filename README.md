@@ -13,6 +13,8 @@
 
 ### 最近更新
 
+2026.05.27 移除 mozlz4 外部 exe，改为内置纯 AU3 解压、替换并压回 addonStartup 缓存
+
 2025.03.30 支持增加图标后自动构建对应图标的 RunFirefox
 
 2024.03.24 修复缓存设置失效的问题
@@ -41,10 +43,6 @@
 ### 如何下载
 
 右边 Latest，如果你视力不好，按 Ctrl + F 在此页面查找文本 Latest
-
-### 其他说明
-
-mozlz4-win32.exe 和 mozlz4-win64.exe 来自 [jusw85/mozlz4: Decompress / compress mozlz4 files, with precompiled binaries for Windows and Linux](https://github.com/jusw85/mozlz4)
 
 ### 感谢
 

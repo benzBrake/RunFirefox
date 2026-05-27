@@ -10,6 +10,8 @@ Features:
 
 ### Latest updates
 
+2026.05.27 Removed the external mozlz4 executables and replaced them with a built-in pure AutoIt flow that decompresses, rewrites, and recompresses the addonStartup cache
+
 2023.04.15 Added browser auto-update switch
 
 2023.04.12 Added support for multiple languages
@@ -25,10 +27,6 @@ Features:
 ### How to download
 
 Click on the "Latest" button on the right. If you have trouble finding it, press Ctrl+F and search for the text "Latest" on this page.
-
-### Other notes
-
-mozlz4-win32.exe and mozlz4-win64.exe are from [jusw85/mozlz4: Decompress / compress mozlz4 files, with precompiled binaries for Windows and Linux](https://github.com/jusw85/mozlz4)
 
 ### Thanks to
 

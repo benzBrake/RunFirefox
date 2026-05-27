@@ -40,6 +40,30 @@
 3. 添加你想用于构建的图标，然后提交到 Github
 4. 打 tag 后，push 到 GitHub 后会自动构建
 
+### AI 提交前如何判断是否该打新 tag
+
+当前仓库的自动构建逻辑仍然是“先打 `v*` tag，再由 workflow 回写版本号并编译 release”。  
+为了让 AI 在 commit 前先判断这次改动是否值得发版，可以运行：
+
+```powershell
+pwsh -File .\scripts\release-advisor.ps1 -PendingSubject "feat: 你的提交标题"
+```
+
+默认策略是按当前仓库习惯判断：
+
+1. 只要自上个 tag 以来有影响发布内容的改动，就建议递增一个 patch tag。
+2. 只有文档、CI、`AGENTS.md`、`.gitignore` 之类改动时，不建议单独打 tag。
+3. 如果你想按 Conventional Commits 推断 major/minor/patch，可以加 `-VersionStrategy semver`。
+
+例如当前输出如果是：
+
+```text
+Should release: yes
+Suggested tag: v2.8.5
+```
+
+那就表示这次提交后比较适合补一个 `v2.8.5` tag，再交给现有 workflow 去构建 release。
+
 ### 如何下载
 
 右边 Latest，如果你视力不好，按 Ctrl + F 在此页面查找文本 Latest

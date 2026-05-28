@@ -108,7 +108,7 @@ If Not FileExists($inifile) Then
 	IniWrite($inifile, "Settings", "ExApp2", "")
 	IniWrite($inifile, "Settings", "LastPlatformDir", "")
 	IniWrite($inifile, "Settings", "LastProfileDir", "")
-	IniWrite($inifile, "Settings", "GithubMirror", "https://mirror.serv00.net/gh")
+	IniWrite($inifile, "Settings", "GithubMirror", _UpgradeGetDefaultGithubMirror())
 EndIf
 
 $CheckAppUpdate = IniRead($inifile, "Settings", "CheckAppUpdate", 1) * 1
@@ -132,9 +132,13 @@ $ExApp2 = IniRead($inifile, "Settings", "ExApp2", "")
 $LastPlatformDir = IniRead($inifile, "Settings", "LastPlatformDir", "")
 $LastProfileDir = IniRead($inifile, "Settings", "LastProfileDir", "")
 $LANGUAGE = IniRead($inifile, "Settings", "Language", "zh-CN")
-$GithubMirror = IniRead($inifile, "Settings", "GithubMirror", "https://mirror.serv00.net/gh")
+$GithubMirror = IniRead($inifile, "Settings", "GithubMirror", _UpgradeGetDefaultGithubMirror($LANGUAGE))
 If Not $LANGUAGE Then
 	$LANGUAGE = 'zh-CN'
+EndIf
+If StringInStr($GithubMirror, "mirror.serv00.net/gh") Then
+	$GithubMirror = _UpgradeGetDefaultGithubMirror($LANGUAGE)
+	IniWrite($inifile, "Settings", "GithubMirror", $GithubMirror)
 EndIf
 $LANG_FILE = GetLangFile()
 $LANGUAGES = GetLanguages()
@@ -398,9 +402,7 @@ EndFunc   ;==>OnExit
 ;~ 查检 RunFirefox更新
 Func CheckAppUpdate()
 	Local $AppUpdateLastCheck, $repo = 'benzBrake/RunFirefox', $latestVersion, $releaseNotes, $downloadUrl, $MirrorAddress = $GithubMirror
-	if Not _StringEndsWith($MirrorAddress, "/") Then
-		$MirrorAddress = $MirrorAddress & "/"
-	EndIf
+	$MirrorAddress = _UpgradeNormalizeMirrorAddress($MirrorAddress)
 	$AppUpdateLastCheck = _NowCalc()
 	IniWrite($inifile, "Settings", "AppUpdateLastCheck", $AppUpdateLastCheck)
 
@@ -427,8 +429,9 @@ Func CheckAppUpdate()
 	If @AutoItX64 Then
 		$archStr &= "_x64"
 	EndIf
-	$downloadUrl = $MirrorAddress & 'https://github.com/' & $repo & '/releases/download/v' & $latestVersion & '/' & $CustomArch & '_' & $latestVersion & $archStr &'.zip'
-	ConsoleWrite($downloadUrl)
+	Local $downloadFileName = $CustomArch & '_' & $latestVersion & $archStr & '.zip'
+	Local $githubDownloadUrl = 'https://github.com/' & $repo & '/releases/download/v' & $latestVersion & '/' & $downloadFileName
+	Local $downloadUrls = _UpgradeBuildGithubReleaseDownloadUrls($githubDownloadUrl, $MirrorAddress)
 
 	Local $temp = @ScriptDir & "\RunFirefox_temp"
 	$file = $temp & "\RunFirefox.zip"
@@ -439,23 +442,29 @@ Func CheckAppUpdate()
 	TraySetClick(8)
 	TraySetToolTip($CustomArch)
 	Local $hCancelAppUpdate = TrayCreateItem(_t("CancelAppUpdate", "取消更新..."))
-	TrayTip("", _t("StartToDownloadApp", "开始下载 {AppName}"), 10, 1)
-	Local $hDownload = InetGet($downloadUrl, $file, 19, 1)
 	Local $DownloadSuccessful, $DownloadCancelled, $UpdateSuccessful, $error
-	Do
-		Switch TrayGetMsg()
-			Case $TRAY_EVENT_PRIMARYDOWN
-				TrayTip("", _t("AppDownloadProgress", "正在下载 {AppName}\n已下载 %i KB", Round(InetGetInfo($hDownload, 0) / 1024)), 5, 1)
-			Case $hCancelAppUpdate
-				$msg = MsgBox(4 + 32 + 256, $CustomArch,_t("CancelAppUpdateConfirm", "正在下载 {AppName}，确定要取消吗？"))
-				If $msg = 6 Then
-					$DownloadCancelled = 1
-					ExitLoop
-				EndIf
-		EndSwitch
-	Until InetGetInfo($hDownload, 2)
-	$DownloadSuccessful = InetGetInfo($hDownload, 3)
-	InetClose($hDownload)
+	For $i = 0 To UBound($downloadUrls) - 1
+		$downloadUrl = $downloadUrls[$i]
+		ConsoleWrite($downloadUrl & @CRLF)
+		If FileExists($file) Then FileDelete($file)
+		TrayTip("", _t("StartToDownloadApp", "开始下载 {AppName}"), 10, 1)
+		Local $hDownload = InetGet($downloadUrl, $file, 19, 1)
+		Do
+			Switch TrayGetMsg()
+				Case $TRAY_EVENT_PRIMARYDOWN
+					TrayTip("", _t("AppDownloadProgress", "正在下载 {AppName}\n已下载 %i KB", Round(InetGetInfo($hDownload, 0) / 1024)), 5, 1)
+				Case $hCancelAppUpdate
+					$msg = MsgBox(4 + 32 + 256, $CustomArch,_t("CancelAppUpdateConfirm", "正在下载 {AppName}，确定要取消吗？"))
+					If $msg = 6 Then
+						$DownloadCancelled = 1
+						ExitLoop
+					EndIf
+			EndSwitch
+		Until InetGetInfo($hDownload, 2)
+		$DownloadSuccessful = InetGetInfo($hDownload, 3)
+		InetClose($hDownload)
+		If $DownloadCancelled Or $DownloadSuccessful Then ExitLoop
+	Next
 	If Not $DownloadCancelled Then
 		If $DownloadSuccessful Then
 			TrayTip("", _t("ApplyingUpdate", "正在应用 {AppName} 更新"), 10, 1)

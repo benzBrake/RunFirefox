@@ -52,7 +52,7 @@ Opt("WinTitleMatchMode", 4)
 Global Const $CustomArch = "RunFirefox"
 Global Const $AppVersion = "2.7.9"
 Global Const $FirefoxVersionUrl = "https://product-details.mozilla.org/1.0/firefox_versions.json"
-Global $FirstRun, $FirefoxExe, $FirefoxDir, $isZotero = false
+Global $FirstRun = 0, $FirstLaunch = 0, $FirefoxExe, $FirefoxDir, $isZotero = false
 Global $TaskBarDir = @AppDataDir & "\Microsoft\Internet Explorer\Quick Launch\User Pinned\TaskBar"
 Global $AppPID, $TaskBarLastChange
 Global $AllowBrowserUpdate, $CheckAppUpdate, $AppUpdateLastCheck, $RunInBackground, $FirefoxPath, $ProfileDir
@@ -93,6 +93,7 @@ $ScriptNameWithOutSuffix = StringRegExpReplace(@ScriptName, "\.[^.]*$", "")
 $inifile = @ScriptDir & "\" & $ScriptNameWithOutSuffix & ".ini"
 If Not FileExists($inifile) Then
 	$FirstRun = 1
+	$FirstLaunch = 1
 	IniWrite($inifile, "Settings", "AppVersion", $AppVersion)
 	IniWrite($inifile, "Settings", "CheckAppUpdate", 1)
 	IniWrite($inifile, "Settings", "AppUpdateLastCheck", "2015/01/01 00:00:00")
@@ -111,7 +112,6 @@ If Not FileExists($inifile) Then
 	IniWrite($inifile, "Settings", "ExApp2", "")
 	IniWrite($inifile, "Settings", "LastPlatformDir", "")
 	IniWrite($inifile, "Settings", "LastProfileDir", "")
-	IniWrite($inifile, "Settings", "GithubMirror", _UpgradeGetDefaultGithubMirror())
 EndIf
 
 $CheckAppUpdate = IniRead($inifile, "Settings", "CheckAppUpdate", 1) * 1
@@ -134,17 +134,21 @@ $ExAppAutoExit = IniRead($inifile, "Settings", "ExAppAutoExit", 1) * 1
 $ExApp2 = IniRead($inifile, "Settings", "ExApp2", "")
 $LastPlatformDir = IniRead($inifile, "Settings", "LastPlatformDir", "")
 $LastProfileDir = IniRead($inifile, "Settings", "LastProfileDir", "")
-$LANGUAGE = IniRead($inifile, "Settings", "Language", "zh-CN")
-$GithubMirror = IniRead($inifile, "Settings", "GithubMirror", _UpgradeGetDefaultGithubMirror($LANGUAGE))
+$LANGUAGE = IniRead($inifile, "Settings", "Language", "")
+$LANG_FILE = GetLangFile()
+$LANGUAGES = GetLanguages()
 If Not $LANGUAGE Then
-	$LANGUAGE = 'zh-CN'
+	$LANGUAGE = GetAutoLanguage()
+	IniWrite($inifile, "Settings", "Language", $LANGUAGE)
+Else
+	$LANGUAGE = GetSupportedLanguage($LANGUAGE, "zh-CN")
 EndIf
+$GithubMirror = IniRead($inifile, "Settings", "GithubMirror", _UpgradeGetDefaultGithubMirror($LANGUAGE))
+If $FirstLaunch Then IniWrite($inifile, "Settings", "GithubMirror", $GithubMirror)
 If StringInStr($GithubMirror, "mirror.serv00.net/gh") Then
 	$GithubMirror = _UpgradeGetDefaultGithubMirror($LANGUAGE)
 	IniWrite($inifile, "Settings", "GithubMirror", $GithubMirror)
 EndIf
-$LANG_FILE = GetLangFile()
-$LANGUAGES = GetLanguages()
 
 ; 检查是否是首次启动（刚下载，刚更新）
 If $AppVersion <> IniRead($inifile, "Settings", "AppVersion", "") Then
@@ -1923,6 +1927,75 @@ Func GetLangFile()
 	EndIf
 	Return $filePath
 EndFunc   ;==>GetLangFile
+
+Func NormalizeLanguageName($sLanguage)
+	$sLanguage = StringStripWS(StringReplace($sLanguage, "_", "-"), 3)
+	If $sLanguage = "" Then Return ""
+
+	Local $aParts = StringSplit($sLanguage, "-")
+	If @error Or $aParts[0] = 0 Then Return $sLanguage
+
+	Local $sNormalized = StringLower($aParts[1])
+	For $i = 2 To $aParts[0]
+		$sNormalized &= "-" & StringUpper($aParts[$i])
+	Next
+
+	Return $sNormalized
+EndFunc   ;==>NormalizeLanguageName
+
+Func GetWindowsLanguageName($sLanguageId)
+	$sLanguageId = StringStripWS($sLanguageId, 3)
+	If $sLanguageId = "" Then Return ""
+
+	Local $iLCID = Dec($sLanguageId)
+	If $iLCID > 0 Then
+		Local $tLocale = DllStructCreate("wchar[85]")
+		Local $aLocale = DllCall("kernel32.dll", "int", "LCIDToLocaleName", "dword", $iLCID, "ptr", DllStructGetPtr($tLocale), "int", 85, "dword", 0)
+		If Not @error And IsArray($aLocale) And $aLocale[0] > 0 Then Return NormalizeLanguageName(DllStructGetData($tLocale, 1))
+	EndIf
+
+	Switch StringUpper($sLanguageId)
+		Case "0409"
+			Return "en-US"
+		Case "0804", "1004"
+			Return "zh-CN"
+		Case "0404", "0C04", "1404"
+			Return "zh-TW"
+	EndSwitch
+
+	Return ""
+EndFunc   ;==>GetWindowsLanguageName
+
+Func GetSupportedLanguage($sLanguage, $sDefaultLanguage = "")
+	Local $sNormalizedLanguage = NormalizeLanguageName($sLanguage)
+	If $sNormalizedLanguage = "" Or Not IsObj($LANGUAGES) Then Return $sDefaultLanguage
+
+	Local $keys = $LANGUAGES.Keys
+	For $i = 0 To UBound($keys) - 1
+		If NormalizeLanguageName($keys[$i]) = $sNormalizedLanguage Then Return $keys[$i]
+	Next
+
+	Local $iSeparatorPos = StringInStr($sNormalizedLanguage, "-")
+	If $iSeparatorPos = 0 Then Return $sDefaultLanguage
+
+	Local $sPrimaryLanguage = StringLeft($sNormalizedLanguage, $iSeparatorPos - 1)
+	For $i = 0 To UBound($keys) - 1
+		Local $sSupportedLanguage = NormalizeLanguageName($keys[$i])
+		If StringLeft($sSupportedLanguage & "-", StringLen($sPrimaryLanguage) + 1) = $sPrimaryLanguage & "-" Then Return $keys[$i]
+	Next
+
+	Return $sDefaultLanguage
+EndFunc   ;==>GetSupportedLanguage
+
+Func GetAutoLanguage()
+	Local $sLanguage = GetSupportedLanguage(GetWindowsLanguageName(@MUILang))
+	If $sLanguage Then Return $sLanguage
+
+	$sLanguage = GetSupportedLanguage(GetWindowsLanguageName(@OSLang))
+	If $sLanguage Then Return $sLanguage
+
+	Return GetSupportedLanguage("zh-CN", "zh-CN")
+EndFunc   ;==>GetAutoLanguage
 
 ; 获取语言支持
 Func GetLanguages()

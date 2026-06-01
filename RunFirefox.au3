@@ -1112,7 +1112,7 @@ Func Settings()
 
 	GUICtrlCreateLabel(_t("UpdateChannel", "更新通道"), 20, 130, 120, 20)
 	$hChannel = GUICtrlCreateCombo("", 140, 125, 150, 20, $CBS_DROPDOWNLIST)
-	GUICtrlSetData($hChannel, "esr|release|beta|aurora|nightly|default", "release")
+	GUICtrlSetData($hChannel, "esr|release|beta|dev|nightly", "release")
 	GUICtrlSetOnEvent(-1, "ChangeChannel")
 
 	$hAllowBrowserUpdate = GUICtrlCreateCheckbox(_t("BrowserAutoUpdate", " 自动更新"),310, 125, -1, 20)
@@ -1302,6 +1302,7 @@ Func ShowCurrentChannel()
 	Local $match = StringRegExp($var, '(?i)(?m)^\Qpref("app.update.channel",\E *"(.*)\Q");\E', 1)
 	If @error Then Return
 	$Channel = $match[0]
+	If $Channel = "aurora" Then $Channel = "dev"
 	_GUICtrlComboBox_SelectString($hChannel, $Channel)
 EndFunc   ;==>ShowCurrentChannel
 
@@ -1324,8 +1325,8 @@ Func DownloadFirefox()
 		$FirefoxURL = "https://download.mozilla.org/?product=firefox-beta-latest&os=" & $os & "&lang=zh-CN"
 	ElseIf $Channel = "esr" Then
 		$FirefoxURL = "https://download.mozilla.org/?product=firefox-esr-latest&os=" & $os & "&lang=zh-CN"
-	ElseIf $Channel = "aurora" Then
-		$FirefoxURL = "https://download.mozilla.org/?product=firefox-aurora-latest-l10n&os=" & $os & "&lang=zh-CN"
+	ElseIf $Channel = "dev" Then
+		$FirefoxURL = "https://download.mozilla.org/?product=firefox-devedition-latest&os=" & $os & "&lang=zh-CN"
 	Else ;If $Channel = "nightly" Then
 		$FirefoxURL = "https://download.mozilla.org/?product=firefox-nightly-latest&os=" & $os & "&lang=zh-CN"
 	EndIf
@@ -1441,11 +1442,14 @@ Func SettingsApply()
 
 	Local $ChannelString = GUICtrlRead($hChannel)
 	Local $Channel = StringRegExpReplace($ChannelString, " -.*", "")
+	; Firefox Developer Edition still uses aurora as the internal update channel.
+	Local $UpdateChannel = $Channel
+	If $UpdateChannel = "dev" Then $UpdateChannel = "aurora"
 	Local $ChannelPath = StringRegExpReplace($FirefoxPath, "\\?[^\\]+$", "") & "\defaults\pref\channel-prefs.js"
 	Local $var = FileRead($ChannelPath)
-	If Not StringInStr($var, 'pref("app.update.channel", "' & $Channel & '");') Then
+	If Not StringInStr($var, 'pref("app.update.channel", "' & $UpdateChannel & '");') Then
 		FileDelete($ChannelPath)
-		FileWrite($ChannelPath, '// Changed by RunFirefox' & @CRLF & 'pref("app.update.channel", "' & $Channel & '");' & @CRLF)
+		FileWrite($ChannelPath, '// Changed by RunFirefox' & @CRLF & 'pref("app.update.channel", "' & $UpdateChannel & '");' & @CRLF)
 	EndIf
 
 	;profiles dir

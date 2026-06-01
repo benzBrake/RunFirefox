@@ -155,11 +155,11 @@ foreach ($sha in $commitShas) {
     })
 }
 
-$pendingFiles = @(
+$pendingFiles = @(@(
     Invoke-Git -Arguments @('diff', '--cached', '--name-only')
     Invoke-Git -Arguments @('diff', '--name-only')
     Invoke-Git -Arguments @('ls-files', '--others', '--exclude-standard')
-) | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Sort-Object -Unique
+) | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Sort-Object -Unique)
 
 if ($pendingFiles.Count -gt 0) {
     $impactful = @($pendingFiles | Where-Object { -not (Test-IgnoredFile $_) }).Count -gt 0

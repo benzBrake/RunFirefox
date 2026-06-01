@@ -22,6 +22,8 @@ jobs:
         shell: bash
 
       - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
 
       - uses: liudonghua123/action-setup-autoit@main
 
@@ -102,10 +104,108 @@ jobs:
 
       - name: Create changelog text
         id: changelog
-        uses: endaft/action-changelog@v0.0.3
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          exclude_types: other,doc,chore
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+
+          $currentTag = '${{ github.ref_name }}'
+          $ignoredPaths = @(
+              'AGENTS.md',
+              'README.md',
+              'README-en_US.md'
+          )
+          $ignoredPathPrefixes = @(
+              'scripts/'
+          )
+          $excludedTypes = @('other', 'doc', 'docs', 'chore')
+          $typeTitles = @{
+              feat = 'Features'
+              fix = 'Bug Fixes'
+              perf = 'Performance'
+              refactor = 'Refactoring'
+              i18n = 'Internationalization'
+          }
+
+          function Test-IgnoredReleaseNoteCommit {
+              param([string]$Sha)
+
+              $files = @(git show --pretty=format: --name-only $Sha | Where-Object { $_ })
+              if ($files.Count -eq 0) {
+                  return $false
+              }
+
+              foreach ($file in $files) {
+                  $normalized = $file -replace '\\', '/'
+                  $isIgnoredPath = $ignoredPaths -contains $normalized
+                  foreach ($prefix in $ignoredPathPrefixes) {
+                      if ($normalized.StartsWith($prefix, [StringComparison]::Ordinal)) {
+                          $isIgnoredPath = $true
+                          break
+                      }
+                  }
+
+                  if (-not $isIgnoredPath) {
+                      return $false
+                  }
+              }
+
+              return $true
+          }
+
+          $previousTag = git tag --sort=-version:refname --merged HEAD |
+              Where-Object { $_ -match '^v\d+\.\d+\.\d+$' -and $_ -ne $currentTag } |
+              Select-Object -First 1
+
+          $commitRange = if ($previousTag) { "$previousTag..HEAD" } else { 'HEAD' }
+          $commits = @(git log --reverse --format='%H%x09%s' $commitRange)
+          $groups = [ordered]@{}
+
+          foreach ($commit in $commits) {
+              $parts = $commit -split "`t", 2
+              $sha = $parts[0]
+              $subject = $parts[1]
+
+              if (Test-IgnoredReleaseNoteCommit -Sha $sha) {
+                  continue
+              }
+
+              $type = 'other'
+              $text = $subject
+              if ($subject -match '^(?<type>[a-zA-Z]+)(?:\([^)]+\))?!?:\s*(?<text>.+)$') {
+                  $type = $Matches.type.ToLowerInvariant()
+                  $text = $Matches.text
+              }
+
+              if ($excludedTypes -contains $type) {
+                  continue
+              }
+
+              $title = if ($typeTitles.ContainsKey($type)) { $typeTitles[$type] } else { $type.Substring(0, 1).ToUpperInvariant() + $type.Substring(1) }
+              if (-not $groups.Contains($title)) {
+                  $groups[$title] = New-Object System.Collections.Generic.List[string]
+              }
+
+              $groups[$title].Add("- $text ($($sha.Substring(0, 7)))")
+          }
+
+          $lines = New-Object System.Collections.Generic.List[string]
+          if ($groups.Count -eq 0) {
+              $lines.Add('No release-relevant changes.')
+          } else {
+              foreach ($group in $groups.GetEnumerator()) {
+                  $lines.Add("### $($group.Key)")
+                  $lines.Add('')
+                  foreach ($item in $group.Value) {
+                      $lines.Add($item)
+                  }
+                  $lines.Add('')
+              }
+          }
+
+          $changes = ($lines -join "`n").Trim()
+          "changes<<CHANGELOG" >> $env:GITHUB_OUTPUT
+          $changes >> $env:GITHUB_OUTPUT
+          "CHANGELOG" >> $env:GITHUB_OUTPUT
 
       - name: Update release
         uses: ColinPitrat/update-release@v1.0.1

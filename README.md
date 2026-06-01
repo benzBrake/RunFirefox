@@ -13,6 +13,12 @@
 
 ### 最近更新
 
+2026.06.01 新增繁体中文，支持按系统语言自动选择界面语言，并补全多语言缺失项
+
+2026.06.01 重构 Firefox 下载与 GitHub 镜像逻辑，支持动态获取版本信息和 jsDelivr 回退
+
+2026.06.01 修正 Firefox Developer Edition 更新通道，兼容 Zotero 数据路径处理
+
 2026.05.27 移除 mozlz4 外部 exe，改为内置纯 AU3 解压、替换并压回 addonStartup 缓存
 
 2025.03.30 支持增加图标后自动构建对应图标的 RunFirefox

@@ -10,6 +10,12 @@ Features:
 
 ### Latest updates
 
+2026.06.01 Added Traditional Chinese, automatic UI language detection, and missing localization entries
+
+2026.06.01 Refactored Firefox download and GitHub mirror logic with dynamic version lookup and jsDelivr fallback
+
+2026.06.01 Fixed the Firefox Developer Edition update channel and improved Zotero data path compatibility
+
 2026.05.27 Removed the external mozlz4 executables and replaced them with a built-in pure AutoIt flow that decompresses, rewrites, and recompresses the addonStartup cache
 
 2023.04.15 Added browser auto-update switch

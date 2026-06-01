@@ -1180,16 +1180,16 @@ Func Settings()
 	GUICtrlCreateTabItem(_t("Advanced", "高级"))
 	GUICtrlCreateLabel(_t("PluginsDirectory", "插件目录"), 20, 90, 120, 20)
 	$hCustomPluginsDir = GUICtrlCreateEdit($CustomPluginsDir, 140, 85, 270, 20, $ES_AUTOHSCROLL)
-	GUICtrlSetTip(-1, _t("PluginsDirectoryToolTip", "浏览器插件目录\n空白=默认位置"))
+	GUICtrlSetTip(-1, _t("PluginsDirectoryTooltip", "浏览器插件目录\n空白=默认位置"))
 	$hGetPluginsDir = GUICtrlCreateButton(_t("Browse", "浏览"), 420, 85, 60, 20)
-	GUICtrlSetTip(-1, _t("SpecifyPluginsDirectory", "指定浏览器插件目录"))
+	GUICtrlSetTip(-1, _t("SpecifyPluginsDirectoryTooltip", "选择浏览器插件目录"))
 	GUICtrlSetOnEvent(-1, "GetPluginsDir")
 
 	GUICtrlCreateLabel(_t("CacheDirectory", "缓存位置"), 20, 130, 120, 20)
 	$hCustomCacheDir = GUICtrlCreateEdit($CustomCacheDir, 140, 125, 270, 20, $ES_AUTOHSCROLL)
 	GUICtrlSetTip(-1, _t("CacheDirectoryTooltip", "浏览器缓存位置\n空白=默认位置"))
 	$hGetCacheDir = GUICtrlCreateButton(_t("Browse", "浏览"), 420, 125, 60, 20)
-	GUICtrlSetTip(-1, _t("SpecifyCacheDirectory", "指定浏览器缓存位置"))
+	GUICtrlSetTip(-1, _t("SpecifyCacheDirectoryTooltip", "选择浏览器缓存文件夹"))
 	GUICtrlSetOnEvent(-1, "GetCacheDir")
 
 	GUICtrlCreateLabel(_t("CacheSize", "缓存大小"), 20, 170, 120, 20)
@@ -1234,7 +1234,7 @@ Func Settings()
 
 	GUICtrlCreateTabItem("")
 	GUICtrlCreateButton(_t("CheckForUpdateManually", "检查更新"), 80, 440, 130, 20)
-	GUICtrlSetTip(-1, _t("ConfirmTooltip", "立即更新 {AppName}"))
+	GUICtrlSetTip(-1, _t("CheckForUpdateManuallyTooltip", "立即检查 {AppName} 更新"))
 	GUICtrlSetOnEvent(-1, "CheckAppUpdate")
 	GUICtrlCreateTabItem("")
 	GUICtrlCreateButton(_t("Confirm", "确定"), 235, 440, 70, 20)
@@ -1421,7 +1421,7 @@ Func RunInBackground()
 	If GUICtrlRead($hRunInBackground) = $GUI_CHECKED Then
 		Return
 	EndIf
-	Local $msg = MsgBox(36 + 256, "RunFirefox", '允许 RunFirefox 在后台运行可以带来更好的用户体验。若取消此选项，请注意以下几点：\n\n 1. 将浏览器锁定到任务栏或设为默认浏览器后，需再运行一次 RunFirefox 才能生效；\n2. RunFirefox 设置界面中带“#”符号的功能/选项将不会执行，包括浏览器退出后关闭外部程序、运行外部程序等。\n\n确定要取消此选项吗？', 0, $hSettings)
+	Local $msg = MsgBox(36 + 256, "RunFirefox", _t("RunInBackgroundMessage", '允许 RunFirefox 在后台运行可以带来更好的用户体验。若取消此选项，请注意以下几点：\n\n 1. 将浏览器锁定到任务栏或设为默认浏览器后，需再运行一次 RunFirefox 才能生效；\n2. RunFirefox 设置界面中带“#”符号的功能/选项将不会执行，包括浏览器退出后关闭外部程序、运行外部程序等。\n\n确定要取消此选项吗？'), 0, $hSettings)
 	If $msg <> 6 Then
 		GUICtrlSetState($hRunInBackground, $GUI_CHECKED)
 	EndIf

@@ -43,6 +43,7 @@
 #include "libs\AppUserModelId.au3"
 #include "libs\Polices.au3"
 #include "libs\ScriptingDictionary.au3"
+#include "libs\JSON.au3"
 #include "libs\UpgradeHelper.au3"
 
 Opt("GUIOnEventMode", 1)
@@ -50,6 +51,7 @@ Opt("WinTitleMatchMode", 4)
 
 Global Const $CustomArch = "RunFirefox"
 Global Const $AppVersion = "2.7.9"
+Global Const $FirefoxVersionUrl = "https://product-details.mozilla.org/1.0/firefox_versions.json"
 Global $FirstRun, $FirefoxExe, $FirefoxDir, $isZotero = false
 Global $TaskBarDir = @AppDataDir & "\Microsoft\Internet Explorer\Quick Launch\User Pinned\TaskBar"
 Global $AppPID, $TaskBarLastChange
@@ -62,6 +64,7 @@ Global $hCopyProfile, $hCustomPluginsDir, $hGetPluginsDir
 Global $hCustomCacheDir, $hGetCacheDir, $hCacheSize, $hCacheSizeSmart
 Global $hParams, $hStatus, $SettingsOK
 Global $hAllowBrowserUpdate, $hCheckAppUpdate, $hRunInBackground, $hChannel, $hDownloadFirefox32, $hDownloadFirefox64, $FirefoxURL
+Global $FirefoxVersionsObj = 0
 Global $hExApp, $hExAppAutoExit, $hExApp2
 Global $aExApp, $aExApp2, $aExAppPID[2]
 
@@ -1126,15 +1129,13 @@ Func Settings()
 ;~ 	GUICtrlSetTip(-1, "去下载 Firefox")
 ;~ 	GUICtrlSetOnEvent(-1, "DownloadFirefox")
 
-	;https://product-details.mozilla.org/1.0/firefox_versions.json 将来实现自动更新
-
 	GUICtrlCreateLabel(_t("DownloadFirefox", "下载 Firefox："), 20, 160, 120, 20)
-	$hDownloadFirefox32 = GUICtrlCreateLabel(_t("DownloadFirefoxX64", "%s 32位", "release"), 140, 160, 140, 20)
+	$hDownloadFirefox32 = GUICtrlCreateLabel(_t("DownloadFirefoxX86", "%s 32位", "release"), 140, 160, 140, 20)
 	GUICtrlSetCursor(-1, 0)
 	GUICtrlSetColor(-1, 0x0000FF)
 	GUICtrlSetOnEvent(-1, "DownloadFirefox")
 
-	$hDownloadFirefox64 = GUICtrlCreateLabel(_t("DownloadFirefoxX64", "%s 32位", "release"), 280, 160, 140, 20)
+	$hDownloadFirefox64 = GUICtrlCreateLabel(_t("DownloadFirefoxX64", "%s 64位", "release"), 280, 160, 140, 20)
 	GUICtrlSetCursor(-1, 0)
 	GUICtrlSetColor(-1, 0x0000FF)
 	If @OSArch <> "X86" Then
@@ -1290,9 +1291,94 @@ EndFunc   ;==>OnFirefoxPathChange
 Func ChangeChannel()
 	Local $Channel = GUICtrlRead($hChannel)
 	If $Channel = "default" Then $Channel = "release"
-	GUICtrlSetData($hDownloadFirefox32, _t("DownloadFirefoxX86", "%s 32位", $Channel))
-	GUICtrlSetData($hDownloadFirefox64, _t("DownloadFirefoxX64", "%s 64位", $Channel))
+	Local $ChannelLabel = GetFirefoxChannelLabel($Channel)
+	GUICtrlSetData($hDownloadFirefox32, _t("DownloadFirefoxX86", "%s 32位", $ChannelLabel))
+	GUICtrlSetData($hDownloadFirefox64, _t("DownloadFirefoxX64", "%s 64位", $ChannelLabel))
 EndFunc   ;==>ChangeChannel
+
+Func GetFirefoxVersions()
+	If IsObj($FirefoxVersionsObj) Then Return $FirefoxVersionsObj
+
+	Local $sVersions = BinaryToString(InetRead($FirefoxVersionUrl, 1), 4)
+	If @error Or $sVersions = "" Then Return SetError(1, 0, 0)
+
+	Local $oVersions = Json_Decode($sVersions)
+	If @error Or Not Json_IsObject($oVersions) Then Return SetError(1, 0, 0)
+
+	$FirefoxVersionsObj = $oVersions
+	Return $FirefoxVersionsObj
+EndFunc   ;==>GetFirefoxVersions
+
+Func GetLatestFirefoxVersion($Channel)
+	Local $VersionKey = "LATEST_FIREFOX_VERSION"
+
+	Switch $Channel
+		Case "beta"
+			$VersionKey = "LATEST_FIREFOX_DEVEL_VERSION"
+		Case "dev"
+			$VersionKey = "FIREFOX_DEVEDITION"
+		Case "esr"
+			$VersionKey = "FIREFOX_ESR"
+		Case "nightly"
+			$VersionKey = "FIREFOX_NIGHTLY"
+	EndSwitch
+
+	Local $oVersions = GetFirefoxVersions()
+	If @error Or Not IsObj($oVersions) Then Return ""
+
+	Local $Version = Json_ObjGet($oVersions, $VersionKey)
+	If @error Or $Version = "" Then Return ""
+
+	Return $Version
+EndFunc   ;==>GetLatestFirefoxVersion
+
+Func GetFirefoxChannelLabel($Channel)
+	Local $Version = GetLatestFirefoxVersion($Channel)
+	If $Version = "" Then Return $Channel
+	Return $Channel & " (" & $Version & ")"
+EndFunc   ;==>GetFirefoxChannelLabel
+
+Func GetLatestFirefoxProduct($Channel)
+	Switch $Channel
+		Case "release", "default"
+			Return "firefox-latest"
+		Case "beta"
+			Return "firefox-beta-latest"
+		Case "esr"
+			Return "firefox-esr-latest"
+		Case "dev"
+			Return "firefox-devedition-latest"
+		Case Else ; nightly
+			Return "firefox-nightly-latest"
+	EndSwitch
+EndFunc   ;==>GetLatestFirefoxProduct
+
+Func GetFirefoxDownloadLanguage()
+	Local $lang = StringReplace($LANGUAGE, "_", "-")
+	If $lang = "" Then Return "zh-CN"
+	If Not StringRegExp($lang, "^[A-Za-z]{2,3}(-[A-Za-z0-9]+)*$") Then Return "zh-CN"
+	Return $lang
+EndFunc   ;==>GetFirefoxDownloadLanguage
+
+Func BuildFirefoxDownloadUrl($Channel, $os)
+	Local $Version = GetLatestFirefoxVersion($Channel)
+	Local $lang = GetFirefoxDownloadLanguage()
+	If $Version = "" Then
+		Return "https://download.mozilla.org/?product=" & GetLatestFirefoxProduct($Channel) & "&os=" & $os & "&lang=" & $lang
+	EndIf
+
+	If $Channel = "dev" Then
+		Return "https://download-installer.cdn.mozilla.net/pub/devedition/releases/" & $Version & "/" & $os & "/" & $lang & "/Firefox%20Setup%20" & $Version & ".exe"
+	EndIf
+
+	If $Channel = "nightly" Then
+		Local $nightlyOs = "win32"
+		If $os = "win64" Then $nightlyOs = "win64"
+		Return "https://download-installer.cdn.mozilla.net/pub/firefox/nightly/latest-mozilla-central-l10n/firefox-" & $Version & "." & $lang & "." & $nightlyOs & ".installer.exe"
+	EndIf
+
+	Return "https://download.mozilla.org/?product=firefox-" & $Version & "&os=" & $os & "&lang=" & $lang
+EndFunc   ;==>BuildFirefoxDownloadUrl
 
 Func ShowCurrentChannel()
 	Local $path = GUICtrlRead($hFirefoxPath)
@@ -1318,18 +1404,7 @@ Func DownloadFirefox()
 	Local $ChannelString = GUICtrlRead($hChannel)
 	Local $Channel = StringRegExpReplace($ChannelString, " *-.*", "")
 
-	; http://ftp.mozilla.org/pub/firefox/
-	If $Channel = "release" Or $Channel = "default" Then
-		$FirefoxURL = "https://download.mozilla.org/?product=firefox-latest&os=" & $os & "&lang=zh-CN"
-	ElseIf $Channel = "beta" Then
-		$FirefoxURL = "https://download.mozilla.org/?product=firefox-beta-latest&os=" & $os & "&lang=zh-CN"
-	ElseIf $Channel = "esr" Then
-		$FirefoxURL = "https://download.mozilla.org/?product=firefox-esr-latest&os=" & $os & "&lang=zh-CN"
-	ElseIf $Channel = "dev" Then
-		$FirefoxURL = "https://download.mozilla.org/?product=firefox-devedition-latest&os=" & $os & "&lang=zh-CN"
-	Else ;If $Channel = "nightly" Then
-		$FirefoxURL = "https://download.mozilla.org/?product=firefox-nightly-latest&os=" & $os & "&lang=zh-CN"
-	EndIf
+	$FirefoxURL = BuildFirefoxDownloadUrl($Channel, $os)
 
 	ClipPut($FirefoxURL)
 	Local $msg = MsgBox(65, "RunFirefox", _t("ManuallyDownloadMessage", '请下载 Firefox 安装包，用 WinRAR、7z 等解压软件打开安装包，\n将其中的 core 文件夹提取出来，即得到 Firefox 便携版所需的程序文件。\n\n下载地址已复制到剪贴板，点击"确定"将在浏览器中打开下载页面。'), 0, $hSettings)

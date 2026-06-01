@@ -1,6 +1,49 @@
 # 约定
 如果 `AGENTS.local.md` 文件存在，请优先遵循该文件中的约定。
 
+## 多语言文本变更
+这个项目的界面文本集中维护在 `Lang.ini`，AutoIt 代码通过 `_t("Key", "默认文本")` 读取。
+凡是新增语言、增加/修改用户可见文本，必须同步处理多语言，避免只改一种语言。
+
+约定如下：
+
+- 新增用户可见文本时，优先新增或复用 `_t("Key", "默认文本")`，不要在界面、弹窗、提示、菜单等位置直接写死单一语言文本。
+- 每新增一个 `_t` key，必须在 `Lang.ini` 的所有语言 section 中补齐同名 key；暂时无法准确翻译时，也要先填入可接受的英文或中文占位译文，不要缺 key。
+- 修改已有文案时，要同步检查 `Lang.ini` 所有语言 section 的同名 key，保持含义一致。
+- 文案里的占位符必须跨语言保持一致，例如 `{AppName}`、`{Version}`、`%s`、`%i`、`\n`，不能漏删或改名。
+- 新增语言时，必须新增完整的语言 section，至少包含 `LangTitle`、`LangSupportAuthor`、`LangSupportUrl`，并补齐当前所有已有翻译 key；语言名优先使用 Firefox/Mozilla 下载链接可识别的语言代码格式，例如 `en-US`、`zh-CN`。
+- 如果新增或修改的文本会出现在 README、指南、发布说明或用户说明中，要同步检查 `README.md` 与 `docs/README-en_US.md` 等对应中英文文档。
+- 提交前用下面的 PowerShell 片段检查 `_t` key 与 `Lang.ini` section key 是否一致；如果输出缺失项，先补齐再提交：
+
+```powershell
+$code = Get-Content .\RunFirefox.au3 -Raw
+$codeKeys = [regex]::Matches($code, '_t\("([^"]+)"') |
+    ForEach-Object { $_.Groups[1].Value } |
+    Sort-Object -Unique
+
+$sections = @{}
+$current = $null
+foreach ($line in Get-Content .\Lang.ini) {
+    if ($line -match '^\s*\[([^\]]+)\]\s*$') {
+        $current = $Matches[1]
+        $sections[$current] = [System.Collections.Generic.HashSet[string]]::new()
+        continue
+    }
+
+    if ($current -and $line -match '^\s*([^=;\s][^=]*)=') {
+        [void]$sections[$current].Add($Matches[1].Trim())
+    }
+}
+
+foreach ($section in $sections.Keys) {
+    $missing = $codeKeys | Where-Object { -not $sections[$section].Contains($_) }
+    if ($missing) {
+        Write-Host "[$section] missing:"
+        $missing | ForEach-Object { Write-Host "  $_" }
+    }
+}
+```
+
 ## AI 提交前检查
 在 AI 准备创建 commit 之前，先运行：
 

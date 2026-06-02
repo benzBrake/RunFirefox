@@ -1732,6 +1732,8 @@ Func DownloadFirefox()
 	GUICtrlSetData($hFirefoxPath, $FirefoxPath)
 	OnFirefoxPathChange()
 	_GUICtrlStatusBar_SetText($hStatus, _t("BrowserDownloadSuccess", "浏览器已下载并解压完成。"))
+	Local $OpenDownloadedBrowserConfirm = _t("OpenDownloadedBrowserConfirm", "浏览器已下载并解压完成。\n是否马上打开浏览器？")
+	If MsgBox(36 + 256, $CustomArch, $OpenDownloadedBrowserConfirm, 0, $hSettings) = 6 Then SettingsOK()
 EndFunc   ;==>DownloadFirefox
 
 Func DownloadAndExtractFirefox($DownloadUrl, $TargetDir, $os, $Channel, $CurrentBrowserType)

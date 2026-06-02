@@ -63,8 +63,10 @@ Global $DefaultProfDir, $hSettings, $hFirefoxPath, $hProfileDir, $hlanguage
 Global $hCopyProfile, $hCustomPluginsDir, $hGetPluginsDir
 Global $hCustomCacheDir, $hGetCacheDir, $hCacheSize, $hCacheSizeSmart
 Global $hParams, $hStatus, $SettingsOK
-Global $hAllowBrowserUpdate, $hCheckAppUpdate, $hRunInBackground, $hChannel, $hDownloadFirefox32, $hDownloadFirefox64, $FirefoxURL
+Global $hAllowBrowserUpdate, $hCheckAppUpdate, $hRunInBackground, $hChannel, $hDownloadFirefox64, $FirefoxURL
 Global $FirefoxVersionsObj = 0
+Global $hFirefoxDownloadProgress, $hFirefoxDownloadStatus, $hFirefoxDownloadDetail, $hFirefoxDownloadBar, $hFirefoxDownloadCancel
+Global $FirefoxDownloadCancelled = 0, $FirefoxDownloadCanCancel = 0
 Global $hExApp, $hExAppAutoExit, $hExApp2
 Global $aExApp, $aExApp2, $aExAppPID[2]
 
@@ -1134,17 +1136,10 @@ Func Settings()
 ;~ 	GUICtrlSetOnEvent(-1, "DownloadFirefox")
 
 	GUICtrlCreateLabel(_t("DownloadFirefox", "下载 Firefox："), 20, 160, 120, 20)
-	$hDownloadFirefox32 = GUICtrlCreateLabel(_t("DownloadFirefoxX86", "%s 32位", "release"), 140, 160, 140, 20)
+	$hDownloadFirefox64 = GUICtrlCreateLabel(_t("DownloadFirefoxX64", "%s 64位", "release"), 140, 160, 180, 20)
 	GUICtrlSetCursor(-1, 0)
 	GUICtrlSetColor(-1, 0x0000FF)
 	GUICtrlSetOnEvent(-1, "DownloadFirefox")
-
-	$hDownloadFirefox64 = GUICtrlCreateLabel(_t("DownloadFirefoxX64", "%s 64位", "release"), 280, 160, 140, 20)
-	GUICtrlSetCursor(-1, 0)
-	GUICtrlSetColor(-1, 0x0000FF)
-	If @OSArch <> "X86" Then
-		GUICtrlSetOnEvent(-1, "DownloadFirefox")
-	EndIf
 
 	GUICtrlCreateGroup(_t("ProfileFiles", "浏览器用户数据文件"), 10, 210, 480, 80)
 	GUICtrlCreateLabel(_t("ProfileDirectory", "配置文件夹"), 20, 230, 120, 20)
@@ -1258,12 +1253,15 @@ Func Settings()
 		GUICtrlSetState($hCopyProfile, $GUI_DISABLE)
 	EndIf
 
-	OnFirefoxPathChange()
+	ShowCurrentChannel()
+	UpdateFirefoxDownloadLabels(False)
 
 	GUISetState(@SW_SHOW)
+	AdlibRegister("RefreshFirefoxVersionLabels", 250)
 	While Not $SettingsOK
 		Sleep(100)
 	WEnd
+	AdlibUnRegister("RefreshFirefoxVersionLabels")
 	GUIDelete($hSettings)
 EndFunc   ;==>Settings
 
@@ -1293,12 +1291,21 @@ Func OnFirefoxPathChange()
 EndFunc   ;==>OnFirefoxPathChange
 
 Func ChangeChannel()
+	UpdateFirefoxDownloadLabels(True)
+EndFunc   ;==>ChangeChannel
+
+Func RefreshFirefoxVersionLabels()
+	AdlibUnRegister("RefreshFirefoxVersionLabels")
+	UpdateFirefoxDownloadLabels(True)
+EndFunc   ;==>RefreshFirefoxVersionLabels
+
+Func UpdateFirefoxDownloadLabels($LoadVersion)
 	Local $Channel = GUICtrlRead($hChannel)
 	If $Channel = "default" Then $Channel = "release"
-	Local $ChannelLabel = GetFirefoxChannelLabel($Channel)
-	GUICtrlSetData($hDownloadFirefox32, _t("DownloadFirefoxX86", "%s 32位", $ChannelLabel))
+	Local $ChannelLabel = $Channel
+	If $LoadVersion Or IsObj($FirefoxVersionsObj) Then $ChannelLabel = GetFirefoxChannelLabel($Channel)
 	GUICtrlSetData($hDownloadFirefox64, _t("DownloadFirefoxX64", "%s 64位", $ChannelLabel))
-EndFunc   ;==>ChangeChannel
+EndFunc   ;==>UpdateFirefoxDownloadLabels
 
 Func GetFirefoxVersions()
 	If IsObj($FirefoxVersionsObj) Then Return $FirefoxVersionsObj
@@ -1372,16 +1379,16 @@ Func BuildFirefoxDownloadUrl($Channel, $os)
 	EndIf
 
 	If $Channel = "dev" Then
-		Return "https://download-installer.cdn.mozilla.net/pub/devedition/releases/" & $Version & "/" & $os & "/" & $lang & "/Firefox%20Setup%20" & $Version & ".exe"
+		Return "https://ftp.mozilla.org/pub/devedition/releases/" & $Version & "/" & $os & "/" & $lang & "/Firefox%20Setup%20" & $Version & ".exe"
 	EndIf
 
 	If $Channel = "nightly" Then
 		Local $nightlyOs = "win32"
 		If $os = "win64" Then $nightlyOs = "win64"
-		Return "https://download-installer.cdn.mozilla.net/pub/firefox/nightly/latest-mozilla-central-l10n/firefox-" & $Version & "." & $lang & "." & $nightlyOs & ".installer.exe"
+		Return "https://ftp.mozilla.org/pub/firefox/nightly/latest-mozilla-central-l10n/firefox-" & $Version & "." & $lang & "." & $nightlyOs & ".installer.exe"
 	EndIf
 
-	Return "https://download.mozilla.org/?product=firefox-" & $Version & "&os=" & $os & "&lang=" & $lang
+	Return "https://ftp.mozilla.org/pub/firefox/releases/" & $Version & "/" & $os & "/" & $lang & "/Firefox%20Setup%20" & $Version & ".exe"
 EndFunc   ;==>BuildFirefoxDownloadUrl
 
 Func ShowCurrentChannel()
@@ -1397,25 +1404,216 @@ Func ShowCurrentChannel()
 EndFunc   ;==>ShowCurrentChannel
 
 Func DownloadFirefox()
-	Local $os
-
-	If @GUI_CtrlId = $hDownloadFirefox32 Then
-		$os = "win"
-	Else
-		$os = "win64"
-	EndIf
+	Local $os = "win64"
 
 	Local $ChannelString = GUICtrlRead($hChannel)
 	Local $Channel = StringRegExpReplace($ChannelString, " *-.*", "")
 
 	$FirefoxURL = BuildFirefoxDownloadUrl($Channel, $os)
 
-	ClipPut($FirefoxURL)
-	Local $msg = MsgBox(65, "RunFirefox", _t("ManuallyDownloadMessage", '请下载 Firefox 安装包，用 WinRAR、7z 等解压软件打开安装包，\n将其中的 core 文件夹提取出来，即得到 Firefox 便携版所需的程序文件。\n\n下载地址已复制到剪贴板，点击"确定"将在浏览器中打开下载页面。'), 0, $hSettings)
-	If $msg = 1 Then
-		ShellExecute($FirefoxURL)
+	Local $TargetFirefoxPath = FullPath(GUICtrlRead($hFirefoxPath))
+	Local $TargetDir, $TargetFile
+	SplitPath($TargetFirefoxPath, $TargetDir, $TargetFile)
+	If $TargetDir = "" Or $TargetDir = "." Then $TargetDir = @ScriptDir
+
+	If FileExists($TargetDir & "\firefox.exe") Or IsDirectoryNotEmpty($TargetDir) Then
+		Local $ConfirmOverwrite = _t("ConfirmOverwriteFirefoxFiles", "目标目录已有 Firefox 文件或其他文件：\n%s\n\n是否继续下载并覆盖/合并文件？", $TargetDir)
+		If MsgBox(36 + 256, $CustomArch, $ConfirmOverwrite, 0, $hSettings) <> 6 Then Return
 	EndIf
+
+	Local $DownloadedFirefoxPath = DownloadAndExtractFirefox($FirefoxURL, $TargetDir, $os, $Channel)
+	If @error Then
+		Local $ErrorMessage = _t("FirefoxDownloadFailed", "Firefox 下载或解压失败：\n%s\n\n请检查网络和目标目录权限后重试。", $DownloadedFirefoxPath)
+		MsgBox(16, $CustomArch, $ErrorMessage, 0, $hSettings)
+		Return
+	EndIf
+
+	$FirefoxPath = RelativePath($DownloadedFirefoxPath)
+	GUICtrlSetData($hFirefoxPath, $FirefoxPath)
+	OnFirefoxPathChange()
+	_GUICtrlStatusBar_SetText($hStatus, _t("FirefoxDownloadSuccess", "Firefox 已下载并解压完成。"))
 EndFunc   ;==>DownloadFirefox
+
+Func DownloadAndExtractFirefox($DownloadUrl, $TargetDir, $os, $Channel)
+	Local $TempDir = @TempDir & "\RunFirefox_FirefoxDownload"
+	Local $InstallerExt = GetUrlFileExtension($DownloadUrl)
+	Local $Installer = $TempDir & "\FirefoxSetup_" & $Channel & "_" & $os & $InstallerExt
+	Local $ExtractDir = $TempDir & "\extract"
+	Local $TargetFirefoxPath = $TargetDir & "\firefox.exe"
+	Local $hDownload, $DownloadedBytes, $TotalBytes, $Percent, $DetailText, $ret, $ExtractLog, $SevenZipExe
+
+	DirRemove($TempDir, 1)
+	If Not FileExists($TempDir) Then DirCreate($TempDir)
+	If Not FileExists($TempDir) Then Return SetError(1, 0, _t("CannotCreateTempDirectory", "无法创建临时目录。"))
+	If Not FileExists($TargetDir) Then DirCreate($TargetDir)
+	If Not FileExists($TargetDir) Then Return SetError(2, 0, _t("CannotCreateFirefoxDirectory", "无法创建 Firefox 目标目录。"))
+
+	$FirefoxDownloadCancelled = 0
+	ShowFirefoxDownloadProgress(_t("DownloadingFirefox", "正在下载 Firefox ..."), $DownloadUrl)
+
+	$hDownload = InetGet($DownloadUrl, $Installer, 19, 1)
+	If @error Or $hDownload = 0 Then
+		CloseFirefoxDownloadProgress()
+		DirRemove($TempDir, 1)
+		Return SetError(3, 0, _t("CannotStartFirefoxDownload", "无法开始下载 Firefox。"))
+	EndIf
+
+	Do
+		$DownloadedBytes = InetGetInfo($hDownload, 0)
+		$TotalBytes = InetGetInfo($hDownload, 1)
+		If $TotalBytes > 0 Then
+			$Percent = Int($DownloadedBytes * 100 / $TotalBytes)
+			If $Percent > 100 Then $Percent = 100
+			$DetailText = _t("FirefoxDownloadProgressKnown", "已下载 {Downloaded} / {Total}")
+			$DetailText = StringReplace($DetailText, "{Downloaded}", FormatBytes($DownloadedBytes))
+			$DetailText = StringReplace($DetailText, "{Total}", FormatBytes($TotalBytes))
+		Else
+			$Percent = Mod(Int($DownloadedBytes / 65536), 100)
+			$DetailText = _t("FirefoxDownloadProgressUnknown", "已下载 %s", FormatBytes($DownloadedBytes))
+		EndIf
+		UpdateFirefoxDownloadProgress(_t("DownloadingFirefox", "正在下载 Firefox ..."), $DetailText, $Percent)
+		If $FirefoxDownloadCancelled Then ExitLoop
+		Sleep(200)
+	Until InetGetInfo($hDownload, 2)
+
+	Local $DownloadSuccessful = InetGetInfo($hDownload, 3)
+	InetClose($hDownload)
+	If $FirefoxDownloadCancelled Then
+		CloseFirefoxDownloadProgress()
+		FileDelete($Installer)
+		DirRemove($TempDir, 1)
+		Return SetError(4, 0, _t("FirefoxDownloadCancelled", "已取消 Firefox 下载。"))
+	EndIf
+	If Not $DownloadSuccessful Or Not FileExists($Installer) Then
+		CloseFirefoxDownloadProgress()
+		DirRemove($TempDir, 1)
+		Return SetError(5, 0, _t("FailToDownloadFirefoxInstaller", "下载 Firefox 安装包失败。"))
+	EndIf
+
+	SetFirefoxDownloadExtracting()
+	$ExtractLog = $TempDir & "\extract.log"
+	$SevenZipExe = PrepareSevenZipTool($TempDir)
+	If @error Then
+		CloseFirefoxDownloadProgress()
+		Return SetError(6, 0, _t("FailToExtractFirefoxInstaller", "解压 Firefox 安装包失败。") & @CRLF & @CRLF & _t("FirefoxExtractLogKept", "诊断文件已保留在：\n%s", $TempDir))
+	EndIf
+	If Not FileExists($ExtractDir) Then DirCreate($ExtractDir)
+	$ret = RunWait(@ComSpec & ' /c ""' & $SevenZipExe & '" x -y -bd -bb1 -o"' & $ExtractDir & '" "' & $Installer & '" > "' & $ExtractLog & '" 2>&1"', $TempDir, @SW_HIDE)
+	CloseFirefoxDownloadProgress()
+
+	If Not FileExists($TargetFirefoxPath) Then
+		Local $ExtractedFirefoxPath = FindFirefoxExecutable($ExtractDir)
+		If $ExtractedFirefoxPath Then
+			Local $ExtractedFirefoxDir, $ExtractedFirefoxFile
+			SplitPath($ExtractedFirefoxPath, $ExtractedFirefoxDir, $ExtractedFirefoxFile)
+			DirCopy($ExtractedFirefoxDir, $TargetDir, 1)
+		EndIf
+	EndIf
+
+	If Not FileExists($TargetFirefoxPath) Then
+		Return SetError(6, 0, _t("FailToExtractFirefoxInstaller", "解压 Firefox 安装包失败。") & @CRLF & @CRLF & _t("FirefoxExtractLogKept", "诊断文件已保留在：\n%s", $TempDir))
+	EndIf
+
+	FileDelete($Installer)
+	DirRemove($TempDir, 1)
+	Return $TargetFirefoxPath
+EndFunc   ;==>DownloadAndExtractFirefox
+
+Func ShowFirefoxDownloadProgress($StatusText, $DetailText)
+	$hFirefoxDownloadProgress = GUICreate(_t("FirefoxDownloadProgressTitle", "正在准备 Firefox"), 420, 135, -1, -1, BitOR($WS_CAPTION, $WS_SYSMENU), -1, $hSettings)
+	GUISetOnEvent($GUI_EVENT_CLOSE, "CancelFirefoxDownload")
+	$hFirefoxDownloadStatus = GUICtrlCreateLabel($StatusText, 15, 15, 390, 20)
+	$hFirefoxDownloadDetail = GUICtrlCreateLabel($DetailText, 15, 42, 390, 36)
+	$hFirefoxDownloadBar = GUICtrlCreateProgress(15, 82, 390, 18)
+	$hFirefoxDownloadCancel = GUICtrlCreateButton(_t("Cancel", "取消"), 170, 108, 80, 22)
+	GUICtrlSetOnEvent(-1, "CancelFirefoxDownload")
+	$FirefoxDownloadCanCancel = 1
+	GUISetState(@SW_SHOW, $hFirefoxDownloadProgress)
+	WinSetOnTop($hFirefoxDownloadProgress, "", 1)
+EndFunc   ;==>ShowFirefoxDownloadProgress
+
+Func UpdateFirefoxDownloadProgress($StatusText, $DetailText, $Percent)
+	If Not $hFirefoxDownloadProgress Then Return
+	GUICtrlSetData($hFirefoxDownloadStatus, $StatusText)
+	GUICtrlSetData($hFirefoxDownloadDetail, $DetailText)
+	GUICtrlSetData($hFirefoxDownloadBar, $Percent)
+EndFunc   ;==>UpdateFirefoxDownloadProgress
+
+Func SetFirefoxDownloadExtracting()
+	If Not $hFirefoxDownloadProgress Then Return
+	$FirefoxDownloadCanCancel = 0
+	GUICtrlSetState($hFirefoxDownloadCancel, $GUI_DISABLE)
+	UpdateFirefoxDownloadProgress(_t("ExtractingFirefox", "正在解压 Firefox，请稍候 ..."), _t("ExtractingFirefoxDetail", "解压期间请不要关闭 {AppName}。"), 100)
+EndFunc   ;==>SetFirefoxDownloadExtracting
+
+Func CloseFirefoxDownloadProgress()
+	If Not $hFirefoxDownloadProgress Then Return
+	GUIDelete($hFirefoxDownloadProgress)
+	$hFirefoxDownloadProgress = 0
+	$FirefoxDownloadCanCancel = 0
+EndFunc   ;==>CloseFirefoxDownloadProgress
+
+Func CancelFirefoxDownload()
+	If $FirefoxDownloadCanCancel Then $FirefoxDownloadCancelled = 1
+EndFunc   ;==>CancelFirefoxDownload
+
+Func FormatBytes($Bytes)
+	If $Bytes >= 1048576 Then Return Round($Bytes / 1048576, 1) & " MB"
+	Return Round($Bytes / 1024) & " KB"
+EndFunc   ;==>FormatBytes
+
+Func GetUrlFileExtension($Url)
+	Local $Path = StringRegExpReplace($Url, "[?#].*$", "")
+	If StringRegExp($Path, "(?i)\.msi$") Then Return ".msi"
+	Return ".exe"
+EndFunc   ;==>GetUrlFileExtension
+
+Func PrepareSevenZipTool($TempDir)
+	Local $ToolDir = $TempDir & "\7z"
+	If Not FileExists($ToolDir) Then DirCreate($ToolDir)
+	If @Compiled Then
+		FileInstall("libs\7z\7z.exe", $ToolDir & "\7z.exe", 1)
+		FileInstall("libs\7z\7z.dll", $ToolDir & "\7z.dll", 1)
+	Else
+		FileCopy(@ScriptDir & "\libs\7z\7z.exe", $ToolDir & "\7z.exe", 9)
+		FileCopy(@ScriptDir & "\libs\7z\7z.dll", $ToolDir & "\7z.dll", 9)
+	EndIf
+	If Not FileExists($ToolDir & "\7z.exe") Or Not FileExists($ToolDir & "\7z.dll") Then Return SetError(1, 0, "")
+	Return $ToolDir & "\7z.exe"
+EndFunc   ;==>PrepareSevenZipTool
+
+Func IsDirectoryNotEmpty($Dir)
+	If Not FileExists($Dir) Then Return False
+	Local $hSearch = FileFindFirstFile($Dir & "\*")
+	If $hSearch = -1 Then Return False
+	FileClose($hSearch)
+	Return True
+EndFunc   ;==>IsDirectoryNotEmpty
+
+Func FindFirefoxExecutable($Dir, $Depth = 4)
+	If FileExists($Dir & "\firefox.exe") Then Return $Dir & "\firefox.exe"
+	If $Depth <= 0 Then Return ""
+
+	Local $hSearch = FileFindFirstFile($Dir & "\*")
+	If $hSearch = -1 Then Return ""
+
+	Local $Name, $Path, $Found
+	While 1
+		$Name = FileFindNextFile($hSearch)
+		If @error Then ExitLoop
+		$Path = $Dir & "\" & $Name
+		If StringInStr(FileGetAttrib($Path), "D") Then
+			$Found = FindFirefoxExecutable($Path, $Depth - 1)
+			If $Found Then
+				FileClose($hSearch)
+				Return $Found
+			EndIf
+		EndIf
+	WEnd
+
+	FileClose($hSearch)
+	Return ""
+EndFunc   ;==>FindFirefoxExecutable
 
 Func RunInBackground()
 	If GUICtrlRead($hRunInBackground) = $GUI_CHECKED Then

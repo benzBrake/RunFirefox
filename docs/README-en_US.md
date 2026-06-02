@@ -10,6 +10,8 @@ Features:
 
 ### Latest updates
 
+2026.06.01 Added automatic Firefox download and extraction from the settings screen with an always-on-top progress window
+
 2026.06.01 Added Traditional Chinese, automatic UI language detection, and missing localization entries
 
 2026.06.01 Refactored Firefox download and GitHub mirror logic with dynamic version lookup and jsDelivr fallback

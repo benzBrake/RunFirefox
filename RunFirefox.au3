@@ -52,10 +52,13 @@ Opt("WinTitleMatchMode", 4)
 Global Const $CustomArch = "RunFirefox"
 Global Const $AppVersion = "2.7.9"
 Global Const $FirefoxVersionUrl = "https://product-details.mozilla.org/1.0/firefox_versions.json"
+Global Const $BrowserFirefox = "firefox"
+Global Const $BrowserZen = "zen"
+Global Const $ZenUpdateBaseUrl = "https://updates.zen-browser.app/updates/browser/WINNT_x86_64-msvc-x64"
 Global $FirstRun = 0, $FirstLaunch = 0, $FirefoxExe, $FirefoxDir, $isZotero = false
 Global $TaskBarDir = @AppDataDir & "\Microsoft\Internet Explorer\Quick Launch\User Pinned\TaskBar"
 Global $AppPID, $TaskBarLastChange
-Global $AllowBrowserUpdate, $CheckAppUpdate, $AppUpdateLastCheck, $RunInBackground, $FirefoxPath, $ProfileDir
+Global $AllowBrowserUpdate, $CheckAppUpdate, $AppUpdateLastCheck, $RunInBackground, $BrowserType, $FirefoxPath, $ProfileDir
 Global $CustomPluginsDir, $CustomCacheDir, $CacheSize, $CacheSizeSmart, $CheckDefaultBrowser, $Params
 Global $ExApp, $ExAppAutoExit, $ExApp2
 
@@ -63,7 +66,7 @@ Global $DefaultProfDir, $hSettings, $hFirefoxPath, $hProfileDir, $hlanguage
 Global $hCopyProfile, $hCustomPluginsDir, $hGetPluginsDir
 Global $hCustomCacheDir, $hGetCacheDir, $hCacheSize, $hCacheSizeSmart
 Global $hParams, $hStatus, $SettingsOK
-Global $hAllowBrowserUpdate, $hCheckAppUpdate, $hRunInBackground, $hChannel, $hDownloadFirefox64, $FirefoxURL
+Global $hAllowBrowserUpdate, $hCheckAppUpdate, $hRunInBackground, $hBrowserType, $hChannel, $hDownloadFirefox64, $FirefoxURL
 Global $FirefoxVersionsObj = 0
 Global $hFirefoxDownloadProgress, $hFirefoxDownloadStatus, $hFirefoxDownloadDetail, $hFirefoxDownloadBar, $hFirefoxDownloadCancel
 Global $FirefoxDownloadCancelled = 0, $FirefoxDownloadCanCancel = 0
@@ -101,6 +104,7 @@ If Not FileExists($inifile) Then
 	IniWrite($inifile, "Settings", "AppUpdateLastCheck", "2015/01/01 00:00:00")
 	IniWrite($inifile, "Settings", "RunInBackground", 1)
 	IniWrite($inifile, "Settings", "AllowBrowserUpdate", 1)
+	IniWrite($inifile, "Settings", "BrowserType", $BrowserFirefox)
 	IniWrite($inifile, "Settings", "FirefoxPath", ".\Firefox\firefox.exe")
 	IniWrite($inifile, "Settings", "ProfileDir", ".\profiles")
 	IniWrite($inifile, "Settings", "CustomPluginsDir", "")
@@ -123,6 +127,7 @@ If Not $AppUpdateLastCheck Then
 EndIf
 $AllowBrowserUpdate = IniRead($inifile, "Settings", "AllowBrowserUpdate", 1) * 1
 $RunInBackground = IniRead($inifile, "Settings", "RunInBackground", 1) * 1
+$BrowserType = NormalizeBrowserType(IniRead($inifile, "Settings", "BrowserType", $BrowserFirefox))
 $FirefoxPath = IniRead($inifile, "Settings", "FirefoxPath", ".\Firefox\firefox.exe")
 $ProfileDir = IniRead($inifile, "Settings", "ProfileDir", ".\profiles")
 $CustomPluginsDir = IniRead($inifile, "Settings", "CustomPluginsDir", "")
@@ -522,6 +527,13 @@ EndFunc   ;==>DeleteCfgFiles
 Func CheckPrefs()
 	Local $var, $cfg
 	Local $prefs = FileRead($ProfileDir & "\prefs.js")
+	Local $BrowserLocale = GetBrowserLocale()
+
+	If $BrowserLocale Then
+		If $BrowserType = $BrowserZen Then UpdateProfileLocalePrefs($BrowserLocale, $prefs)
+		$cfg &= 'pref("intl.locale.matchOS", false);' & @CRLF
+		$cfg &= 'pref("intl.locale.requested", "' & $BrowserLocale & '");' & @CRLF
+	EndIf
 
 	If Not StringRegExp($prefs, '(?i)(?m)^\Quser_pref("browser.shell.checkDefaultBrowser",\E *\Qfalse);\E') Then
 		$cfg &= 'pref("browser.shell.checkDefaultBrowser", false);' & @CRLF
@@ -557,6 +569,20 @@ Func CheckPrefs()
 	$prefs = ''
 	Return $cfg
 EndFunc   ;==>CheckPrefs
+
+Func UpdateProfileLocalePrefs($BrowserLocale, ByRef $prefs)
+	Local $PrefsPath = $ProfileDir & "\prefs.js"
+	If Not FileExists($PrefsPath) Then Return
+
+	Local $NewPrefs = StringRegExpReplace($prefs, '(?i)(?m)^user_pref\("intl\.locale\.(matchOS|requested)",.*\);\R?', "")
+	$NewPrefs &= 'user_pref("intl.locale.matchOS", false);' & @CRLF
+	$NewPrefs &= 'user_pref("intl.locale.requested", "' & $BrowserLocale & '");' & @CRLF
+	If $NewPrefs = $prefs Then Return
+
+	FileDelete($PrefsPath)
+	FileWrite($PrefsPath, $NewPrefs)
+	$prefs = $NewPrefs
+EndFunc   ;==>UpdateProfileLocalePrefs
 
 ; for win7+
 ; Group different app icons on Taskbar need the same AppUserModelIDs
@@ -1119,12 +1145,16 @@ Func Settings()
 	GUICtrlSetTip(-1, _t("ChoosePortableBrowser", "选择便携版浏览器\n主程序（firefox.exe）"))
 	GUICtrlSetOnEvent(-1, "GetFirefoxPath")
 
-	GUICtrlCreateLabel(_t("UpdateChannel", "更新通道"), 20, 130, 120, 20)
-	$hChannel = GUICtrlCreateCombo("", 140, 125, 150, 20, $CBS_DROPDOWNLIST)
-	GUICtrlSetData($hChannel, "esr|release|beta|dev|nightly", "release")
+	GUICtrlCreateLabel(_t("BrowserType", "浏览器"), 20, 130, 55, 20)
+	$hBrowserType = GUICtrlCreateCombo("", 80, 125, 105, 20, $CBS_DROPDOWNLIST)
+	GUICtrlSetData($hBrowserType, GetBrowserTypeComboData(), GetBrowserTypeLabel($BrowserType))
+	GUICtrlSetOnEvent(-1, "ChangeBrowserType")
+
+	GUICtrlCreateLabel(_t("UpdateChannel", "更新通道"), 200, 130, 70, 20)
+	$hChannel = GUICtrlCreateCombo("", 275, 125, 80, 20, $CBS_DROPDOWNLIST)
 	GUICtrlSetOnEvent(-1, "ChangeChannel")
 
-	$hAllowBrowserUpdate = GUICtrlCreateCheckbox(_t("BrowserAutoUpdate", " 自动更新"),310, 125, -1, 20)
+	$hAllowBrowserUpdate = GUICtrlCreateCheckbox(_t("BrowserAutoUpdate", " 自动更新"), 365, 125, -1, 20)
 	If $AllowBrowserUpdate Then
 		GUICtrlSetState(-1, $GUI_CHECKED)
 	EndIf
@@ -1135,8 +1165,8 @@ Func Settings()
 ;~ 	GUICtrlSetTip(-1, "去下载 Firefox")
 ;~ 	GUICtrlSetOnEvent(-1, "DownloadFirefox")
 
-	GUICtrlCreateLabel(_t("DownloadFirefox", "下载 Firefox："), 20, 160, 120, 20)
-	$hDownloadFirefox64 = GUICtrlCreateLabel(_t("DownloadFirefoxX64", "%s 64位", "release"), 140, 160, 180, 20)
+	GUICtrlCreateLabel(_t("DownloadBrowser", "下载浏览器："), 20, 160, 120, 20)
+	$hDownloadFirefox64 = GUICtrlCreateLabel(_t("DownloadBrowserX64", "%s 64位", "Firefox release"), 140, 160, 240, 20)
 	GUICtrlSetCursor(-1, 0)
 	GUICtrlSetColor(-1, 0x0000FF)
 	GUICtrlSetOnEvent(-1, "DownloadFirefox")
@@ -1253,6 +1283,7 @@ Func Settings()
 		GUICtrlSetState($hCopyProfile, $GUI_DISABLE)
 	EndIf
 
+	UpdateBrowserChannelOptions($BrowserType, "release")
 	ShowCurrentChannel()
 	UpdateFirefoxDownloadLabels(False)
 
@@ -1290,6 +1321,17 @@ Func OnFirefoxPathChange()
 	ChangeChannel()
 EndFunc   ;==>OnFirefoxPathChange
 
+Func ChangeBrowserType()
+	Local $NewBrowserType = GetSelectedBrowserType()
+	Local $CurrentPath = StringLower(GUICtrlRead($hFirefoxPath))
+	If $CurrentPath = ".\firefox\firefox.exe" Or $CurrentPath = ".\zenbrowser\zen.exe" Then
+		GUICtrlSetData($hFirefoxPath, GetDefaultBrowserPath($NewBrowserType))
+	EndIf
+	$BrowserType = $NewBrowserType
+	UpdateBrowserChannelOptions($BrowserType, "release")
+	UpdateFirefoxDownloadLabels(True)
+EndFunc   ;==>ChangeBrowserType
+
 Func ChangeChannel()
 	UpdateFirefoxDownloadLabels(True)
 EndFunc   ;==>ChangeChannel
@@ -1300,12 +1342,67 @@ Func RefreshFirefoxVersionLabels()
 EndFunc   ;==>RefreshFirefoxVersionLabels
 
 Func UpdateFirefoxDownloadLabels($LoadVersion)
+	Local $CurrentBrowserType = GetSelectedBrowserType()
 	Local $Channel = GUICtrlRead($hChannel)
 	If $Channel = "default" Then $Channel = "release"
 	Local $ChannelLabel = $Channel
-	If $LoadVersion Or IsObj($FirefoxVersionsObj) Then $ChannelLabel = GetFirefoxChannelLabel($Channel)
-	GUICtrlSetData($hDownloadFirefox64, _t("DownloadFirefoxX64", "%s 64位", $ChannelLabel))
+	If $CurrentBrowserType = $BrowserZen Then
+		If $LoadVersion Then $ChannelLabel = GetZenChannelLabel($Channel)
+	Else
+		If $LoadVersion Or IsObj($FirefoxVersionsObj) Then $ChannelLabel = GetFirefoxChannelLabel($Channel)
+	EndIf
+	GUICtrlSetData($hDownloadFirefox64, _t("DownloadBrowserX64", "%s 64位", GetBrowserDisplayName($CurrentBrowserType) & " " & $ChannelLabel))
 EndFunc   ;==>UpdateFirefoxDownloadLabels
+
+Func GetSelectedBrowserType()
+	If Not $hBrowserType Then Return $BrowserType
+	Return GetBrowserTypeByLabel(GUICtrlRead($hBrowserType))
+EndFunc   ;==>GetSelectedBrowserType
+
+Func NormalizeBrowserType($Value)
+	$Value = StringLower(StringStripWS($Value, 3))
+	If $Value = $BrowserZen Or $Value = "zenbrowser" Then Return $BrowserZen
+	Return $BrowserFirefox
+EndFunc   ;==>NormalizeBrowserType
+
+Func GetBrowserDisplayName($Value)
+	If NormalizeBrowserType($Value) = $BrowserZen Then Return "ZenBrowser"
+	Return "Firefox"
+EndFunc   ;==>GetBrowserDisplayName
+
+Func GetBrowserTypeLabel($Value)
+	If NormalizeBrowserType($Value) = $BrowserZen Then Return _t("BrowserZen", "ZenBrowser")
+	Return _t("BrowserFirefox", "Firefox 原版")
+EndFunc   ;==>GetBrowserTypeLabel
+
+Func GetBrowserTypeByLabel($Label)
+	If $Label = _t("BrowserZen", "ZenBrowser") Or StringLower($Label) = "zenbrowser" Then Return $BrowserZen
+	Return $BrowserFirefox
+EndFunc   ;==>GetBrowserTypeByLabel
+
+Func GetBrowserTypeComboData()
+	Return _t("BrowserFirefox", "Firefox 原版") & "|" & _t("BrowserZen", "ZenBrowser")
+EndFunc   ;==>GetBrowserTypeComboData
+
+Func GetBrowserExecutableName($Value)
+	If NormalizeBrowserType($Value) = $BrowserZen Then Return "zen.exe"
+	Return "firefox.exe"
+EndFunc   ;==>GetBrowserExecutableName
+
+Func GetDefaultBrowserPath($Value)
+	If NormalizeBrowserType($Value) = $BrowserZen Then Return ".\ZenBrowser\zen.exe"
+	Return ".\Firefox\firefox.exe"
+EndFunc   ;==>GetDefaultBrowserPath
+
+Func UpdateBrowserChannelOptions($Value, $SelectedChannel)
+	Local $Options = "esr|release|beta|dev|nightly"
+	Local $DefaultChannel = "release"
+	If NormalizeBrowserType($Value) = $BrowserZen Then $Options = "release|twilight"
+	If Not StringRegExp("|" & $Options & "|", "(?i)\|" & $SelectedChannel & "\|") Then $SelectedChannel = $DefaultChannel
+
+	_SendMessage(GUICtrlGetHandle($hChannel), $CB_RESETCONTENT)
+	GUICtrlSetData($hChannel, $Options, $SelectedChannel)
+EndFunc   ;==>UpdateBrowserChannelOptions
 
 Func GetFirefoxVersions()
 	If IsObj($FirefoxVersionsObj) Then Return $FirefoxVersionsObj
@@ -1349,6 +1446,42 @@ Func GetFirefoxChannelLabel($Channel)
 	Return $Channel & " (" & $Version & ")"
 EndFunc   ;==>GetFirefoxChannelLabel
 
+Func GetZenUpdateXml($Channel)
+	$Channel = GetZenUpdateChannel($Channel)
+	Local $sUpdateXml = BinaryToString(InetRead($ZenUpdateBaseUrl & "/" & $Channel & "/update.xml", 1), 4)
+	If @error Or $sUpdateXml = "" Then Return SetError(1, 0, "")
+	Return $sUpdateXml
+EndFunc   ;==>GetZenUpdateXml
+
+Func GetLatestZenVersion($Channel)
+	Local $sUpdateXml = GetZenUpdateXml($Channel)
+	If @error Or $sUpdateXml = "" Then Return ""
+
+	Local $match = StringRegExp($sUpdateXml, 'displayVersion="([^"]+)"', 1)
+	If @error Then Return ""
+	Return $match[0]
+EndFunc   ;==>GetLatestZenVersion
+
+Func GetLatestZenReleaseTag($Channel)
+	Local $sUpdateXml = GetZenUpdateXml($Channel)
+	If @error Or $sUpdateXml = "" Then Return ""
+
+	Local $match = StringRegExp($sUpdateXml, '/releases/download/([^/]+)/', 1)
+	If @error Then Return ""
+	Return $match[0]
+EndFunc   ;==>GetLatestZenReleaseTag
+
+Func GetZenChannelLabel($Channel)
+	Local $Version = GetLatestZenVersion($Channel)
+	If $Version = "" Then Return $Channel
+	Return $Channel & " (" & $Version & ")"
+EndFunc   ;==>GetZenChannelLabel
+
+Func GetZenUpdateChannel($Channel)
+	If $Channel = "twilight" Then Return "twilight"
+	Return "release"
+EndFunc   ;==>GetZenUpdateChannel
+
 Func GetLatestFirefoxProduct($Channel)
 	Switch $Channel
 		Case "release", "default"
@@ -1365,11 +1498,15 @@ Func GetLatestFirefoxProduct($Channel)
 EndFunc   ;==>GetLatestFirefoxProduct
 
 Func GetFirefoxDownloadLanguage()
-	Local $lang = StringReplace($LANGUAGE, "_", "-")
-	If $lang = "" Then Return "zh-CN"
-	If Not StringRegExp($lang, "^[A-Za-z]{2,3}(-[A-Za-z0-9]+)*$") Then Return "zh-CN"
-	Return $lang
+	Return GetBrowserLocale("zh-CN")
 EndFunc   ;==>GetFirefoxDownloadLanguage
+
+Func GetBrowserLocale($DefaultLocale = "")
+	Local $lang = StringReplace($LANGUAGE, "_", "-")
+	If $lang = "" Then Return $DefaultLocale
+	If Not StringRegExp($lang, "^[A-Za-z]{2,3}(-[A-Za-z0-9]+)*$") Then Return $DefaultLocale
+	Return $lang
+EndFunc   ;==>GetBrowserLocale
 
 Func BuildFirefoxDownloadUrl($Channel, $os)
 	Local $Version = GetLatestFirefoxVersion($Channel)
@@ -1391,6 +1528,17 @@ Func BuildFirefoxDownloadUrl($Channel, $os)
 	Return "https://ftp.mozilla.org/pub/firefox/releases/" & $Version & "/" & $os & "/" & $lang & "/Firefox%20Setup%20" & $Version & ".exe"
 EndFunc   ;==>BuildFirefoxDownloadUrl
 
+Func BuildZenDownloadUrl($Channel, $os)
+	Local $ReleaseTag = GetLatestZenReleaseTag($Channel)
+	If $ReleaseTag = "" Then Return "https://github.com/zen-browser/desktop/releases/latest/download/zen.installer.exe"
+	Return "https://github.com/zen-browser/desktop/releases/download/" & $ReleaseTag & "/zen.installer.exe"
+EndFunc   ;==>BuildZenDownloadUrl
+
+Func BuildBrowserDownloadUrl($Value, $Channel, $os)
+	If NormalizeBrowserType($Value) = $BrowserZen Then Return BuildZenDownloadUrl($Channel, $os)
+	Return BuildFirefoxDownloadUrl($Channel, $os)
+EndFunc   ;==>BuildBrowserDownloadUrl
+
 Func ShowCurrentChannel()
 	Local $path = GUICtrlRead($hFirefoxPath)
 	If Not FileExists($path) Then Return
@@ -1405,25 +1553,26 @@ EndFunc   ;==>ShowCurrentChannel
 
 Func DownloadFirefox()
 	Local $os = "win64"
+	Local $CurrentBrowserType = GetSelectedBrowserType()
 
 	Local $ChannelString = GUICtrlRead($hChannel)
 	Local $Channel = StringRegExpReplace($ChannelString, " *-.*", "")
 
-	$FirefoxURL = BuildFirefoxDownloadUrl($Channel, $os)
+	$FirefoxURL = BuildBrowserDownloadUrl($CurrentBrowserType, $Channel, $os)
 
 	Local $TargetFirefoxPath = FullPath(GUICtrlRead($hFirefoxPath))
 	Local $TargetDir, $TargetFile
 	SplitPath($TargetFirefoxPath, $TargetDir, $TargetFile)
 	If $TargetDir = "" Or $TargetDir = "." Then $TargetDir = @ScriptDir
 
-	If FileExists($TargetDir & "\firefox.exe") Or IsDirectoryNotEmpty($TargetDir) Then
-		Local $ConfirmOverwrite = _t("ConfirmOverwriteFirefoxFiles", "目标目录已有 Firefox 文件或其他文件：\n%s\n\n是否继续下载并覆盖/合并文件？", $TargetDir)
+	If FileExists($TargetDir & "\" & GetBrowserExecutableName($CurrentBrowserType)) Or IsDirectoryNotEmpty($TargetDir) Then
+		Local $ConfirmOverwrite = _t("ConfirmOverwriteBrowserFiles", "目标目录已有浏览器文件或其他文件：\n%s\n\n是否继续下载并覆盖/合并文件？", $TargetDir)
 		If MsgBox(36 + 256, $CustomArch, $ConfirmOverwrite, 0, $hSettings) <> 6 Then Return
 	EndIf
 
-	Local $DownloadedFirefoxPath = DownloadAndExtractFirefox($FirefoxURL, $TargetDir, $os, $Channel)
+	Local $DownloadedFirefoxPath = DownloadAndExtractFirefox($FirefoxURL, $TargetDir, $os, $Channel, $CurrentBrowserType)
 	If @error Then
-		Local $ErrorMessage = _t("FirefoxDownloadFailed", "Firefox 下载或解压失败：\n%s\n\n请检查网络和目标目录权限后重试。", $DownloadedFirefoxPath)
+		Local $ErrorMessage = _t("BrowserDownloadFailed", "浏览器下载或解压失败：\n%s\n\n请检查网络和目标目录权限后重试。", $DownloadedFirefoxPath)
 		MsgBox(16, $CustomArch, $ErrorMessage, 0, $hSettings)
 		Return
 	EndIf
@@ -1431,31 +1580,31 @@ Func DownloadFirefox()
 	$FirefoxPath = RelativePath($DownloadedFirefoxPath)
 	GUICtrlSetData($hFirefoxPath, $FirefoxPath)
 	OnFirefoxPathChange()
-	_GUICtrlStatusBar_SetText($hStatus, _t("FirefoxDownloadSuccess", "Firefox 已下载并解压完成。"))
+	_GUICtrlStatusBar_SetText($hStatus, _t("BrowserDownloadSuccess", "浏览器已下载并解压完成。"))
 EndFunc   ;==>DownloadFirefox
 
-Func DownloadAndExtractFirefox($DownloadUrl, $TargetDir, $os, $Channel)
+Func DownloadAndExtractFirefox($DownloadUrl, $TargetDir, $os, $Channel, $CurrentBrowserType)
 	Local $TempDir = @TempDir & "\RunFirefox_FirefoxDownload"
 	Local $InstallerExt = GetUrlFileExtension($DownloadUrl)
-	Local $Installer = $TempDir & "\FirefoxSetup_" & $Channel & "_" & $os & $InstallerExt
+	Local $Installer = $TempDir & "\BrowserSetup_" & NormalizeBrowserType($CurrentBrowserType) & "_" & $Channel & "_" & $os & $InstallerExt
 	Local $ExtractDir = $TempDir & "\extract"
-	Local $TargetFirefoxPath = $TargetDir & "\firefox.exe"
+	Local $TargetFirefoxPath = $TargetDir & "\" & GetBrowserExecutableName($CurrentBrowserType)
 	Local $hDownload, $DownloadedBytes, $TotalBytes, $Percent, $DetailText, $ret, $ExtractLog, $SevenZipExe
 
 	DirRemove($TempDir, 1)
 	If Not FileExists($TempDir) Then DirCreate($TempDir)
 	If Not FileExists($TempDir) Then Return SetError(1, 0, _t("CannotCreateTempDirectory", "无法创建临时目录。"))
 	If Not FileExists($TargetDir) Then DirCreate($TargetDir)
-	If Not FileExists($TargetDir) Then Return SetError(2, 0, _t("CannotCreateFirefoxDirectory", "无法创建 Firefox 目标目录。"))
+	If Not FileExists($TargetDir) Then Return SetError(2, 0, _t("CannotCreateBrowserDirectory", "无法创建浏览器目标目录。"))
 
 	$FirefoxDownloadCancelled = 0
-	ShowFirefoxDownloadProgress(_t("DownloadingFirefox", "正在下载 Firefox ..."), $DownloadUrl)
+	ShowFirefoxDownloadProgress(_t("DownloadingBrowser", "正在下载浏览器 ..."), $DownloadUrl)
 
 	$hDownload = InetGet($DownloadUrl, $Installer, 19, 1)
 	If @error Or $hDownload = 0 Then
 		CloseFirefoxDownloadProgress()
 		DirRemove($TempDir, 1)
-		Return SetError(3, 0, _t("CannotStartFirefoxDownload", "无法开始下载 Firefox。"))
+		Return SetError(3, 0, _t("CannotStartBrowserDownload", "无法开始下载浏览器。"))
 	EndIf
 
 	Do
@@ -1471,7 +1620,7 @@ Func DownloadAndExtractFirefox($DownloadUrl, $TargetDir, $os, $Channel)
 			$Percent = Mod(Int($DownloadedBytes / 65536), 100)
 			$DetailText = _t("FirefoxDownloadProgressUnknown", "已下载 %s", FormatBytes($DownloadedBytes))
 		EndIf
-		UpdateFirefoxDownloadProgress(_t("DownloadingFirefox", "正在下载 Firefox ..."), $DetailText, $Percent)
+		UpdateFirefoxDownloadProgress(_t("DownloadingBrowser", "正在下载浏览器 ..."), $DetailText, $Percent)
 		If $FirefoxDownloadCancelled Then ExitLoop
 		Sleep(200)
 	Until InetGetInfo($hDownload, 2)
@@ -1482,12 +1631,12 @@ Func DownloadAndExtractFirefox($DownloadUrl, $TargetDir, $os, $Channel)
 		CloseFirefoxDownloadProgress()
 		FileDelete($Installer)
 		DirRemove($TempDir, 1)
-		Return SetError(4, 0, _t("FirefoxDownloadCancelled", "已取消 Firefox 下载。"))
+		Return SetError(4, 0, _t("BrowserDownloadCancelled", "已取消浏览器下载。"))
 	EndIf
 	If Not $DownloadSuccessful Or Not FileExists($Installer) Then
 		CloseFirefoxDownloadProgress()
 		DirRemove($TempDir, 1)
-		Return SetError(5, 0, _t("FailToDownloadFirefoxInstaller", "下载 Firefox 安装包失败。"))
+		Return SetError(5, 0, _t("FailToDownloadBrowserInstaller", "下载浏览器安装包失败。"))
 	EndIf
 
 	SetFirefoxDownloadExtracting()
@@ -1495,14 +1644,15 @@ Func DownloadAndExtractFirefox($DownloadUrl, $TargetDir, $os, $Channel)
 	$SevenZipExe = PrepareSevenZipTool($TempDir)
 	If @error Then
 		CloseFirefoxDownloadProgress()
-		Return SetError(6, 0, _t("FailToExtractFirefoxInstaller", "解压 Firefox 安装包失败。") & @CRLF & @CRLF & _t("FirefoxExtractLogKept", "诊断文件已保留在：\n%s", $TempDir))
+		Return SetError(6, 0, _t("FailToExtractBrowserInstaller", "解压浏览器安装包失败。") & @CRLF & @CRLF & _t("FirefoxExtractLogKept", "诊断文件已保留在：\n%s", $TempDir))
 	EndIf
 	If Not FileExists($ExtractDir) Then DirCreate($ExtractDir)
 	$ret = RunWait(@ComSpec & ' /c ""' & $SevenZipExe & '" x -y -bd -bb1 -o"' & $ExtractDir & '" "' & $Installer & '" > "' & $ExtractLog & '" 2>&1"', $TempDir, @SW_HIDE)
 	CloseFirefoxDownloadProgress()
 
 	If Not FileExists($TargetFirefoxPath) Then
-		Local $ExtractedFirefoxPath = FindFirefoxExecutable($ExtractDir)
+		ExtractNestedBrowserArchives($SevenZipExe, $ExtractDir, $TempDir)
+		Local $ExtractedFirefoxPath = FindBrowserExecutable($ExtractDir, GetBrowserExecutableName($CurrentBrowserType))
 		If $ExtractedFirefoxPath Then
 			Local $ExtractedFirefoxDir, $ExtractedFirefoxFile
 			SplitPath($ExtractedFirefoxPath, $ExtractedFirefoxDir, $ExtractedFirefoxFile)
@@ -1511,7 +1661,7 @@ Func DownloadAndExtractFirefox($DownloadUrl, $TargetDir, $os, $Channel)
 	EndIf
 
 	If Not FileExists($TargetFirefoxPath) Then
-		Return SetError(6, 0, _t("FailToExtractFirefoxInstaller", "解压 Firefox 安装包失败。") & @CRLF & @CRLF & _t("FirefoxExtractLogKept", "诊断文件已保留在：\n%s", $TempDir))
+		Return SetError(6, 0, _t("FailToExtractBrowserInstaller", "解压浏览器安装包失败。") & @CRLF & @CRLF & _t("FirefoxExtractLogKept", "诊断文件已保留在：\n%s", $TempDir))
 	EndIf
 
 	FileDelete($Installer)
@@ -1520,7 +1670,7 @@ Func DownloadAndExtractFirefox($DownloadUrl, $TargetDir, $os, $Channel)
 EndFunc   ;==>DownloadAndExtractFirefox
 
 Func ShowFirefoxDownloadProgress($StatusText, $DetailText)
-	$hFirefoxDownloadProgress = GUICreate(_t("FirefoxDownloadProgressTitle", "正在准备 Firefox"), 420, 135, -1, -1, BitOR($WS_CAPTION, $WS_SYSMENU), -1, $hSettings)
+	$hFirefoxDownloadProgress = GUICreate(_t("BrowserDownloadProgressTitle", "正在准备浏览器"), 420, 135, -1, -1, BitOR($WS_CAPTION, $WS_SYSMENU), -1, $hSettings)
 	GUISetOnEvent($GUI_EVENT_CLOSE, "CancelFirefoxDownload")
 	$hFirefoxDownloadStatus = GUICtrlCreateLabel($StatusText, 15, 15, 390, 20)
 	$hFirefoxDownloadDetail = GUICtrlCreateLabel($DetailText, 15, 42, 390, 36)
@@ -1543,7 +1693,7 @@ Func SetFirefoxDownloadExtracting()
 	If Not $hFirefoxDownloadProgress Then Return
 	$FirefoxDownloadCanCancel = 0
 	GUICtrlSetState($hFirefoxDownloadCancel, $GUI_DISABLE)
-	UpdateFirefoxDownloadProgress(_t("ExtractingFirefox", "正在解压 Firefox，请稍候 ..."), _t("ExtractingFirefoxDetail", "解压期间请不要关闭 {AppName}。"), 100)
+	UpdateFirefoxDownloadProgress(_t("ExtractingBrowser", "正在解压浏览器，请稍候 ..."), _t("ExtractingBrowserDetail", "解压期间请不要关闭 {AppName}。"), 100)
 EndFunc   ;==>SetFirefoxDownloadExtracting
 
 Func CloseFirefoxDownloadProgress()
@@ -1590,8 +1740,58 @@ Func IsDirectoryNotEmpty($Dir)
 	Return True
 EndFunc   ;==>IsDirectoryNotEmpty
 
-Func FindFirefoxExecutable($Dir, $Depth = 4)
-	If FileExists($Dir & "\firefox.exe") Then Return $Dir & "\firefox.exe"
+Func ExtractNestedBrowserArchives($SevenZipExe, $RootDir, $TempDir, $Depth = 2)
+	If $Depth <= 0 Then Return
+
+	Local $ArchiveList = FindNestedBrowserArchives($RootDir)
+	If Not IsArray($ArchiveList) Then Return
+
+	Local $i, $Archive, $OutDir, $LogFile
+	For $i = 1 To $ArchiveList[0]
+		$Archive = $ArchiveList[$i]
+		$OutDir = $RootDir & "\__nested_" & $Depth & "_" & $i
+		$LogFile = $TempDir & "\nested_extract.log"
+		If Not FileExists($OutDir) Then DirCreate($OutDir)
+		RunWait(@ComSpec & ' /c ""' & $SevenZipExe & '" x -y -bd -bb1 -o"' & $OutDir & '" "' & $Archive & '" >> "' & $LogFile & '" 2>&1"', $TempDir, @SW_HIDE)
+		ExtractNestedBrowserArchives($SevenZipExe, $OutDir, $TempDir, $Depth - 1)
+	Next
+EndFunc   ;==>ExtractNestedBrowserArchives
+
+Func FindNestedBrowserArchives($Dir, $Depth = 4)
+	If $Depth <= 0 Then Return 0
+
+	Local $Archives[1] = [0]
+	CollectNestedBrowserArchives($Dir, $Depth, $Archives)
+	If $Archives[0] = 0 Then Return 0
+	Return $Archives
+EndFunc   ;==>FindNestedBrowserArchives
+
+Func CollectNestedBrowserArchives($Dir, $Depth, ByRef $Archives)
+	If $Depth <= 0 Then Return
+
+	Local $hSearch = FileFindFirstFile($Dir & "\*")
+	If $hSearch = -1 Then Return
+
+	Local $Name, $Path, $Attrib
+	While 1
+		$Name = FileFindNextFile($hSearch)
+		If @error Then ExitLoop
+		$Path = $Dir & "\" & $Name
+		$Attrib = FileGetAttrib($Path)
+		If StringInStr($Attrib, "D") Then
+			CollectNestedBrowserArchives($Path, $Depth - 1, $Archives)
+		ElseIf StringRegExp($Name, "(?i)\.(7z|zip)$") Then
+			$Archives[0] += 1
+			ReDim $Archives[$Archives[0] + 1]
+			$Archives[$Archives[0]] = $Path
+		EndIf
+	WEnd
+
+	FileClose($hSearch)
+EndFunc   ;==>CollectNestedBrowserArchives
+
+Func FindBrowserExecutable($Dir, $ExecutableName, $Depth = 6)
+	If FileExists($Dir & "\" & $ExecutableName) Then Return $Dir & "\" & $ExecutableName
 	If $Depth <= 0 Then Return ""
 
 	Local $hSearch = FileFindFirstFile($Dir & "\*")
@@ -1603,7 +1803,7 @@ Func FindFirefoxExecutable($Dir, $Depth = 4)
 		If @error Then ExitLoop
 		$Path = $Dir & "\" & $Name
 		If StringInStr(FileGetAttrib($Path), "D") Then
-			$Found = FindFirefoxExecutable($Path, $Depth - 1)
+			$Found = FindBrowserExecutable($Path, $ExecutableName, $Depth - 1)
 			If $Found Then
 				FileClose($hSearch)
 				Return $Found
@@ -1613,7 +1813,7 @@ Func FindFirefoxExecutable($Dir, $Depth = 4)
 
 	FileClose($hSearch)
 	Return ""
-EndFunc   ;==>FindFirefoxExecutable
+EndFunc   ;==>FindBrowserExecutable
 
 Func RunInBackground()
 	If GUICtrlRead($hRunInBackground) = $GUI_CHECKED Then
@@ -1646,6 +1846,7 @@ Func SettingsApply()
 
 	Opt("ExpandEnvStrings", 0)
 	$FirefoxPath = RelativePath(GUICtrlRead($hFirefoxPath))
+	$BrowserType = GetSelectedBrowserType()
 
 	If GUICtrlRead($hAllowBrowserUpdate) = $GUI_CHECKED Then
 		$AllowBrowserUpdate = 1
@@ -1693,6 +1894,7 @@ Func SettingsApply()
 	IniWrite($inifile, "Settings", "CheckAppUpdate", $CheckAppUpdate)
 	IniWrite($inifile, "Settings", "RunInBackground", $RunInBackground)
 	IniWrite($inifile, "Settings", "AllowBrowserUpdate", $AllowBrowserUpdate)
+	IniWrite($inifile, "Settings", "BrowserType", $BrowserType)
 	IniWrite($inifile, "Settings", "FirefoxPath", $FirefoxPath)
 	IniWrite($inifile, "Settings", "ProfileDir", $ProfileDir)
 	IniWrite($inifile, "Settings", "CustomPluginsDir", $CustomPluginsDir)
@@ -1719,14 +1921,22 @@ Func SettingsApply()
 
 	Local $ChannelString = GUICtrlRead($hChannel)
 	Local $Channel = StringRegExpReplace($ChannelString, " -.*", "")
-	; Firefox Developer Edition still uses aurora as the internal update channel.
 	Local $UpdateChannel = $Channel
-	If $UpdateChannel = "dev" Then $UpdateChannel = "aurora"
+	If $BrowserType = $BrowserZen Then
+		$UpdateChannel = GetZenUpdateChannel($Channel)
+	ElseIf $UpdateChannel = "dev" Then
+		; Firefox Developer Edition still uses aurora as the internal update channel.
+		$UpdateChannel = "aurora"
+	EndIf
 	Local $ChannelPath = StringRegExpReplace($FirefoxPath, "\\?[^\\]+$", "") & "\defaults\pref\channel-prefs.js"
 	Local $var = FileRead($ChannelPath)
-	If Not StringInStr($var, 'pref("app.update.channel", "' & $UpdateChannel & '");') Then
+	Local $ChannelPrefs = '// Changed by RunFirefox' & @CRLF & 'pref("app.update.channel", "' & $UpdateChannel & '");' & @CRLF
+	If $BrowserType = $BrowserZen Then
+		$ChannelPrefs &= 'pref("app.update.url", "https://updates.zen-browser.app/updates/browser/%OS_VERSION%/%CHANNEL%/update.xml");' & @CRLF
+	EndIf
+	If Not StringInStr($var, 'pref("app.update.channel", "' & $UpdateChannel & '");') Or ($BrowserType = $BrowserZen And Not StringInStr($var, 'https://updates.zen-browser.app/updates/browser/')) Or ($BrowserType <> $BrowserZen And StringInStr($var, 'https://updates.zen-browser.app/updates/browser/')) Then
 		FileDelete($ChannelPath)
-		FileWrite($ChannelPath, '// Changed by RunFirefox' & @CRLF & 'pref("app.update.channel", "' & $UpdateChannel & '");' & @CRLF)
+		FileWrite($ChannelPath, $ChannelPrefs)
 	EndIf
 
 	;profiles dir
@@ -1775,7 +1985,8 @@ EndFunc   ;==>Website
 
 ;~ 查找Firefox主程序
 Func GetFirefoxPath()
-	Local $path = FileOpenDialog(_t("ChooseFirefoxExecutable", "选择浏览器主程序（firefox.exe）"), @ScriptDir, _t("ExecutableFile", "可执行文件(*.exe)"), 1 + 2, "firefox.exe", $hSettings)
+	Local $ExecutableName = GetBrowserExecutableName(GetSelectedBrowserType())
+	Local $path = FileOpenDialog(_t("ChooseBrowserExecutable", "选择浏览器主程序（%s）", $ExecutableName), @ScriptDir, _t("ExecutableFile", "可执行文件(*.exe)"), 1 + 2, $ExecutableName, $hSettings)
 	FileChangeDir(@ScriptDir) ; FileOpenDialog 会改变 @workingdir，将它改回来
 	If $path = "" Then Return
 	$FirefoxPath = RelativePath($path)

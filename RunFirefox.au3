@@ -68,6 +68,8 @@ Global $hCustomCacheDir, $hGetCacheDir, $hCacheSize, $hCacheSizeSmart
 Global $hParams, $hStatus, $SettingsOK
 Global $hAllowBrowserUpdate, $hCheckAppUpdate, $hRunInBackground, $hBrowserType, $hChannel, $hDownloadFirefox64, $FirefoxURL
 Global $FirefoxVersionsObj = 0
+Global $ZenReleaseUpdateXml = "", $ZenTwilightUpdateXml = ""
+Global $BrowserVersionLoadHandle = 0, $BrowserVersionLoadFile = "", $BrowserVersionLoadBrowserType = "", $BrowserVersionLoadChannel = "", $BrowserVersionLoadAnim = 0
 Global $hFirefoxDownloadProgress, $hFirefoxDownloadStatus, $hFirefoxDownloadDetail, $hFirefoxDownloadBar, $hFirefoxDownloadCancel
 Global $FirefoxDownloadCancelled = 0, $FirefoxDownloadCanCancel = 0
 Global $hExApp, $hExAppAutoExit, $hExApp2
@@ -1293,6 +1295,7 @@ Func Settings()
 		Sleep(100)
 	WEnd
 	AdlibUnRegister("RefreshFirefoxVersionLabels")
+	CancelBrowserVersionLoad()
 	GUIDelete($hSettings)
 EndFunc   ;==>Settings
 
@@ -1329,16 +1332,16 @@ Func ChangeBrowserType()
 	EndIf
 	$BrowserType = $NewBrowserType
 	UpdateBrowserChannelOptions($BrowserType, "release")
-	UpdateFirefoxDownloadLabels(True)
+	BeginBrowserVersionLoad()
 EndFunc   ;==>ChangeBrowserType
 
 Func ChangeChannel()
-	UpdateFirefoxDownloadLabels(True)
+	BeginBrowserVersionLoad()
 EndFunc   ;==>ChangeChannel
 
 Func RefreshFirefoxVersionLabels()
 	AdlibUnRegister("RefreshFirefoxVersionLabels")
-	UpdateFirefoxDownloadLabels(True)
+	BeginBrowserVersionLoad()
 EndFunc   ;==>RefreshFirefoxVersionLabels
 
 Func UpdateFirefoxDownloadLabels($LoadVersion)
@@ -1347,12 +1350,134 @@ Func UpdateFirefoxDownloadLabels($LoadVersion)
 	If $Channel = "default" Then $Channel = "release"
 	Local $ChannelLabel = $Channel
 	If $CurrentBrowserType = $BrowserZen Then
-		If $LoadVersion Then $ChannelLabel = GetZenChannelLabel($Channel)
+		If $LoadVersion And IsBrowserVersionCached($CurrentBrowserType, $Channel) Then $ChannelLabel = GetZenChannelLabel($Channel)
 	Else
-		If $LoadVersion Or IsObj($FirefoxVersionsObj) Then $ChannelLabel = GetFirefoxChannelLabel($Channel)
+		If ($LoadVersion And IsBrowserVersionCached($CurrentBrowserType, $Channel)) Or IsObj($FirefoxVersionsObj) Then $ChannelLabel = GetFirefoxChannelLabel($Channel)
 	EndIf
 	GUICtrlSetData($hDownloadFirefox64, _t("DownloadBrowserX64", "%s 64位", GetBrowserDisplayName($CurrentBrowserType) & " " & $ChannelLabel))
 EndFunc   ;==>UpdateFirefoxDownloadLabels
+
+Func BeginBrowserVersionLoad($CurrentBrowserType = "", $Channel = "")
+	If Not $hDownloadFirefox64 Then Return
+	If $CurrentBrowserType = "" Then $CurrentBrowserType = GetSelectedBrowserType()
+	If $Channel = "" Then $Channel = GUICtrlRead($hChannel)
+	If $Channel = "default" Then $Channel = "release"
+
+	If IsBrowserVersionCached($CurrentBrowserType, $Channel) Then
+		UpdateFirefoxDownloadLabels(True)
+		Return
+	EndIf
+
+	If $BrowserVersionLoadHandle Then
+		If $BrowserVersionLoadBrowserType = NormalizeBrowserType($CurrentBrowserType) And $BrowserVersionLoadChannel = $Channel Then
+			UpdateBrowserVersionLoadingLabel()
+			Return
+		EndIf
+		CancelBrowserVersionLoad()
+	EndIf
+
+	Local $Url = $FirefoxVersionUrl
+	If NormalizeBrowserType($CurrentBrowserType) = $BrowserZen Then $Url = $ZenUpdateBaseUrl & "/" & GetZenUpdateChannel($Channel) & "/update.xml"
+
+	$BrowserVersionLoadBrowserType = NormalizeBrowserType($CurrentBrowserType)
+	$BrowserVersionLoadChannel = $Channel
+	$BrowserVersionLoadFile = @TempDir & "\RunFirefox_BrowserVersion_" & @AutoItPID & ".tmp"
+	FileDelete($BrowserVersionLoadFile)
+
+	$BrowserVersionLoadHandle = InetGet($Url, $BrowserVersionLoadFile, 1, 1)
+	If Not $BrowserVersionLoadHandle Then
+		CancelBrowserVersionLoad()
+		UpdateFirefoxDownloadLabels(False)
+		Return
+	EndIf
+
+	$BrowserVersionLoadAnim = 0
+	UpdateBrowserVersionLoadingLabel()
+	AdlibRegister("PollBrowserVersionLoad", 250)
+EndFunc   ;==>BeginBrowserVersionLoad
+
+Func CancelBrowserVersionLoad()
+	AdlibUnRegister("PollBrowserVersionLoad")
+	If $BrowserVersionLoadHandle Then InetClose($BrowserVersionLoadHandle)
+	If $BrowserVersionLoadFile <> "" Then FileDelete($BrowserVersionLoadFile)
+	$BrowserVersionLoadHandle = 0
+	$BrowserVersionLoadFile = ""
+	$BrowserVersionLoadBrowserType = ""
+	$BrowserVersionLoadChannel = ""
+EndFunc   ;==>CancelBrowserVersionLoad
+
+Func PollBrowserVersionLoad()
+	If Not $BrowserVersionLoadHandle Then
+		CancelBrowserVersionLoad()
+		Return
+	EndIf
+
+	UpdateBrowserVersionLoadingLabel()
+	If Not InetGetInfo($BrowserVersionLoadHandle, 2) Then Return
+
+	Local $DownloadSuccessful = InetGetInfo($BrowserVersionLoadHandle, 3)
+	Local $LoadedBrowserType = $BrowserVersionLoadBrowserType
+	Local $LoadedChannel = $BrowserVersionLoadChannel
+	Local $LoadedFile = $BrowserVersionLoadFile
+	InetClose($BrowserVersionLoadHandle)
+	$BrowserVersionLoadHandle = 0
+	AdlibUnRegister("PollBrowserVersionLoad")
+
+	Local $Loaded = False
+	If $DownloadSuccessful Then
+		Local $Content = FileRead($LoadedFile)
+		If $Content <> "" Then
+			If $LoadedBrowserType = $BrowserZen Then
+				SetZenUpdateXml($LoadedChannel, $Content)
+				$Loaded = True
+			Else
+				$Loaded = CacheFirefoxVersions($Content)
+			EndIf
+		EndIf
+	EndIf
+	FileDelete($LoadedFile)
+	$BrowserVersionLoadFile = ""
+	$BrowserVersionLoadBrowserType = ""
+	$BrowserVersionLoadChannel = ""
+
+	If Not $hDownloadFirefox64 Then Return
+
+	Local $CurrentBrowserType = GetSelectedBrowserType()
+	Local $CurrentChannel = GUICtrlRead($hChannel)
+	If $CurrentChannel = "default" Then $CurrentChannel = "release"
+	If NormalizeBrowserType($CurrentBrowserType) <> $LoadedBrowserType Or $CurrentChannel <> $LoadedChannel Then
+		BeginBrowserVersionLoad($CurrentBrowserType, $CurrentChannel)
+		Return
+	EndIf
+
+	If $Loaded Then
+		UpdateFirefoxDownloadLabels(True)
+	Else
+		UpdateFirefoxDownloadLabels(False)
+		If $hStatus Then _GUICtrlStatusBar_SetText($hStatus, _t("BrowserVersionLoadFailed", "读取浏览器版本失败。"))
+	EndIf
+EndFunc   ;==>PollBrowserVersionLoad
+
+Func UpdateBrowserVersionLoadingLabel()
+	If Not $hDownloadFirefox64 Then Return
+	Local $CurrentBrowserType = GetSelectedBrowserType()
+	Local $Spinner = "|"
+	Switch Mod($BrowserVersionLoadAnim, 4)
+		Case 1
+			$Spinner = "/"
+		Case 2
+			$Spinner = "-"
+		Case 3
+			$Spinner = "\"
+	EndSwitch
+	$BrowserVersionLoadAnim += 1
+	GUICtrlSetData($hDownloadFirefox64, _t("DownloadBrowserX64", "%s 64位", GetBrowserDisplayName($CurrentBrowserType) & " " & _t("BrowserVersionLoading", "正在读取版本 %s", $Spinner)))
+EndFunc   ;==>UpdateBrowserVersionLoadingLabel
+
+Func IsBrowserVersionCached($CurrentBrowserType, $Channel)
+	If NormalizeBrowserType($CurrentBrowserType) = $BrowserZen Then Return GetZenUpdateXmlCache($Channel) <> ""
+	Return IsObj($FirefoxVersionsObj)
+EndFunc   ;==>IsBrowserVersionCached
 
 Func GetSelectedBrowserType()
 	If Not $hBrowserType Then Return $BrowserType
@@ -1410,12 +1535,17 @@ Func GetFirefoxVersions()
 	Local $sVersions = BinaryToString(InetRead($FirefoxVersionUrl, 1), 4)
 	If @error Or $sVersions = "" Then Return SetError(1, 0, 0)
 
+	If Not CacheFirefoxVersions($sVersions) Then Return SetError(1, 0, 0)
+	Return $FirefoxVersionsObj
+EndFunc   ;==>GetFirefoxVersions
+
+Func CacheFirefoxVersions($sVersions)
 	Local $oVersions = Json_Decode($sVersions)
 	If @error Or Not Json_IsObject($oVersions) Then Return SetError(1, 0, 0)
 
 	$FirefoxVersionsObj = $oVersions
-	Return $FirefoxVersionsObj
-EndFunc   ;==>GetFirefoxVersions
+	Return True
+EndFunc   ;==>CacheFirefoxVersions
 
 Func GetLatestFirefoxVersion($Channel)
 	Local $VersionKey = "LATEST_FIREFOX_VERSION"
@@ -1447,11 +1577,30 @@ Func GetFirefoxChannelLabel($Channel)
 EndFunc   ;==>GetFirefoxChannelLabel
 
 Func GetZenUpdateXml($Channel)
+	Local $sCachedUpdateXml = GetZenUpdateXmlCache($Channel)
+	If $sCachedUpdateXml <> "" Then Return $sCachedUpdateXml
+
 	$Channel = GetZenUpdateChannel($Channel)
 	Local $sUpdateXml = BinaryToString(InetRead($ZenUpdateBaseUrl & "/" & $Channel & "/update.xml", 1), 4)
 	If @error Or $sUpdateXml = "" Then Return SetError(1, 0, "")
+	SetZenUpdateXml($Channel, $sUpdateXml)
 	Return $sUpdateXml
 EndFunc   ;==>GetZenUpdateXml
+
+Func GetZenUpdateXmlCache($Channel)
+	$Channel = GetZenUpdateChannel($Channel)
+	If $Channel = "twilight" Then Return $ZenTwilightUpdateXml
+	Return $ZenReleaseUpdateXml
+EndFunc   ;==>GetZenUpdateXmlCache
+
+Func SetZenUpdateXml($Channel, $sUpdateXml)
+	$Channel = GetZenUpdateChannel($Channel)
+	If $Channel = "twilight" Then
+		$ZenTwilightUpdateXml = $sUpdateXml
+	Else
+		$ZenReleaseUpdateXml = $sUpdateXml
+	EndIf
+EndFunc   ;==>SetZenUpdateXml
 
 Func GetLatestZenVersion($Channel)
 	Local $sUpdateXml = GetZenUpdateXml($Channel)
@@ -1509,7 +1658,8 @@ Func GetBrowserLocale($DefaultLocale = "")
 EndFunc   ;==>GetBrowserLocale
 
 Func BuildFirefoxDownloadUrl($Channel, $os)
-	Local $Version = GetLatestFirefoxVersion($Channel)
+	Local $Version = ""
+	If IsObj($FirefoxVersionsObj) Then $Version = GetLatestFirefoxVersion($Channel)
 	Local $lang = GetFirefoxDownloadLanguage()
 	If $Version = "" Then
 		Return "https://download.mozilla.org/?product=" & GetLatestFirefoxProduct($Channel) & "&os=" & $os & "&lang=" & $lang
@@ -1529,7 +1679,8 @@ Func BuildFirefoxDownloadUrl($Channel, $os)
 EndFunc   ;==>BuildFirefoxDownloadUrl
 
 Func BuildZenDownloadUrl($Channel, $os)
-	Local $ReleaseTag = GetLatestZenReleaseTag($Channel)
+	Local $ReleaseTag = ""
+	If GetZenUpdateXmlCache($Channel) <> "" Then $ReleaseTag = GetLatestZenReleaseTag($Channel)
 	If $ReleaseTag = "" Then Return "https://github.com/zen-browser/desktop/releases/latest/download/zen.installer.exe"
 	Return "https://github.com/zen-browser/desktop/releases/download/" & $ReleaseTag & "/zen.installer.exe"
 EndFunc   ;==>BuildZenDownloadUrl

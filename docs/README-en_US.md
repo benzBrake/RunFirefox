@@ -10,6 +10,8 @@ Features:
 
 ### Latest updates
 
+2026.06.03 Added online Chrome download and extraction from the settings screen
+
 2026.06.01 Added automatic Firefox download and extraction from the settings screen with an always-on-top progress window
 
 2026.06.01 Added Traditional Chinese, automatic UI language detection, and missing localization entries

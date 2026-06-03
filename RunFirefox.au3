@@ -52,6 +52,8 @@ Opt("WinTitleMatchMode", 4)
 Global Const $CustomArch = "RunFirefox"
 Global Const $AppVersion = "2.7.9"
 Global Const $FirefoxVersionUrl = "https://product-details.mozilla.org/1.0/firefox_versions.json"
+Global Const $ChromeUpdateUrl = "https://tools.google.com/service/update2"
+Global Const $ChromeUpdateUserAgent = "Google Update/1.3.32.7;winhttp;cup-ecdsa"
 Global Const $BrowserFirefox = "firefox"
 Global Const $BrowserZen = "zen"
 Global Const $BrowserChrome = "chrome"
@@ -70,7 +72,8 @@ Global $hParams, $hStatus, $SettingsOK
 Global $hAllowBrowserUpdate, $hCheckAppUpdate, $hRunInBackground, $hBrowserType, $hChannel, $hDownloadFirefox64, $FirefoxURL
 Global $FirefoxVersionsObj = 0
 Global $ZenReleaseUpdateXml = "", $ZenTwilightUpdateXml = ""
-Global $BrowserVersionLoadHandle = 0, $BrowserVersionLoadFile = "", $BrowserVersionLoadBrowserType = "", $BrowserVersionLoadChannel = "", $BrowserVersionLoadAnim = 0
+Global $ChromeStableVersion = "", $ChromeStableDownloadUrl = "", $ChromeBetaVersion = "", $ChromeBetaDownloadUrl = "", $ChromeDevVersion = "", $ChromeDevDownloadUrl = "", $ChromeCanaryVersion = "", $ChromeCanaryDownloadUrl = ""
+Global $BrowserVersionLoadHandle = 0, $BrowserVersionLoadFile = "", $BrowserVersionLoadBrowserType = "", $BrowserVersionLoadChannel = "", $BrowserVersionLoadKind = "", $BrowserVersionLoadAnim = 0
 Global $hFirefoxDownloadProgress, $hFirefoxDownloadStatus, $hFirefoxDownloadDetail, $hFirefoxDownloadBar, $hFirefoxDownloadCancel
 Global $FirefoxDownloadCancelled = 0, $FirefoxDownloadCanCancel = 0
 Global $hExApp, $hExAppAutoExit, $hExApp2
@@ -160,6 +163,11 @@ If $FirstLaunch Then IniWrite($inifile, "Settings", "GithubMirror", $GithubMirro
 If StringInStr($GithubMirror, "mirror.serv00.net/gh") Then
 	$GithubMirror = _UpgradeGetDefaultGithubMirror($LANGUAGE)
 	IniWrite($inifile, "Settings", "GithubMirror", $GithubMirror)
+EndIf
+
+If $CmdLine[0] >= 4 And $CmdLine[1] = "--load-chrome-version" Then
+	WriteChromeUpdateInfoFile($CmdLine[2], $CmdLine[3], $CmdLine[4])
+	Exit
 EndIf
 
 ; 检查是否是首次启动（刚下载，刚更新）
@@ -1454,15 +1462,13 @@ EndFunc   ;==>RefreshFirefoxVersionLabels
 
 Func UpdateFirefoxDownloadLabels($LoadVersion)
 	Local $CurrentBrowserType = GetSelectedBrowserType()
-	If IsChromeBrowser($CurrentBrowserType) Then
-		GUICtrlSetData($hDownloadFirefox64, _t("BrowserDownloadUnavailable", "Chrome 请手动选择 chrome.exe"))
-		Return
-	EndIf
 	Local $Channel = GUICtrlRead($hChannel)
 	If $Channel = "default" Then $Channel = "release"
 	Local $ChannelLabel = $Channel
 	If $CurrentBrowserType = $BrowserZen Then
 		If $LoadVersion And IsBrowserVersionCached($CurrentBrowserType, $Channel) Then $ChannelLabel = GetZenChannelLabel($Channel)
+	ElseIf IsChromeBrowser($CurrentBrowserType) Then
+		$ChannelLabel = GetChromeChannelLabel($Channel, $LoadVersion)
 	Else
 		If ($LoadVersion And IsBrowserVersionCached($CurrentBrowserType, $Channel)) Or IsObj($FirefoxVersionsObj) Then $ChannelLabel = GetFirefoxChannelLabel($Channel)
 	EndIf
@@ -1472,11 +1478,6 @@ EndFunc   ;==>UpdateFirefoxDownloadLabels
 Func BeginBrowserVersionLoad($CurrentBrowserType = "", $Channel = "")
 	If Not $hDownloadFirefox64 Then Return
 	If $CurrentBrowserType = "" Then $CurrentBrowserType = GetSelectedBrowserType()
-	If IsChromeBrowser($CurrentBrowserType) Then
-		CancelBrowserVersionLoad()
-		UpdateFirefoxDownloadLabels(False)
-		Return
-	EndIf
 	If $Channel = "" Then $Channel = GUICtrlRead($hChannel)
 	If $Channel = "default" Then $Channel = "release"
 
@@ -1493,15 +1494,21 @@ Func BeginBrowserVersionLoad($CurrentBrowserType = "", $Channel = "")
 		CancelBrowserVersionLoad()
 	EndIf
 
-	Local $Url = $FirefoxVersionUrl
-	If NormalizeBrowserType($CurrentBrowserType) = $BrowserZen Then $Url = $ZenUpdateBaseUrl & "/" & GetZenUpdateChannel($Channel) & "/update.xml"
-
 	$BrowserVersionLoadBrowserType = NormalizeBrowserType($CurrentBrowserType)
 	$BrowserVersionLoadChannel = $Channel
 	$BrowserVersionLoadFile = @TempDir & "\RunFirefox_BrowserVersion_" & @AutoItPID & ".tmp"
 	FileDelete($BrowserVersionLoadFile)
 
-	$BrowserVersionLoadHandle = InetGet($Url, $BrowserVersionLoadFile, 1, 1)
+	If IsChromeBrowser($CurrentBrowserType) Then
+		$BrowserVersionLoadKind = "chrome"
+		$BrowserVersionLoadHandle = StartChromeVersionLoadProcess($Channel, "win64", $BrowserVersionLoadFile)
+	Else
+		Local $Url = $FirefoxVersionUrl
+		If NormalizeBrowserType($CurrentBrowserType) = $BrowserZen Then $Url = $ZenUpdateBaseUrl & "/" & GetZenUpdateChannel($Channel) & "/update.xml"
+		$BrowserVersionLoadKind = "inet"
+		$BrowserVersionLoadHandle = InetGet($Url, $BrowserVersionLoadFile, 1, 1)
+	EndIf
+
 	If Not $BrowserVersionLoadHandle Then
 		CancelBrowserVersionLoad()
 		UpdateFirefoxDownloadLabels(False)
@@ -1515,12 +1522,19 @@ EndFunc   ;==>BeginBrowserVersionLoad
 
 Func CancelBrowserVersionLoad()
 	AdlibUnRegister("PollBrowserVersionLoad")
-	If $BrowserVersionLoadHandle Then InetClose($BrowserVersionLoadHandle)
+	If $BrowserVersionLoadHandle Then
+		If $BrowserVersionLoadKind = "chrome" Then
+			If ProcessExists($BrowserVersionLoadHandle) Then ProcessClose($BrowserVersionLoadHandle)
+		Else
+			InetClose($BrowserVersionLoadHandle)
+		EndIf
+	EndIf
 	If $BrowserVersionLoadFile <> "" Then FileDelete($BrowserVersionLoadFile)
 	$BrowserVersionLoadHandle = 0
 	$BrowserVersionLoadFile = ""
 	$BrowserVersionLoadBrowserType = ""
 	$BrowserVersionLoadChannel = ""
+	$BrowserVersionLoadKind = ""
 EndFunc   ;==>CancelBrowserVersionLoad
 
 Func PollBrowserVersionLoad()
@@ -1530,6 +1544,26 @@ Func PollBrowserVersionLoad()
 	EndIf
 
 	UpdateBrowserVersionLoadingLabel()
+	If $BrowserVersionLoadKind = "chrome" Then
+		If ProcessExists($BrowserVersionLoadHandle) Then Return
+
+		Local $LoadedChromeBrowserType = $BrowserVersionLoadBrowserType
+		Local $LoadedChromeChannel = $BrowserVersionLoadChannel
+		Local $LoadedChromeFile = $BrowserVersionLoadFile
+		$BrowserVersionLoadHandle = 0
+		AdlibUnRegister("PollBrowserVersionLoad")
+
+		Local $ChromeLoaded = LoadChromeUpdateInfoFile($LoadedChromeChannel, $LoadedChromeFile)
+		FileDelete($LoadedChromeFile)
+		$BrowserVersionLoadFile = ""
+		$BrowserVersionLoadBrowserType = ""
+		$BrowserVersionLoadChannel = ""
+		$BrowserVersionLoadKind = ""
+
+		CompleteBrowserVersionLoad($LoadedChromeBrowserType, $LoadedChromeChannel, $ChromeLoaded)
+		Return
+	EndIf
+
 	If Not InetGetInfo($BrowserVersionLoadHandle, 2) Then Return
 
 	Local $DownloadSuccessful = InetGetInfo($BrowserVersionLoadHandle, 3)
@@ -1556,9 +1590,13 @@ Func PollBrowserVersionLoad()
 	$BrowserVersionLoadFile = ""
 	$BrowserVersionLoadBrowserType = ""
 	$BrowserVersionLoadChannel = ""
+	$BrowserVersionLoadKind = ""
 
+	CompleteBrowserVersionLoad($LoadedBrowserType, $LoadedChannel, $Loaded)
+EndFunc   ;==>PollBrowserVersionLoad
+
+Func CompleteBrowserVersionLoad($LoadedBrowserType, $LoadedChannel, $Loaded)
 	If Not $hDownloadFirefox64 Then Return
-
 	Local $CurrentBrowserType = GetSelectedBrowserType()
 	Local $CurrentChannel = GUICtrlRead($hChannel)
 	If $CurrentChannel = "default" Then $CurrentChannel = "release"
@@ -1573,12 +1611,11 @@ Func PollBrowserVersionLoad()
 		UpdateFirefoxDownloadLabels(False)
 		If $hStatus Then _GUICtrlStatusBar_SetText($hStatus, _t("BrowserVersionLoadFailed", "读取浏览器版本失败。"))
 	EndIf
-EndFunc   ;==>PollBrowserVersionLoad
+EndFunc   ;==>CompleteBrowserVersionLoad
 
 Func UpdateBrowserVersionLoadingLabel()
 	If Not $hDownloadFirefox64 Then Return
 	Local $CurrentBrowserType = GetSelectedBrowserType()
-	If IsChromeBrowser($CurrentBrowserType) Then Return
 	Local $Spinner = "|"
 	Switch Mod($BrowserVersionLoadAnim, 4)
 		Case 1
@@ -1593,6 +1630,7 @@ Func UpdateBrowserVersionLoadingLabel()
 EndFunc   ;==>UpdateBrowserVersionLoadingLabel
 
 Func IsBrowserVersionCached($CurrentBrowserType, $Channel)
+	If IsChromeBrowser($CurrentBrowserType) Then Return GetChromeVersionCache($Channel) <> ""
 	If NormalizeBrowserType($CurrentBrowserType) = $BrowserZen Then Return GetZenUpdateXmlCache($Channel) <> ""
 	Return IsObj($FirefoxVersionsObj)
 EndFunc   ;==>IsBrowserVersionCached
@@ -1683,20 +1721,20 @@ EndFunc   ;==>GetBrowserWindowWait
 Func UpdateBrowserSpecificControls()
 	If Not $hBrowserType Then Return
 	Local $IsChrome = IsChromeBrowser(GetSelectedBrowserType())
-	Local $State = $GUI_ENABLE
-	If $IsChrome Then $State = $GUI_DISABLE
+	Local $ChromeState = $GUI_ENABLE
+	If $IsChrome Then $ChromeState = $GUI_DISABLE
 
-	GUICtrlSetState($hChannel, $State)
-	GUICtrlSetState($hAllowBrowserUpdate, $State)
-	GUICtrlSetState($hDownloadFirefox64, $State)
-	GUICtrlSetState($hCopyProfile, $State)
-	GUICtrlSetState($hCustomPluginsDir, $State)
-	GUICtrlSetState($hGetPluginsDir, $State)
-	GUICtrlSetState($hCacheSizeSmart, $State)
+	GUICtrlSetState($hChannel, $GUI_ENABLE)
+	GUICtrlSetState($hAllowBrowserUpdate, $ChromeState)
+	GUICtrlSetState($hDownloadFirefox64, $GUI_ENABLE)
+	GUICtrlSetState($hCopyProfile, $ChromeState)
+	GUICtrlSetState($hCustomPluginsDir, $ChromeState)
+	GUICtrlSetState($hGetPluginsDir, $ChromeState)
+	GUICtrlSetState($hCacheSizeSmart, $ChromeState)
 
 	If $IsChrome Then
 		GUICtrlSetState($hCopyProfile, $GUI_UNCHECKED)
-		GUICtrlSetData($hDownloadFirefox64, _t("BrowserDownloadUnavailable", "Chrome 请手动选择 chrome.exe"))
+		UpdateFirefoxDownloadLabels(False)
 	Else
 		RefreshCopyProfileState()
 	EndIf
@@ -1716,6 +1754,10 @@ Func UpdateBrowserChannelOptions($Value, $SelectedChannel)
 	Local $Options = "esr|release|beta|dev|nightly"
 	Local $DefaultChannel = "release"
 	If NormalizeBrowserType($Value) = $BrowserZen Then $Options = "release|twilight"
+	If IsChromeBrowser($Value) Then
+		$Options = "stable|beta|dev|canary"
+		$DefaultChannel = "stable"
+	EndIf
 	If Not StringRegExp("|" & $Options & "|", "(?i)\|" & $SelectedChannel & "\|") Then $SelectedChannel = $DefaultChannel
 
 	_SendMessage(GUICtrlGetHandle($hChannel), $CB_RESETCONTENT)
@@ -1824,6 +1866,25 @@ Func GetZenUpdateChannel($Channel)
 	Return "release"
 EndFunc   ;==>GetZenUpdateChannel
 
+Func GetChromeChannelLabel($Channel, $LoadVersion = False)
+	$Channel = NormalizeChromeChannel($Channel)
+	Local $Version = ""
+	If $LoadVersion Then $Version = GetChromeVersionCache($Channel)
+	Switch StringLower($Channel)
+		Case "beta"
+			If $Version <> "" Then Return "beta (" & $Version & ")"
+			Return "beta"
+		Case "dev"
+			If $Version <> "" Then Return "dev (" & $Version & ")"
+			Return "dev"
+		Case "canary"
+			If $Version <> "" Then Return "canary (" & $Version & ")"
+			Return "canary"
+	EndSwitch
+	If $Version <> "" Then Return "stable (" & $Version & ")"
+	Return "stable"
+EndFunc   ;==>GetChromeChannelLabel
+
 Func GetLatestFirefoxProduct($Channel)
 	Switch $Channel
 		Case "release", "default"
@@ -1878,7 +1939,210 @@ Func BuildZenDownloadUrl($Channel, $os)
 	Return "https://github.com/zen-browser/desktop/releases/download/" & $ReleaseTag & "/zen.installer.exe"
 EndFunc   ;==>BuildZenDownloadUrl
 
+Func BuildChromeDownloadUrl($Channel, $os)
+	Local $DownloadUrl = GetChromeDownloadUrlCache($Channel)
+	If $DownloadUrl <> "" Then Return $DownloadUrl
+	If Not LoadChromeUpdateInfo($Channel, $os) Then Return SetError(1, 0, "")
+	$DownloadUrl = GetChromeDownloadUrlCache($Channel)
+	If $DownloadUrl = "" Then Return SetError(2, 0, "")
+	Return $DownloadUrl
+EndFunc   ;==>BuildChromeDownloadUrl
+
+Func LoadChromeUpdateInfo($Channel, $os)
+	$Channel = NormalizeChromeChannel($Channel)
+	Local $AppId = "{8A69D345-D564-463C-AFF1-A69D9E530F96}"
+	Local $Ap = "x64-stable-multi-chrome"
+	Local $Arch = "x64"
+	If $os <> "win64" Then
+		$Ap = ""
+		$Arch = "x86"
+	EndIf
+
+	Switch StringLower($Channel)
+		Case "beta"
+			If $Arch = "x86" Then
+				$Ap = "1.1-beta"
+			Else
+				$Ap = "x64-beta-multi-chrome"
+			EndIf
+		Case "dev"
+			If $Arch = "x86" Then
+				$Ap = "2.0-dev"
+			Else
+				$Ap = "x64-dev-statsdef_1"
+			EndIf
+		Case "canary"
+			$AppId = "{4EA16AC7-FD5A-47C3-875B-DBF4A2008C20}"
+			If $Arch = "x86" Then
+				$Ap = ""
+			Else
+				$Ap = "x64-canary"
+			EndIf
+	EndSwitch
+
+	Local $RequestXml = BuildChromeUpdateRequest($AppId, $Ap, $Arch)
+	Local $ResponseXml = ChromeUpdatePost($RequestXml)
+	If @error Or $ResponseXml = "" Then Return False
+
+	Local $Version = StringRegExp($ResponseXml, '(?is)<manifest[^>]+version="([^"]+)"', 1)
+	Local $Package = StringRegExp($ResponseXml, '(?is)<package[^>]+name="([^"]+)"', 1)
+	Local $Urls = StringRegExp($ResponseXml, '(?is)<url[^>]+codebase="([^"]+)"', 3)
+	If @error Or Not IsArray($Version) Or Not IsArray($Package) Or Not IsArray($Urls) Then Return False
+
+	Local $BaseUrl = SelectChromeDownloadBaseUrl($Urls)
+	If $BaseUrl = "" Then Return False
+
+	SetChromeUpdateCache($Channel, DecodeXmlAttribute($Version[0]), DecodeXmlAttribute($BaseUrl) & DecodeXmlAttribute($Package[0]))
+	Return True
+EndFunc   ;==>LoadChromeUpdateInfo
+
+Func StartChromeVersionLoadProcess($Channel, $os, $OutputFile)
+	Local $Command = ""
+	If @Compiled Then
+		$Command = '"' & @AutoItExe & '"'
+	Else
+		$Command = '"' & @AutoItExe & '" "' & @ScriptFullPath & '"'
+	EndIf
+	$Command &= ' --load-chrome-version "' & $Channel & '" "' & $os & '" "' & $OutputFile & '"'
+	Return Run($Command, @ScriptDir, @SW_HIDE)
+EndFunc   ;==>StartChromeVersionLoadProcess
+
+Func WriteChromeUpdateInfoFile($Channel, $os, $OutputFile)
+	FileDelete($OutputFile)
+	If LoadChromeUpdateInfo($Channel, $os) Then
+		IniWrite($OutputFile, "Chrome", "Success", 1)
+		IniWrite($OutputFile, "Chrome", "Version", GetChromeVersionCache($Channel))
+		IniWrite($OutputFile, "Chrome", "DownloadUrl", GetChromeDownloadUrlCache($Channel))
+	Else
+		IniWrite($OutputFile, "Chrome", "Success", 0)
+	EndIf
+EndFunc   ;==>WriteChromeUpdateInfoFile
+
+Func LoadChromeUpdateInfoFile($Channel, $OutputFile)
+	If Not FileExists($OutputFile) Then Return False
+	If IniRead($OutputFile, "Chrome", "Success", 0) <> 1 Then Return False
+
+	Local $Version = IniRead($OutputFile, "Chrome", "Version", "")
+	Local $DownloadUrl = IniRead($OutputFile, "Chrome", "DownloadUrl", "")
+	If $Version = "" Or $DownloadUrl = "" Then Return False
+
+	SetChromeUpdateCache($Channel, $Version, $DownloadUrl)
+	Return True
+EndFunc   ;==>LoadChromeUpdateInfoFile
+
+Func NormalizeChromeChannel($Channel)
+	Switch StringLower($Channel)
+		Case "beta", "dev", "canary"
+			Return StringLower($Channel)
+	EndSwitch
+	Return "stable"
+EndFunc   ;==>NormalizeChromeChannel
+
+Func GetChromeVersionCache($Channel)
+	Switch NormalizeChromeChannel($Channel)
+		Case "beta"
+			Return $ChromeBetaVersion
+		Case "dev"
+			Return $ChromeDevVersion
+		Case "canary"
+			Return $ChromeCanaryVersion
+	EndSwitch
+	Return $ChromeStableVersion
+EndFunc   ;==>GetChromeVersionCache
+
+Func GetChromeDownloadUrlCache($Channel)
+	Switch NormalizeChromeChannel($Channel)
+		Case "beta"
+			Return $ChromeBetaDownloadUrl
+		Case "dev"
+			Return $ChromeDevDownloadUrl
+		Case "canary"
+			Return $ChromeCanaryDownloadUrl
+	EndSwitch
+	Return $ChromeStableDownloadUrl
+EndFunc   ;==>GetChromeDownloadUrlCache
+
+Func SetChromeUpdateCache($Channel, $Version, $DownloadUrl)
+	Switch NormalizeChromeChannel($Channel)
+		Case "beta"
+			$ChromeBetaVersion = $Version
+			$ChromeBetaDownloadUrl = $DownloadUrl
+		Case "dev"
+			$ChromeDevVersion = $Version
+			$ChromeDevDownloadUrl = $DownloadUrl
+		Case "canary"
+			$ChromeCanaryVersion = $Version
+			$ChromeCanaryDownloadUrl = $DownloadUrl
+		Case Else
+			$ChromeStableVersion = $Version
+			$ChromeStableDownloadUrl = $DownloadUrl
+	EndSwitch
+EndFunc   ;==>SetChromeUpdateCache
+
+Func BuildChromeUpdateRequest($AppId, $Ap, $Arch)
+	Local $OsVersion = GetChromeOmahaOsVersion()
+	Return '<?xml version="1.0" encoding="UTF-8"?><request protocol="3.0" version="1.3.23.9" shell_version="1.3.21.103" ismachine="0" sessionid="{3597644B-2952-4F92-AE55-D315F45F80A5}" installsource="ondemandcheckforupdate" requestid="{CD7523AD-A40D-49F4-AEEF-8C114B804658}" dedup="cr">' & _
+			'<hw physmemory="12582912" sse="1" sse2="1" sse3="1" ssse3="1" sse41="1" sse42="1" avx="1"/>' & _
+			'<os platform="win" version="' & $OsVersion & '" arch="' & $Arch & '"/>' & _
+			'<app appid="' & $AppId & '" version="" nextversion="" ap="' & $Ap & '" lang="' & GetBrowserLocale("zh-CN") & '"><updatecheck/></app></request>'
+EndFunc   ;==>BuildChromeUpdateRequest
+
+Func GetChromeOmahaOsVersion()
+	Switch @OSVersion
+		Case "WIN_7"
+			Return "6.1.0.0"
+		Case "WIN_8"
+			Return "6.2.0.0"
+		Case "WIN_81"
+			Return "6.3.0.0"
+	EndSwitch
+	Return "10.0.0.0"
+EndFunc   ;==>GetChromeOmahaOsVersion
+
+Func ChromeUpdatePost($RequestXml)
+	Local $oError = ObjEvent("AutoIt.Error", "ChromeComError")
+	Local $oHTTP = ObjCreate("WinHttp.WinHttpRequest.5.1")
+	If @error Or Not IsObj($oHTTP) Then Return SetError(1, 0, "")
+
+	$oHTTP.SetTimeouts(5000, 5000, 15000, 30000)
+	$oHTTP.Open("POST", $ChromeUpdateUrl, False)
+	$oHTTP.SetRequestHeader("User-Agent", $ChromeUpdateUserAgent)
+	$oHTTP.SetRequestHeader("Content-Type", "application/xml")
+	$oHTTP.Send($RequestXml)
+	If @error Then Return SetError(2, 0, "")
+	If $oHTTP.Status < 200 Or $oHTTP.Status >= 300 Then Return SetError(3, 0, "")
+
+	Return $oHTTP.ResponseText
+EndFunc   ;==>ChromeUpdatePost
+
+Func ChromeComError($oError)
+	Return
+EndFunc   ;==>ChromeComError
+
+Func SelectChromeDownloadBaseUrl(ByRef $Urls)
+	Local $i, $Url
+	For $i = 0 To UBound($Urls) - 1
+		$Url = DecodeXmlAttribute($Urls[$i])
+		If StringInStr($Url, "https://dl.google.com/") = 1 Then Return $Url
+	Next
+	For $i = 0 To UBound($Urls) - 1
+		$Url = DecodeXmlAttribute($Urls[$i])
+		If StringLeft($Url, 8) = "https://" Then Return $Url
+	Next
+	If UBound($Urls) > 0 Then Return DecodeXmlAttribute($Urls[0])
+	Return ""
+EndFunc   ;==>SelectChromeDownloadBaseUrl
+
+Func DecodeXmlAttribute($Value)
+	$Value = StringReplace($Value, "&amp;", "&")
+	$Value = StringReplace($Value, "&quot;", '"')
+	$Value = StringReplace($Value, "&apos;", "'")
+	$Value = StringReplace($Value, "&lt;", "<")
+	Return StringReplace($Value, "&gt;", ">")
+EndFunc   ;==>DecodeXmlAttribute
+
 Func BuildBrowserDownloadUrl($Value, $Channel, $os)
+	If IsChromeBrowser($Value) Then Return BuildChromeDownloadUrl($Channel, $os)
 	If NormalizeBrowserType($Value) = $BrowserZen Then Return BuildZenDownloadUrl($Channel, $os)
 	Return BuildFirefoxDownloadUrl($Channel, $os)
 EndFunc   ;==>BuildBrowserDownloadUrl
@@ -1899,15 +2163,15 @@ EndFunc   ;==>ShowCurrentChannel
 Func DownloadFirefox()
 	Local $os = "win64"
 	Local $CurrentBrowserType = GetSelectedBrowserType()
-	If IsChromeBrowser($CurrentBrowserType) Then
-		_GUICtrlStatusBar_SetText($hStatus, _t("BrowserDownloadUnavailable", "Chrome 请手动选择 chrome.exe"))
-		Return
-	EndIf
 
 	Local $ChannelString = GUICtrlRead($hChannel)
 	Local $Channel = StringRegExpReplace($ChannelString, " *-.*", "")
 
 	$FirefoxURL = BuildBrowserDownloadUrl($CurrentBrowserType, $Channel, $os)
+	If @error Or $FirefoxURL = "" Then
+		_GUICtrlStatusBar_SetText($hStatus, _t("BrowserVersionLoadFailed", "读取浏览器版本失败。"))
+		Return
+	EndIf
 
 	Local $TargetFirefoxPath = FullPath(GUICtrlRead($hFirefoxPath))
 	Local $TargetDir, $TargetFile
@@ -1941,6 +2205,7 @@ Func DownloadAndExtractFirefox($DownloadUrl, $TargetDir, $os, $Channel, $Current
 	Local $ExtractDir = $TempDir & "\extract"
 	Local $TargetFirefoxPath = $TargetDir & "\" & GetBrowserExecutableName($CurrentBrowserType)
 	Local $hDownload, $DownloadedBytes, $TotalBytes, $Percent, $DetailText, $ret, $ExtractLog, $SevenZipExe
+	Local $CopiedBrowserFiles = False
 
 	DirRemove($TempDir, 1)
 	If Not FileExists($TempDir) Then DirCreate($TempDir)
@@ -2001,17 +2266,15 @@ Func DownloadAndExtractFirefox($DownloadUrl, $TargetDir, $os, $Channel, $Current
 	$ret = RunWait(@ComSpec & ' /c ""' & $SevenZipExe & '" x -y -bd -bb1 -o"' & $ExtractDir & '" "' & $Installer & '" > "' & $ExtractLog & '" 2>&1"', $TempDir, @SW_HIDE)
 	CloseFirefoxDownloadProgress()
 
-	If Not FileExists($TargetFirefoxPath) Then
-		ExtractNestedBrowserArchives($SevenZipExe, $ExtractDir, $TempDir)
-		Local $ExtractedFirefoxPath = FindBrowserExecutable($ExtractDir, GetBrowserExecutableName($CurrentBrowserType))
-		If $ExtractedFirefoxPath Then
-			Local $ExtractedFirefoxDir, $ExtractedFirefoxFile
-			SplitPath($ExtractedFirefoxPath, $ExtractedFirefoxDir, $ExtractedFirefoxFile)
-			DirCopy($ExtractedFirefoxDir, $TargetDir, 1)
-		EndIf
+	ExtractNestedBrowserArchives($SevenZipExe, $ExtractDir, $TempDir)
+	Local $ExtractedFirefoxPath = FindBrowserExecutable($ExtractDir, GetBrowserExecutableName($CurrentBrowserType))
+	If $ExtractedFirefoxPath Then
+		Local $ExtractedFirefoxDir, $ExtractedFirefoxFile
+		SplitPath($ExtractedFirefoxPath, $ExtractedFirefoxDir, $ExtractedFirefoxFile)
+		$CopiedBrowserFiles = DirCopy($ExtractedFirefoxDir, $TargetDir, 1)
 	EndIf
 
-	If Not FileExists($TargetFirefoxPath) Then
+	If Not $CopiedBrowserFiles Or Not FileExists($TargetFirefoxPath) Then
 		Return SetError(6, 0, _t("FailToExtractBrowserInstaller", "解压浏览器安装包失败。") & @CRLF & @CRLF & _t("FirefoxExtractLogKept", "诊断文件已保留在：\n%s", $TempDir))
 	EndIf
 

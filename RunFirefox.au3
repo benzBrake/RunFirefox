@@ -54,6 +54,7 @@ Global Const $AppVersion = "2.7.9"
 Global Const $FirefoxVersionUrl = "https://product-details.mozilla.org/1.0/firefox_versions.json"
 Global Const $BrowserFirefox = "firefox"
 Global Const $BrowserZen = "zen"
+Global Const $BrowserChrome = "chrome"
 Global Const $ZenUpdateBaseUrl = "https://updates.zen-browser.app/updates/browser/WINNT_x86_64-msvc-x64"
 Global $FirstRun = 0, $FirstLaunch = 0, $FirefoxExe, $FirefoxDir, $isZotero = false
 Global $TaskBarDir = @AppDataDir & "\Microsoft\Internet Explorer\Quick Launch\User Pinned\TaskBar"
@@ -75,7 +76,7 @@ Global $FirefoxDownloadCancelled = 0, $FirefoxDownloadCanCancel = 0
 Global $hExApp, $hExAppAutoExit, $hExApp2
 Global $aExApp, $aExApp2, $aExAppPID[2]
 
-Global $hEvent, $ClientKey, $FileAsso, $URLAsso
+Global $hEvent, $ClientKey, $FileAsso, $URLAsso, $ChromeProgID
 Global $fReg[7][3] = [[$HKEY_CURRENT_USER, 'Software\Clients\StartMenuInternet'], _
 		[$HKEY_LOCAL_MACHINE, 'Software\Clients\StartMenuInternet'], _
 		[$HKEY_CLASSES_ROOT, 'ftp'], _
@@ -83,6 +84,8 @@ Global $fReg[7][3] = [[$HKEY_CURRENT_USER, 'Software\Clients\StartMenuInternet']
 		[$HKEY_CLASSES_ROOT, 'https'], _
 		[$HKEY_CLASSES_ROOT, ''], _ ; FirefoxHTML
 		[$HKEY_CLASSES_ROOT, '']] ; FirefoxURL
+Global $aChromeFileAsso[6] = [".htm", ".html", ".shtml", ".webp", ".xht", ".xhtml"]
+Global $aChromeUrlAsso[13] = ["ftp", "http", "https", "irc", "mailto", "mms", "news", "nntp", "sms", "smsto", "tel", "urn", "webcal"]
 
 ; Global Const $KEY_WOW64_32KEY = 0x0200 ; Access a 32-bit key from either a 32-bit or 64-bit application
 ; Global Const $KEY_WOW64_64KEY = 0x0100 ; Access a 64-bit key from either a 32-bit or 64-bit application
@@ -179,15 +182,17 @@ $FirefoxPath = FullPath($FirefoxPath)
 SplitPath($FirefoxPath, $FirefoxDir, $FirefoxExe)
 $ProfileDir = FullPath($ProfileDir)
 
-If $FirefoxExe = "zotero.exe" Then
+If IsMozillaBrowser($BrowserType) And $FirefoxExe = "zotero.exe" Then
 	$isZotero = True
 EndIf
 
-;~ 创建禁止检查默认浏览器策略，使用 RunFirefox 后检测默认浏览器结果不准确
-UpdatePolices($FirefoxDir, "DontCheckDefaultBrowser", true)
+If IsMozillaBrowser($BrowserType) Then
+	;~ 创建禁止检查默认浏览器策略，使用 RunFirefox 后检测默认浏览器结果不准确
+	UpdatePolices($FirefoxDir, "DontCheckDefaultBrowser", true)
 
-;~ 创建禁用自动更新策略
-UpdatePolices($FirefoxDir, "DisableAppUpdate", $AllowBrowserUpdate == 0)
+	;~ 创建禁用自动更新策略
+	UpdatePolices($FirefoxDir, "DisableAppUpdate", $AllowBrowserUpdate == 0)
+EndIf
 
 If IsAdmin() And $cmdline[0] = 1 And $cmdline[1] = "-SetDefaultGlobal" Then
 	CheckDefaultBrowser($FirefoxPath)
@@ -195,7 +200,7 @@ If IsAdmin() And $cmdline[0] = 1 And $cmdline[1] = "-SetDefaultGlobal" Then
 EndIf
 
 ;~ 插件目录
-If $CustomPluginsDir <> "" Then
+If IsMozillaBrowser($BrowserType) And $CustomPluginsDir <> "" Then
 	$CustomPluginsDir = FullPath($CustomPluginsDir)
 	EnvSet("MOZ_PLUGIN_PATH", $CustomPluginsDir) ; 设置环境变量
 EndIf
@@ -209,32 +214,32 @@ For $i = 1 To $cmdline[0]
 	EndIf
 Next
 
-FileDelete($FirefoxDir & "\defaults\pref\runfirefox.js")
-Local $FirefoxIsRunning = ProfileInUse($ProfileDir)
-If Not $FirefoxIsRunning Then
-	Local $config = CheckPrefs()
-	If $config Then
-		FileWrite($FirefoxDir & "\defaults\pref\runfirefox.js", $config)
+Local $BrowserIsRunning = AppIsRunning($FirefoxPath)
+If IsMozillaBrowser($BrowserType) Then
+	FileDelete($FirefoxDir & "\defaults\pref\runfirefox.js")
+	$BrowserIsRunning = ProfileInUse($ProfileDir)
+	If Not $BrowserIsRunning Then
+		Local $config = CheckPrefs()
+		If $config Then
+			FileWrite($FirefoxDir & "\defaults\pref\runfirefox.js", $config)
+		EndIf
 	EndIf
 EndIf
 
 ;~ Fix Addons not Found
-If $LastPlatformDir <> $FirefoxDir Or $LastProfileDir <> $ProfileDir Then
+If IsMozillaBrowser($BrowserType) And ($LastPlatformDir <> $FirefoxDir Or $LastProfileDir <> $ProfileDir) Then
 	UpdateAddonStarup()
 	UpdateExtensionsJson()
 EndIf
 
-;~ Start Firefox
-$BaseParams = ' -profile "' & $ProfileDir & '" '
-if $isZotero Then
-	$BaseParams = $BaseParams & ' -datadir ' & $ProfileDir & '\Library '
-EndIf
-$AppPID = Run($FirefoxPath & $BaseParams & $Params , $FirefoxDir)
+;~ Start browser
+$BaseParams = BuildBrowserLaunchParams($BrowserType)
+$AppPID = Run('"' & $FirefoxPath & '" ' & $BaseParams & $Params , $FirefoxDir)
 
 FileChangeDir(@ScriptDir)
 CreateSettingsShortcut(@ScriptDir & "\" & $ScriptNameWithOutSuffix & ".vbs")
 
-If $FirefoxIsRunning Then
+If $BrowserIsRunning Then
 	$exe = StringRegExpReplace(@AutoItExe, ".*\\", "")
 	$list = ProcessList($exe)
 	For $i = 1 To $list[0][0]
@@ -270,8 +275,9 @@ If $CheckDefaultBrowser Then
 	CheckDefaultBrowser($FirefoxPath)
 EndIf
 
-WinWait("[REGEXPCLASS:(?i)MozillaWindowClass;REGEXPTITLE:(?i)Firefox]", "", 15)
-$hWnd_browser = GethWndbyPID($AppPID, "MozillaWindowClass")
+Local $BrowserWindowClass = GetBrowserWindowClass($BrowserType)
+WinWait("[REGEXPCLASS:(?i)" & $BrowserWindowClass & "]", "", GetBrowserWindowWait($BrowserType))
+$hWnd_browser = GethWndbyPID($AppPID, $BrowserWindowClass)
 
 Global $AppUserModelId
 If FileExists($TaskBarDir) Then ; win 7+
@@ -317,13 +323,13 @@ While 1
 	EndIf
 
 	If Not $AppIsRunning Then
-		; check other chrome instance
+		; check other browser instance
 		$AppPID = AppIsRunning($FirefoxPath)
 		If Not $AppPID Then
 			ExitLoop
 		EndIf
 		$AppIsRunning = 1
-		$hWnd_browser = GethWndbyPID($AppPID, "MozillaWindowClass")
+		$hWnd_browser = GethWndbyPID($AppPID, $BrowserWindowClass)
 	EndIf
 
 	If $TaskBarLastChange Then
@@ -623,12 +629,14 @@ Func CheckPinnedPrograms($browser_path)
 					; what's wrong?
 					$AppUserModelId = _WindowAppId($hWnd_browser)
 					If Not $AppUserModelId Then
-						$AppUserModelId = AppIdFromRegistry()
-						If Not $AppUserModelId Then
-							; helper.exe writes AppUserModelIDs to SOFTWARE\Mozilla\Firefox\TaskBarIDs
-							Local $pid = Run($FirefoxDir & "\uninstall\helper.exe /UpdateShortcutAppUserModelIds")
-							ProcessWaitClose($pid, 5)
+						If IsMozillaBrowser($BrowserType) Then
 							$AppUserModelId = AppIdFromRegistry()
+							If Not $AppUserModelId Then
+								; helper.exe writes AppUserModelIDs to SOFTWARE\Mozilla\Firefox\TaskBarIDs
+								Local $pid = Run($FirefoxDir & "\uninstall\helper.exe /UpdateShortcutAppUserModelIds")
+								ProcessWaitClose($pid, 5)
+								$AppUserModelId = AppIdFromRegistry()
+							EndIf
 						EndIf
 
 						If Not $AppUserModelId Then
@@ -678,6 +686,11 @@ EndFunc   ;==>CreateSettingsShortcut
 
 
 Func CheckDefaultBrowser($BrowserPath)
+	If IsChromeBrowser($BrowserType) Then Return CheckChromeDefaultBrowser($BrowserPath)
+	Return CheckMozillaDefaultBrowser($BrowserPath)
+EndFunc   ;==>CheckDefaultBrowser
+
+Func CheckMozillaDefaultBrowser($BrowserPath)
 	Local $InternetClient, $key, $i, $j, $var, $RegWriteError = 0
 	If Not $ClientKey Then
 		If @OSArch = "X86" Then
@@ -759,7 +772,108 @@ Func CheckDefaultBrowser($BrowserPath)
 			ShellExecute(@AutoItExe, '"' & @ScriptFullPath & '" -SetDefaultGlobal', @ScriptDir, "runas")
 		EndIf
 	EndIf
-EndFunc   ;==>CheckDefaultBrowser
+EndFunc   ;==>CheckMozillaDefaultBrowser
+
+Func CheckChromeDefaultBrowser($BrowserPath)
+	Local $InternetClient, $key, $i, $j, $var, $RegWriteError = 0
+	If Not $ClientKey Then
+		If @OSArch = "X86" Then
+			Local $aRoot[2] = ["HKCU\SOFTWARE", $HKLM_Software_32]
+		Else
+			Local $aRoot[3] = ["HKCU\SOFTWARE", $HKLM_Software_32, $HKLM_Software_64]
+		EndIf
+		For $i = 0 To UBound($aRoot) - 1
+			$j = 1
+			While 1
+				$InternetClient = RegEnumKey($aRoot[$i] & "\Clients\StartMenuInternet", $j)
+				If @error <> 0 Then ExitLoop
+				$key = $aRoot[$i] & '\Clients\StartMenuInternet\' & $InternetClient
+				$var = RegRead($key & '\DefaultIcon', '')
+				If StringInStr($var, $BrowserPath) Then
+					$ClientKey = $key
+					$ChromeProgID = RegRead($ClientKey & '\Capabilities\URLAssociations', 'http')
+					ExitLoop 2
+				EndIf
+				$j += 1
+			WEnd
+		Next
+	EndIf
+
+	If $ClientKey Then
+		$var = RegRead($ClientKey & '\shell\open\command', '')
+		If Not StringInStr($var, @ScriptFullPath) Then
+			$RegWriteError += Not RegWrite($ClientKey & '\shell\open\command', '', 'REG_SZ', '"' & @ScriptFullPath & '"')
+		EndIf
+	EndIf
+
+	If Not $ChromeProgID Then $ChromeProgID = FindChromeProgID($BrowserPath)
+	If $ChromeProgID Then
+		$var = RegRead('HKCR\' & $ChromeProgID & '\shell\open\command', '')
+		If Not StringInStr($var, @ScriptFullPath) Then
+			RegWrite('HKCR\' & $ChromeProgID & '\shell\open\ddeexec', '', 'REG_SZ', '')
+			RegDelete('HKCR\' & $ChromeProgID & '\shell\open\command', 'DelegateExecute')
+			$RegWriteError += Not RegWrite('HKCR\' & $ChromeProgID & '\shell\open\command', '', 'REG_SZ', '"' & @ScriptFullPath & '" -- "%1"')
+		EndIf
+		If Not $fReg[5][1] Then
+			$fReg[5][1] = $ChromeProgID
+			$fReg[5][2] = _WinAPI_RegOpenKey($fReg[5][0], $fReg[5][1], $KEY_NOTIFY)
+		EndIf
+	EndIf
+
+	Local $aUrlAsso[3] = ['ftp', 'http', 'https']
+	For $i = 0 To 2
+		$var = RegRead('HKCR\' & $aUrlAsso[$i] & '\DefaultIcon', '')
+		If StringInStr($var, $BrowserPath) Then
+			$var = RegRead('HKCR\' & $aUrlAsso[$i] & '\shell\open\command', '')
+			If Not StringInStr($var, @ScriptFullPath) Then
+				RegWrite('HKCR\' & $aUrlAsso[$i] & '\shell\open\ddeexec', '', 'REG_SZ', '')
+				RegDelete('HKCR\' & $aUrlAsso[$i] & '\shell\open\command', 'DelegateExecute')
+				$RegWriteError += Not RegWrite('HKCR\' & $aUrlAsso[$i] & '\shell\open\command', '', 'REG_SZ', '"' & @ScriptFullPath & '" -- "%1"')
+			EndIf
+		EndIf
+	Next
+
+	If $RegWriteError And Not _IsUACAdmin() And @extended Then
+		If @Compiled Then
+			ShellExecute(@ScriptName, "-SetDefaultGlobal", @ScriptDir, "runas")
+		Else
+			ShellExecute(@AutoItExe, '"' & @ScriptFullPath & '" -SetDefaultGlobal', @ScriptDir, "runas")
+		EndIf
+	EndIf
+EndFunc   ;==>CheckChromeDefaultBrowser
+
+Func FindChromeProgID($BrowserPath)
+	Local $i, $id, $var
+	RegRead("HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\FileExts", "")
+	If @error <> 1 Then
+		For $i = 0 To UBound($aChromeFileAsso) - 1
+			$id = RegRead("HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\FileExts\" & $aChromeFileAsso[$i] & "\UserChoice", "Progid")
+			If $id Then
+				$var = RegRead("HKCR\" & $id & "\DefaultIcon", "")
+				If StringInStr($var, $BrowserPath) Then Return $id
+			EndIf
+		Next
+	EndIf
+
+	For $i = 0 To UBound($aChromeFileAsso) - 1
+		$id = RegRead("HKCR\" & $aChromeFileAsso[$i], "")
+		$var = RegRead("HKCR\" & $id & "\DefaultIcon", "")
+		If StringInStr($var, $BrowserPath) Then Return $id
+	Next
+
+	RegRead("HKCU\Software\Microsoft\Windows\Shell\Associations\UrlAssociations", "")
+	If @error <> 1 Then
+		For $i = 0 To UBound($aChromeUrlAsso) - 1
+			$id = RegRead("HKCU\Software\Microsoft\Windows\Shell\Associations\UrlAssociations\" & $aChromeUrlAsso[$i] & "\UserChoice", "Progid")
+			If $id Then
+				$var = RegRead("HKCR\" & $id & "\DefaultIcon", "")
+				If StringInStr($var, $BrowserPath) Then Return $id
+			EndIf
+		Next
+	EndIf
+
+	Return ""
+EndFunc   ;==>FindChromeProgID
 
 Func UpdateAddonStarup()
 	Local $addonStarup, $addonStarupLz4
@@ -1168,7 +1282,7 @@ Func Settings()
 ;~ 	GUICtrlSetOnEvent(-1, "DownloadFirefox")
 
 	GUICtrlCreateLabel(_t("DownloadBrowser", "下载浏览器："), 20, 160, 120, 20)
-	$hDownloadFirefox64 = GUICtrlCreateLabel(_t("DownloadBrowserX64", "%s 64位", "Firefox release"), 140, 160, 240, 20)
+	$hDownloadFirefox64 = GUICtrlCreateLabel(_t("DownloadBrowserX64", "%s 64位", "Firefox release"), 140, 160, 330, 20)
 	GUICtrlSetCursor(-1, 0)
 	GUICtrlSetColor(-1, 0x0000FF)
 	GUICtrlSetOnEvent(-1, "DownloadFirefox")
@@ -1277,15 +1391,8 @@ Func Settings()
 	$hStatus = _GUICtrlStatusBar_Create($hSettings, -1, _t("DoublieClickToOpenSettingsWindow", '双击软件目录下的 "%s.vbs" 文件可调出此窗口', $ScriptNameWithOutSuffix))
 	Opt("ExpandEnvStrings", 1)
 
-;~ 复制配置文件选项有效/无效
-	If FileExists($DefaultProfDir) Then
-		GUICtrlSetState($hCopyProfile, $GUI_ENABLE)
-		If $FirstRun And Not FileExists($ProfileDir & "\prefs.js") Then GUICtrlSetState($hCopyProfile, $GUI_CHECKED)
-	Else
-		GUICtrlSetState($hCopyProfile, $GUI_DISABLE)
-	EndIf
-
 	UpdateBrowserChannelOptions($BrowserType, "release")
+	UpdateBrowserSpecificControls()
 	ShowCurrentChannel()
 	UpdateFirefoxDownloadLabels(False)
 
@@ -1327,11 +1434,12 @@ EndFunc   ;==>OnFirefoxPathChange
 Func ChangeBrowserType()
 	Local $NewBrowserType = GetSelectedBrowserType()
 	Local $CurrentPath = StringLower(GUICtrlRead($hFirefoxPath))
-	If $CurrentPath = ".\firefox\firefox.exe" Or $CurrentPath = ".\zenbrowser\zen.exe" Then
+	If $CurrentPath = ".\firefox\firefox.exe" Or $CurrentPath = ".\zenbrowser\zen.exe" Or $CurrentPath = ".\chrome\chrome.exe" Then
 		GUICtrlSetData($hFirefoxPath, GetDefaultBrowserPath($NewBrowserType))
 	EndIf
 	$BrowserType = $NewBrowserType
 	UpdateBrowserChannelOptions($BrowserType, "release")
+	UpdateBrowserSpecificControls()
 	BeginBrowserVersionLoad()
 EndFunc   ;==>ChangeBrowserType
 
@@ -1346,6 +1454,10 @@ EndFunc   ;==>RefreshFirefoxVersionLabels
 
 Func UpdateFirefoxDownloadLabels($LoadVersion)
 	Local $CurrentBrowserType = GetSelectedBrowserType()
+	If IsChromeBrowser($CurrentBrowserType) Then
+		GUICtrlSetData($hDownloadFirefox64, _t("BrowserDownloadUnavailable", "Chrome 请手动选择 chrome.exe"))
+		Return
+	EndIf
 	Local $Channel = GUICtrlRead($hChannel)
 	If $Channel = "default" Then $Channel = "release"
 	Local $ChannelLabel = $Channel
@@ -1360,6 +1472,11 @@ EndFunc   ;==>UpdateFirefoxDownloadLabels
 Func BeginBrowserVersionLoad($CurrentBrowserType = "", $Channel = "")
 	If Not $hDownloadFirefox64 Then Return
 	If $CurrentBrowserType = "" Then $CurrentBrowserType = GetSelectedBrowserType()
+	If IsChromeBrowser($CurrentBrowserType) Then
+		CancelBrowserVersionLoad()
+		UpdateFirefoxDownloadLabels(False)
+		Return
+	EndIf
 	If $Channel = "" Then $Channel = GUICtrlRead($hChannel)
 	If $Channel = "default" Then $Channel = "release"
 
@@ -1461,6 +1578,7 @@ EndFunc   ;==>PollBrowserVersionLoad
 Func UpdateBrowserVersionLoadingLabel()
 	If Not $hDownloadFirefox64 Then Return
 	Local $CurrentBrowserType = GetSelectedBrowserType()
+	If IsChromeBrowser($CurrentBrowserType) Then Return
 	Local $Spinner = "|"
 	Switch Mod($BrowserVersionLoadAnim, 4)
 		Case 1
@@ -1484,40 +1602,115 @@ Func GetSelectedBrowserType()
 	Return GetBrowserTypeByLabel(GUICtrlRead($hBrowserType))
 EndFunc   ;==>GetSelectedBrowserType
 
+Func IsChromeBrowser($Value)
+	Return NormalizeBrowserType($Value) = $BrowserChrome
+EndFunc   ;==>IsChromeBrowser
+
+Func IsMozillaBrowser($Value)
+	Return Not IsChromeBrowser($Value)
+EndFunc   ;==>IsMozillaBrowser
+
 Func NormalizeBrowserType($Value)
 	$Value = StringLower(StringStripWS($Value, 3))
 	If $Value = $BrowserZen Or $Value = "zenbrowser" Then Return $BrowserZen
+	If $Value = $BrowserChrome Or $Value = "google chrome" Then Return $BrowserChrome
 	Return $BrowserFirefox
 EndFunc   ;==>NormalizeBrowserType
 
 Func GetBrowserDisplayName($Value)
+	If NormalizeBrowserType($Value) = $BrowserChrome Then Return "Chrome"
 	If NormalizeBrowserType($Value) = $BrowserZen Then Return "ZenBrowser"
 	Return "Firefox"
 EndFunc   ;==>GetBrowserDisplayName
 
 Func GetBrowserTypeLabel($Value)
+	If NormalizeBrowserType($Value) = $BrowserChrome Then Return _t("BrowserChrome", "Chrome")
 	If NormalizeBrowserType($Value) = $BrowserZen Then Return _t("BrowserZen", "ZenBrowser")
 	Return _t("BrowserFirefox", "Firefox 原版")
 EndFunc   ;==>GetBrowserTypeLabel
 
 Func GetBrowserTypeByLabel($Label)
+	If $Label = _t("BrowserChrome", "Chrome") Or StringLower($Label) = "chrome" Or StringLower($Label) = "google chrome" Then Return $BrowserChrome
 	If $Label = _t("BrowserZen", "ZenBrowser") Or StringLower($Label) = "zenbrowser" Then Return $BrowserZen
 	Return $BrowserFirefox
 EndFunc   ;==>GetBrowserTypeByLabel
 
 Func GetBrowserTypeComboData()
-	Return _t("BrowserFirefox", "Firefox 原版") & "|" & _t("BrowserZen", "ZenBrowser")
+	Return _t("BrowserFirefox", "Firefox 原版") & "|" & _t("BrowserZen", "ZenBrowser") & "|" & _t("BrowserChrome", "Chrome")
 EndFunc   ;==>GetBrowserTypeComboData
 
 Func GetBrowserExecutableName($Value)
+	If NormalizeBrowserType($Value) = $BrowserChrome Then Return "chrome.exe"
 	If NormalizeBrowserType($Value) = $BrowserZen Then Return "zen.exe"
 	Return "firefox.exe"
 EndFunc   ;==>GetBrowserExecutableName
 
 Func GetDefaultBrowserPath($Value)
+	If NormalizeBrowserType($Value) = $BrowserChrome Then Return ".\Chrome\chrome.exe"
 	If NormalizeBrowserType($Value) = $BrowserZen Then Return ".\ZenBrowser\zen.exe"
 	Return ".\Firefox\firefox.exe"
 EndFunc   ;==>GetDefaultBrowserPath
+
+Func BuildBrowserLaunchParams($Value)
+	If IsChromeBrowser($Value) Then
+		Local $ChromeParams = '--user-data-dir="' & $ProfileDir & '"'
+		If $CustomCacheDir <> "" Then
+			$ChromeParams &= ' --disk-cache-dir="' & FullPath($CustomCacheDir) & '"'
+		EndIf
+		If $CacheSize <> "" And $CacheSize > 0 Then
+			$ChromeParams &= " --disk-cache-size=" & ($CacheSize * 1024 * 1024)
+		EndIf
+		Return $ChromeParams & " "
+	EndIf
+
+	Local $MozillaParams = '-profile "' & $ProfileDir & '" '
+	If $isZotero Then
+		$MozillaParams &= '-datadir "' & $ProfileDir & '\Library" '
+	EndIf
+	Return $MozillaParams
+EndFunc   ;==>BuildBrowserLaunchParams
+
+Func GetBrowserWindowClass($Value)
+	If IsChromeBrowser($Value) Then Return "Chrome"
+	Return "MozillaWindowClass"
+EndFunc   ;==>GetBrowserWindowClass
+
+Func GetBrowserWindowWait($Value)
+	If IsChromeBrowser($Value) Then Return 10
+	Return 15
+EndFunc   ;==>GetBrowserWindowWait
+
+Func UpdateBrowserSpecificControls()
+	If Not $hBrowserType Then Return
+	Local $IsChrome = IsChromeBrowser(GetSelectedBrowserType())
+	Local $State = $GUI_ENABLE
+	If $IsChrome Then $State = $GUI_DISABLE
+
+	GUICtrlSetState($hChannel, $State)
+	GUICtrlSetState($hAllowBrowserUpdate, $State)
+	GUICtrlSetState($hDownloadFirefox64, $State)
+	GUICtrlSetState($hCopyProfile, $State)
+	GUICtrlSetState($hCustomPluginsDir, $State)
+	GUICtrlSetState($hGetPluginsDir, $State)
+	GUICtrlSetState($hCacheSizeSmart, $State)
+
+	If $IsChrome Then
+		GUICtrlSetState($hCopyProfile, $GUI_UNCHECKED)
+		GUICtrlSetData($hDownloadFirefox64, _t("BrowserDownloadUnavailable", "Chrome 请手动选择 chrome.exe"))
+	Else
+		RefreshCopyProfileState()
+	EndIf
+EndFunc   ;==>UpdateBrowserSpecificControls
+
+Func RefreshCopyProfileState()
+	If Not $hCopyProfile Then Return
+	If FileExists($DefaultProfDir) Then
+		GUICtrlSetState($hCopyProfile, $GUI_ENABLE)
+		If $FirstRun And Not FileExists($ProfileDir & "\prefs.js") Then GUICtrlSetState($hCopyProfile, $GUI_CHECKED)
+	Else
+		GUICtrlSetState($hCopyProfile, $GUI_DISABLE)
+	EndIf
+EndFunc   ;==>RefreshCopyProfileState
 
 Func UpdateBrowserChannelOptions($Value, $SelectedChannel)
 	Local $Options = "esr|release|beta|dev|nightly"
@@ -1691,6 +1884,7 @@ Func BuildBrowserDownloadUrl($Value, $Channel, $os)
 EndFunc   ;==>BuildBrowserDownloadUrl
 
 Func ShowCurrentChannel()
+	If IsChromeBrowser(GetSelectedBrowserType()) Then Return
 	Local $path = GUICtrlRead($hFirefoxPath)
 	If Not FileExists($path) Then Return
 	Local $ChannelPath = StringRegExpReplace($path, "\\?[^\\]+$", "") & "\defaults\pref\channel-prefs.js"
@@ -1705,6 +1899,10 @@ EndFunc   ;==>ShowCurrentChannel
 Func DownloadFirefox()
 	Local $os = "win64"
 	Local $CurrentBrowserType = GetSelectedBrowserType()
+	If IsChromeBrowser($CurrentBrowserType) Then
+		_GUICtrlStatusBar_SetText($hStatus, _t("BrowserDownloadUnavailable", "Chrome 请手动选择 chrome.exe"))
+		Return
+	EndIf
 
 	Local $ChannelString = GUICtrlRead($hChannel)
 	Local $Channel = StringRegExpReplace($ChannelString, " *-.*", "")
@@ -2006,6 +2204,7 @@ Func SettingsApply()
 	Else
 		$AllowBrowserUpdate = 0
 	EndIf
+	If IsChromeBrowser($BrowserType) Then $AllowBrowserUpdate = 0
 	$ProfileDir = RelativePath(GUICtrlRead($hProfileDir))
 	$CustomPluginsDir = RelativePath(GUICtrlRead($hCustomPluginsDir))
 	$CustomCacheDir = RelativePath(GUICtrlRead($hCustomCacheDir))
@@ -2015,6 +2214,7 @@ Func SettingsApply()
 	Else
 		$CacheSizeSmart = 0
 	EndIf
+	If IsChromeBrowser($BrowserType) Then $CacheSizeSmart = 0
 	$var = GUICtrlRead($hParams)
 	$var = StringStripWS($var, 3)
 	$Params = StringReplace($var, @CRLF, " ") ; 换行符换成空格
@@ -2072,24 +2272,26 @@ Func SettingsApply()
 		Return SetError(1)
 	EndIf
 
-	Local $ChannelString = GUICtrlRead($hChannel)
-	Local $Channel = StringRegExpReplace($ChannelString, " -.*", "")
-	Local $UpdateChannel = $Channel
-	If $BrowserType = $BrowserZen Then
-		$UpdateChannel = GetZenUpdateChannel($Channel)
-	ElseIf $UpdateChannel = "dev" Then
-		; Firefox Developer Edition still uses aurora as the internal update channel.
-		$UpdateChannel = "aurora"
-	EndIf
-	Local $ChannelPath = StringRegExpReplace($FirefoxPath, "\\?[^\\]+$", "") & "\defaults\pref\channel-prefs.js"
-	Local $var = FileRead($ChannelPath)
-	Local $ChannelPrefs = '// Changed by RunFirefox' & @CRLF & 'pref("app.update.channel", "' & $UpdateChannel & '");' & @CRLF
-	If $BrowserType = $BrowserZen Then
-		$ChannelPrefs &= 'pref("app.update.url", "https://updates.zen-browser.app/updates/browser/%OS_VERSION%/%CHANNEL%/update.xml");' & @CRLF
-	EndIf
-	If Not StringInStr($var, 'pref("app.update.channel", "' & $UpdateChannel & '");') Or ($BrowserType = $BrowserZen And Not StringInStr($var, 'https://updates.zen-browser.app/updates/browser/')) Or ($BrowserType <> $BrowserZen And StringInStr($var, 'https://updates.zen-browser.app/updates/browser/')) Then
-		FileDelete($ChannelPath)
-		FileWrite($ChannelPath, $ChannelPrefs)
+	If IsMozillaBrowser($BrowserType) Then
+		Local $ChannelString = GUICtrlRead($hChannel)
+		Local $Channel = StringRegExpReplace($ChannelString, " -.*", "")
+		Local $UpdateChannel = $Channel
+		If $BrowserType = $BrowserZen Then
+			$UpdateChannel = GetZenUpdateChannel($Channel)
+		ElseIf $UpdateChannel = "dev" Then
+			; Firefox Developer Edition still uses aurora as the internal update channel.
+			$UpdateChannel = "aurora"
+		EndIf
+		Local $ChannelPath = StringRegExpReplace($FirefoxPath, "\\?[^\\]+$", "") & "\defaults\pref\channel-prefs.js"
+		Local $var = FileRead($ChannelPath)
+		Local $ChannelPrefs = '// Changed by RunFirefox' & @CRLF & 'pref("app.update.channel", "' & $UpdateChannel & '");' & @CRLF
+		If $BrowserType = $BrowserZen Then
+			$ChannelPrefs &= 'pref("app.update.url", "https://updates.zen-browser.app/updates/browser/%OS_VERSION%/%CHANNEL%/update.xml");' & @CRLF
+		EndIf
+		If Not StringInStr($var, 'pref("app.update.channel", "' & $UpdateChannel & '");') Or ($BrowserType = $BrowserZen And Not StringInStr($var, 'https://updates.zen-browser.app/updates/browser/')) Or ($BrowserType <> $BrowserZen And StringInStr($var, 'https://updates.zen-browser.app/updates/browser/')) Then
+			FileDelete($ChannelPath)
+			FileWrite($ChannelPath, $ChannelPrefs)
+		EndIf
 	EndIf
 
 	;profiles dir
@@ -2102,7 +2304,7 @@ Func SettingsApply()
 	EndIf
 
 	; 提取Firefox原版配置文件
-	If GUICtrlRead($hCopyProfile) = $GUI_CHECKED Then
+	If IsMozillaBrowser($BrowserType) And GUICtrlRead($hCopyProfile) = $GUI_CHECKED Then
 		While ProfileInUse($ProfileDir)
 			$msg = MsgBox(49, "RunFirefox", _t("CannotExtratProfileFromSystem", "浏览器正运行，无法提取配置文件！\n请关闭 Firefox 后继续。"), 0, $hSettings)
 			If $msg <> 1 Then ExitLoop
@@ -2121,7 +2323,7 @@ Func SettingsApply()
 	EndIf
 
 	; plugins dir
-	If $CustomPluginsDir <> "" And Not FileExists($CustomPluginsDir) Then
+	If IsMozillaBrowser($BrowserType) And $CustomPluginsDir <> "" And Not FileExists($CustomPluginsDir) Then
 		DirCreate($CustomPluginsDir)
 	EndIf
 EndFunc   ;==>SettingsApply

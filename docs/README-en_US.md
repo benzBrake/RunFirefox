@@ -10,6 +10,8 @@ Features:
 
 ### Latest updates
 
+2026.06.04 Optimized localization config loading by caching `Lang.ini` at startup, reducing repeated disk reads for UI and translation text
+
 2026.06.04 Added a dedicated Chrome++ settings tab for editing `chrome++.ini` `[tabs]` options directly; it is enabled only when the current browser is Chrome and the Chrome++ patch is installed
 
 2026.06.04 When Chrome is missing the Bush2021/chrome_plus patch, RunFirefox now asks whether to install it and shows asynchronous download/install progress; edit `chrome++.ini` yourself if you want full custom control

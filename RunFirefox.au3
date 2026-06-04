@@ -77,6 +77,7 @@ Global $hAllowBrowserUpdate, $hCheckAppUpdate, $hRunInBackground, $hBrowserType,
 Global $hChromePlusHint, $hChromePlusConfigPath, $hChromePlusDoubleClickClose, $hChromePlusRightClickClose, $hChromePlusKeepLastTab
 Global $hChromePlusWheelTab, $hChromePlusWheelTabWhenPressRButton, $hChromePlusOpenUrlNewTab, $hChromePlusOpenBookmarkNewTab
 Global $hChromePlusNewTabDisable, $hChromePlusNewTabDisableName, $hChromePlusNewTabDisableNameLabel
+Global $LANG_DATA
 Global $FirefoxVersionsObj = 0
 Global $ZenReleaseUpdateXml = "", $ZenTwilightUpdateXml = ""
 Global $ChromeStableVersion = "", $ChromeStableDownloadUrl = "", $ChromeBetaVersion = "", $ChromeBetaDownloadUrl = "", $ChromeDevVersion = "", $ChromeDevDownloadUrl = "", $ChromeCanaryVersion = "", $ChromeCanaryDownloadUrl = ""
@@ -160,6 +161,7 @@ $LastPlatformDir = IniRead($inifile, "Settings", "LastPlatformDir", "")
 $LastProfileDir = IniRead($inifile, "Settings", "LastProfileDir", "")
 $LANGUAGE = IniRead($inifile, "Settings", "Language", "")
 $LANG_FILE = GetLangFile()
+$LANG_DATA = LoadIniDictionaryFromTextFile($LANG_FILE)
 $LANGUAGES = GetLanguages()
 If Not $LANGUAGE Then
 	$LANGUAGE = GetAutoLanguage()
@@ -1955,6 +1957,58 @@ Func WriteIniTextValue($ConfigPath, $SectionName, $Key, $Value)
 	Return WriteTextFileAuto($ConfigPath, $Output)
 EndFunc   ;==>WriteIniTextValue
 
+Func LoadIniDictionaryFromTextFile($Path)
+	Local $Data = _InitDictionary()
+	If $Path = "" Or Not FileExists($Path) Then Return $Data
+
+	Local $Content = ReadTextFileAuto($Path)
+	If @error Then Return $Data
+
+	$Content = StringRegExpReplace($Content, "^\x{FEFF}+", "")
+	$Content = StringReplace($Content, @CRLF, @LF)
+	$Content = StringReplace($Content, @CR, @LF)
+
+	Local $Lines = StringSplit($Content, @LF, 1)
+	Local $CurrentSection = ""
+
+	For $i = 1 To $Lines[0]
+		Local $Line = StringRegExpReplace($Lines[$i], "^\x{FEFF}+", "")
+		Local $Trimmed = StringStripWS($Line, 3)
+		If $Trimmed = "" Or StringLeft($Trimmed, 1) = ";" Then ContinueLoop
+
+		Local $SectionMatch = StringRegExp($Trimmed, '^\[([^\]]+)\]$', 1)
+		If Not @error Then
+			$CurrentSection = $SectionMatch[0]
+			If Not _ItemExists($Data, $CurrentSection) Then _AddItem($Data, $CurrentSection, _InitDictionary())
+			ContinueLoop
+		EndIf
+
+		If $CurrentSection = "" Then ContinueLoop
+
+		Local $KeyValue = StringRegExp($Line, '^\s*([^=;\s][^=]*)=(.*)$', 1)
+		If @error Then ContinueLoop
+
+		Local $SectionData = _Item($Data, $CurrentSection)
+		Local $Key = StringStripWS($KeyValue[0], 3)
+		Local $Value = $KeyValue[1]
+		If _ItemExists($SectionData, $Key) Then
+			_ChangeItem($SectionData, $Key, $Value)
+		Else
+			_AddItem($SectionData, $Key, $Value)
+		EndIf
+	Next
+
+	Return $Data
+EndFunc   ;==>LoadIniDictionaryFromTextFile
+
+Func ReadIniCacheValue($Data, $SectionName, $Key, $Default = "")
+	If Not IsObj($Data) Or Not _ItemExists($Data, $SectionName) Then Return $Default
+
+	Local $SectionData = _Item($Data, $SectionName)
+	If Not IsObj($SectionData) Or Not _ItemExists($SectionData, $Key) Then Return $Default
+	Return _Item($SectionData, $Key)
+EndFunc   ;==>ReadIniCacheValue
+
 Func LoadChromePlusTabsSettings($ConfigPath)
 	SetCheckboxStateByValue($hChromePlusDoubleClickClose, IniRead($ConfigPath, "tabs", "double_click_close", "0"))
 	SetCheckboxStateByValue($hChromePlusRightClickClose, IniRead($ConfigPath, "tabs", "right_click_close", "1"))
@@ -3624,14 +3678,12 @@ EndFunc   ;==>GetAutoLanguage
 ; 获取语言支持
 Func GetLanguages()
 	Local $LDic = _InitDictionary()
-	If $LANG_FILE Then
-		Local $langs = IniReadSectionNames($LANG_FILE)
-		If Not @error Then
-			For $i = 1 To $langs[0] ; 第一个参数存放长度
-				local $title = IniRead($LANG_FILE, $langs[$i], "LangTitle", $langs[$i])
-				_AddItem($LDic, $langs[$i], $title)
-			Next
-		EndIf
+	If IsObj($LANG_DATA) Then
+		Local $langs = $LANG_DATA.Keys
+		For $i = 0 To UBound($langs) - 1
+			Local $title = ReadIniCacheValue($LANG_DATA, $langs[$i], "LangTitle", $langs[$i])
+			_AddItem($LDic, $langs[$i], $title)
+		Next
 	EndIf
 	If _ItemExists($LDic, "zh-CN") = False Then
 		_AddItem($LDic, "zh-CN", "简体中文");
@@ -3642,9 +3694,9 @@ EndFunc
 ; 获取翻译文本
 Func _t($key, $defaultString, $replaceString = "")
 	local $str = $defaultString;
-	If $LANG_FILE Then
+	If IsObj($LANG_DATA) Then
 		If $LANGUAGE <> "zh-CN" Then
-			$str = IniRead($LANG_FILE, $LANGUAGE, $key, $defaultString);
+			$str = ReadIniCacheValue($LANG_DATA, $LANGUAGE, $key, $defaultString)
 		Else
 			$str = $defaultString
 		EndIf

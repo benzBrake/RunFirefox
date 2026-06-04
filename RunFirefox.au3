@@ -74,6 +74,9 @@ Global $hCopyProfile, $hCustomPluginsDir, $hGetPluginsDir
 Global $hCustomCacheDir, $hGetCacheDir, $hCacheSize, $hCacheSizeSmart
 Global $hParams, $hStatus, $SettingsOK
 Global $hAllowBrowserUpdate, $hCheckAppUpdate, $hRunInBackground, $hBrowserType, $hChannel, $hDownloadFirefox64, $FirefoxURL
+Global $hChromePlusHint, $hChromePlusConfigPath, $hChromePlusDoubleClickClose, $hChromePlusRightClickClose, $hChromePlusKeepLastTab
+Global $hChromePlusWheelTab, $hChromePlusWheelTabWhenPressRButton, $hChromePlusOpenUrlNewTab, $hChromePlusOpenBookmarkNewTab
+Global $hChromePlusNewTabDisable, $hChromePlusNewTabDisableName, $hChromePlusNewTabDisableNameLabel
 Global $FirefoxVersionsObj = 0
 Global $ZenReleaseUpdateXml = "", $ZenTwilightUpdateXml = ""
 Global $ChromeStableVersion = "", $ChromeStableDownloadUrl = "", $ChromeBetaVersion = "", $ChromeBetaDownloadUrl = "", $ChromeDevVersion = "", $ChromeDevDownloadUrl = "", $ChromeCanaryVersion = "", $ChromeCanaryDownloadUrl = ""
@@ -1362,6 +1365,26 @@ Func Settings()
 	EndIf
 	GUICtrlSetTip(-1, _t("CommandLineArgumentsTooltip", "Firefox 命令行参数，每行写一个参数。\n支持%TEMP%等环境变量，\n另外，%APP%代表 RunFirefox 所在目录"))
 
+	; Chrome++
+	GUICtrlCreateTabItem(_t("ChromePlusTab", "Chrome++"))
+	$hChromePlusHint = GUICtrlCreateLabel("", 20, 80, 460, 34)
+	GUICtrlCreateLabel(_t("ChromePlusConfigFile", "配置文件"), 20, 120, 70, 20)
+	$hChromePlusConfigPath = GUICtrlCreateEdit("", 95, 115, 385, 20, BitOR($ES_AUTOHSCROLL, $ES_READONLY))
+
+	$hChromePlusDoubleClickClose = GUICtrlCreateCheckbox(_t("ChromePlusDoubleClickClose", "双击关闭标签页"), 25, 150, 200, 20)
+	$hChromePlusRightClickClose = GUICtrlCreateCheckbox(_t("ChromePlusRightClickClose", "右键关闭标签页"), 250, 150, 200, 20)
+	$hChromePlusKeepLastTab = GUICtrlCreateCheckbox(_t("ChromePlusKeepLastTab", "保留最后一个标签页"), 25, 180, 200, 20)
+	$hChromePlusWheelTab = GUICtrlCreateCheckbox(_t("ChromePlusWheelTab", "滚轮切换标签页"), 250, 180, 200, 20)
+	$hChromePlusWheelTabWhenPressRButton = GUICtrlCreateCheckbox(_t("ChromePlusWheelTabWhenPressRButton", "按住右键时滚轮切换标签页"), 25, 210, 220, 20)
+	$hChromePlusOpenUrlNewTab = GUICtrlCreateCheckbox(_t("ChromePlusOpenUrlNewTab", "地址栏输入在新标签页打开"), 250, 210, 210, 20)
+	$hChromePlusOpenBookmarkNewTab = GUICtrlCreateCheckbox(_t("ChromePlusOpenBookmarkNewTab", "书签在新标签页打开"), 25, 240, 200, 20)
+	$hChromePlusNewTabDisable = GUICtrlCreateCheckbox(_t("ChromePlusDisableNewTab", "禁用“新建标签页”"), 250, 240, 200, 20)
+	GUICtrlSetOnEvent($hChromePlusNewTabDisable, "RefreshChromePlusNewTabDisableNameState")
+
+	$hChromePlusNewTabDisableNameLabel = GUICtrlCreateLabel(_t("ChromePlusDisableNewTabName", "禁用页标题"), 20, 285, 90, 20)
+	$hChromePlusNewTabDisableName = GUICtrlCreateEdit("", 115, 280, 365, 20, $ES_AUTOHSCROLL)
+	GUICtrlSetTip($hChromePlusNewTabDisableName, _t("ChromePlusDisableNewTabNameTooltip", '对应 chrome++.ini 的 new_tab_disable_name 原始值；可填写多个标题，并保留英文双引号与逗号，例如 "about:blank","新建标签"'))
+
 	; 外部程序
 	GUICtrlCreateTabItem(_t("ExternalPrograms", "外部程序"))
 	GUICtrlCreateLabel(_t("RunOnBrowserStart", "#浏览器启动时运行"), 20, 90, -1, 20)
@@ -1444,6 +1467,7 @@ EndFunc   ;==>AddExApp2
 Func OnFirefoxPathChange()
 	ShowCurrentChannel()
 	ChangeChannel()
+	UpdateBrowserSpecificControls()
 EndFunc   ;==>OnFirefoxPathChange
 
 Func ChangeBrowserType()
@@ -1745,7 +1769,262 @@ Func UpdateBrowserSpecificControls()
 	Else
 		RefreshCopyProfileState()
 	EndIf
+
+	RefreshChromePlusTabState()
 EndFunc   ;==>UpdateBrowserSpecificControls
+
+Func GetCurrentSettingsBrowserPath()
+	If $hFirefoxPath Then Return FullPath(GUICtrlRead($hFirefoxPath))
+	Return FullPath($FirefoxPath)
+EndFunc   ;==>GetCurrentSettingsBrowserPath
+
+Func GetChromePlusConfigPath($BrowserPath)
+	If $BrowserPath = "" Then Return ""
+
+	Local $BrowserDir = "", $BrowserExe = ""
+	SplitPath(FullPath($BrowserPath), $BrowserDir, $BrowserExe)
+	If StringLower($BrowserExe) <> "chrome.exe" Then Return ""
+	If $BrowserDir = "" Or $BrowserDir = "." Then $BrowserDir = @ScriptDir
+	Return $BrowserDir & "\chrome++.ini"
+EndFunc   ;==>GetChromePlusConfigPath
+
+Func SetCheckboxStateByValue($hCtrl, $Value)
+	If Number($Value) <> 0 Then
+		GUICtrlSetState($hCtrl, $GUI_CHECKED)
+	Else
+		GUICtrlSetState($hCtrl, $GUI_UNCHECKED)
+	EndIf
+EndFunc   ;==>SetCheckboxStateByValue
+
+Func GetCheckboxIniValue($hCtrl)
+	If GUICtrlRead($hCtrl) = $GUI_CHECKED Then Return "1"
+	Return "0"
+EndFunc   ;==>GetCheckboxIniValue
+
+Func SetChromePlusTabControlsState($Enabled)
+	Local $State = $GUI_DISABLE
+	If $Enabled Then $State = $GUI_ENABLE
+
+	GUICtrlSetState($hChromePlusDoubleClickClose, $State)
+	GUICtrlSetState($hChromePlusRightClickClose, $State)
+	GUICtrlSetState($hChromePlusKeepLastTab, $State)
+	GUICtrlSetState($hChromePlusWheelTab, $State)
+	GUICtrlSetState($hChromePlusWheelTabWhenPressRButton, $State)
+	GUICtrlSetState($hChromePlusOpenUrlNewTab, $State)
+	GUICtrlSetState($hChromePlusOpenBookmarkNewTab, $State)
+	GUICtrlSetState($hChromePlusNewTabDisable, $State)
+	If Not $Enabled Then
+		GUICtrlSetState($hChromePlusNewTabDisableName, $GUI_DISABLE)
+		GUICtrlSetState($hChromePlusNewTabDisableNameLabel, $GUI_DISABLE)
+	EndIf
+EndFunc   ;==>SetChromePlusTabControlsState
+
+Func GetTextFileEncodingMode($Path)
+	If Not FileExists($Path) Then Return BitOR($FO_OVERWRITE, $FO_UTF8)
+
+	Local $hFile = FileOpen($Path, $FO_BINARY)
+	If $hFile = -1 Then Return BitOR($FO_OVERWRITE, $FO_UTF8)
+
+	Local $Binary = FileRead($hFile)
+	FileClose($hFile)
+
+	Local $Header3 = Hex(BinaryMid($Binary, 1, 3))
+	Local $Header2 = StringLeft($Header3, 4)
+	If $Header3 = "EFBBBF" Then Return BitOR($FO_OVERWRITE, $FO_UTF8)
+	If $Header2 = "FFFE" Or $Header2 = "FEFF" Then Return BitOR($FO_OVERWRITE, $FO_UNICODE)
+
+	Local $Utf8Text = BinaryToString($Binary, $SB_UTF8)
+	If StringToBinary($Utf8Text, $SB_UTF8) = $Binary Then Return BitOR($FO_OVERWRITE, $FO_UTF8_NOBOM)
+
+	Return BitOR($FO_OVERWRITE, $FO_ANSI)
+EndFunc   ;==>GetTextFileEncodingMode
+
+Func ReadTextFileAuto($Path)
+	If Not FileExists($Path) Then Return SetError(1, 0, "")
+
+	Local $hFile = FileOpen($Path, $FO_BINARY)
+	If $hFile = -1 Then Return SetError(2, 0, "")
+
+	Local $Binary = FileRead($hFile)
+	FileClose($hFile)
+
+	Local $Header3 = Hex(BinaryMid($Binary, 1, 3))
+	Local $Header2 = StringLeft($Header3, 4)
+	If $Header3 = "EFBBBF" Then Return BinaryToString($Binary, $SB_UTF8)
+	If $Header2 = "FFFE" Then Return BinaryToString($Binary, $SB_UTF16LE)
+	If $Header2 = "FEFF" Then Return BinaryToString($Binary, $SB_UTF16BE)
+
+	Local $Utf8Text = BinaryToString($Binary, $SB_UTF8)
+	If StringToBinary($Utf8Text, $SB_UTF8) = $Binary Then Return $Utf8Text
+
+	Return BinaryToString($Binary, $SB_ANSI)
+EndFunc   ;==>ReadTextFileAuto
+
+Func WriteTextFileAuto($Path, $Content)
+	Local $Mode = GetTextFileEncodingMode($Path)
+	Local $hFile = FileOpen($Path, $Mode)
+	If $hFile = -1 Then Return False
+
+	Local $Written = FileWrite($hFile, $Content)
+	FileClose($hFile)
+	Return $Written > 0
+EndFunc   ;==>WriteTextFileAuto
+
+Func ReadIniTextValue($ConfigPath, $SectionName, $Key, $Default)
+	Local $Content = ReadTextFileAuto($ConfigPath)
+	If @error Then Return $Default
+
+	$Content = StringReplace($Content, @CRLF, @LF)
+	$Content = StringReplace($Content, @CR, @LF)
+
+	Local $Lines = StringSplit($Content, @LF, 1)
+	Local $SectionHeader = "[" & StringLower($SectionName) & "]"
+	Local $InSection = False
+
+	For $i = 1 To $Lines[0]
+		Local $Line = $Lines[$i]
+		Local $Trimmed = StringLower(StringStripWS($Line, 3))
+
+		If StringLeft($Trimmed, 1) = "[" And StringRight($Trimmed, 1) = "]" Then
+			If $InSection Then ExitLoop
+			$InSection = ($Trimmed = $SectionHeader)
+			ContinueLoop
+		EndIf
+
+		If Not $InSection Then ContinueLoop
+		If StringRegExp($Line, '^\s*' & $Key & '\s*=') Then
+			Return StringRegExpReplace($Line, '^\s*' & $Key & '\s*=\s*', "")
+		EndIf
+	Next
+
+	Return $Default
+EndFunc   ;==>ReadIniTextValue
+
+Func WriteIniTextValue($ConfigPath, $SectionName, $Key, $Value)
+	Local $Content = ReadTextFileAuto($ConfigPath)
+	If @error Then Return False
+
+	$Content = StringReplace($Content, @CRLF, @LF)
+	$Content = StringReplace($Content, @CR, @LF)
+
+	Local $Lines = StringSplit($Content, @LF, 1)
+	Local $SectionHeader = "[" & StringLower($SectionName) & "]"
+	Local $Output = ""
+	Local $InSection = False
+	Local $SectionFound = False
+	Local $KeyWritten = False
+
+	For $i = 1 To $Lines[0]
+		Local $Line = $Lines[$i]
+		Local $Trimmed = StringLower(StringStripWS($Line, 3))
+		Local $IsSection = StringLeft($Trimmed, 1) = "[" And StringRight($Trimmed, 1) = "]"
+
+		If $IsSection Then
+			If $InSection And Not $KeyWritten Then
+				$Output &= $Key & "=" & $Value & @CRLF
+				$KeyWritten = True
+			EndIf
+
+			$InSection = ($Trimmed = $SectionHeader)
+			If $InSection Then $SectionFound = True
+			$Output &= $Line & @CRLF
+			ContinueLoop
+		EndIf
+
+		If $InSection And StringRegExp($Line, '^\s*' & $Key & '\s*=') Then
+			If Not $KeyWritten Then
+				$Output &= $Key & "=" & $Value & @CRLF
+				$KeyWritten = True
+			EndIf
+			ContinueLoop
+		EndIf
+
+		$Output &= $Line & @CRLF
+	Next
+
+	If $InSection And Not $KeyWritten Then
+		$Output &= $Key & "=" & $Value & @CRLF
+		$KeyWritten = True
+	EndIf
+
+	If Not $SectionFound Then
+		If $Output <> "" And StringRight($Output, 2) <> @CRLF Then $Output &= @CRLF
+		$Output &= "[" & $SectionName & "]" & @CRLF & $Key & "=" & $Value & @CRLF
+	EndIf
+
+	Return WriteTextFileAuto($ConfigPath, $Output)
+EndFunc   ;==>WriteIniTextValue
+
+Func LoadChromePlusTabsSettings($ConfigPath)
+	SetCheckboxStateByValue($hChromePlusDoubleClickClose, IniRead($ConfigPath, "tabs", "double_click_close", "0"))
+	SetCheckboxStateByValue($hChromePlusRightClickClose, IniRead($ConfigPath, "tabs", "right_click_close", "1"))
+	SetCheckboxStateByValue($hChromePlusKeepLastTab, IniRead($ConfigPath, "tabs", "keep_last_tab", "1"))
+	SetCheckboxStateByValue($hChromePlusWheelTab, IniRead($ConfigPath, "tabs", "wheel_tab", "0"))
+	SetCheckboxStateByValue($hChromePlusWheelTabWhenPressRButton, IniRead($ConfigPath, "tabs", "wheel_tab_when_press_rbutton", "0"))
+	SetCheckboxStateByValue($hChromePlusOpenUrlNewTab, IniRead($ConfigPath, "tabs", "open_url_new_tab", "0"))
+	SetCheckboxStateByValue($hChromePlusOpenBookmarkNewTab, IniRead($ConfigPath, "tabs", "open_bookmark_new_tab", "0"))
+	SetCheckboxStateByValue($hChromePlusNewTabDisable, IniRead($ConfigPath, "tabs", "new_tab_disable", "1"))
+	GUICtrlSetData($hChromePlusNewTabDisableName, ReadIniTextValue($ConfigPath, "tabs", "new_tab_disable_name", '"about:blank","新建标签"'))
+	RefreshChromePlusNewTabDisableNameState()
+EndFunc   ;==>LoadChromePlusTabsSettings
+
+Func RefreshChromePlusNewTabDisableNameState()
+	If Not $hChromePlusNewTabDisableName Then Return
+
+	Local $State = $GUI_DISABLE
+	If BitAND(GUICtrlGetState($hChromePlusNewTabDisable), $GUI_ENABLE) = $GUI_ENABLE And GUICtrlRead($hChromePlusNewTabDisable) = $GUI_CHECKED Then
+		$State = $GUI_ENABLE
+	EndIf
+	GUICtrlSetState($hChromePlusNewTabDisableName, $State)
+	GUICtrlSetState($hChromePlusNewTabDisableNameLabel, $State)
+EndFunc   ;==>RefreshChromePlusNewTabDisableNameState
+
+Func RefreshChromePlusTabState()
+	If Not $hChromePlusHint Then Return
+
+	Local $BrowserPath = GetCurrentSettingsBrowserPath()
+	Local $IsChrome = IsChromeBrowser(GetSelectedBrowserType())
+	Local $HasPatch = $IsChrome And IsChromePlusPatchInstalled($BrowserPath)
+
+	If $HasPatch Then
+		GUICtrlSetData($hChromePlusHint, _t("ChromePlusTabsReady", "已检测到 Chrome++ 补丁，以下设置将写入当前目录的 chrome++.ini [tabs]。"))
+		GUICtrlSetData($hChromePlusConfigPath, GetChromePlusConfigPath($BrowserPath))
+		SetChromePlusTabControlsState(True)
+		LoadChromePlusTabsSettings(GetChromePlusConfigPath($BrowserPath))
+		Return
+	EndIf
+
+	If $IsChrome Then
+		GUICtrlSetData($hChromePlusHint, _t("ChromePlusTabsPatchMissing", "当前 Chrome 目录未检测到 Chrome++ 补丁（version.dll），安装后才可修改这些选项。"))
+		GUICtrlSetData($hChromePlusConfigPath, GetChromePlusConfigPath($BrowserPath))
+	Else
+		GUICtrlSetData($hChromePlusHint, _t("ChromePlusTabsRequireChrome", "当前仅在 Chrome 浏览器下可配置 Chrome++ 标签页选项。"))
+		GUICtrlSetData($hChromePlusConfigPath, "")
+	EndIf
+
+	SetChromePlusTabControlsState(False)
+	RefreshChromePlusNewTabDisableNameState()
+EndFunc   ;==>RefreshChromePlusTabState
+
+Func SaveChromePlusTabsSettings($BrowserPath)
+	Local $ResolvedBrowserPath = FullPath($BrowserPath)
+	If Not IsChromeBrowser($BrowserType) Or Not IsChromePlusPatchInstalled($ResolvedBrowserPath) Then Return True
+
+	Local $ConfigPath = GetChromePlusConfigPath($ResolvedBrowserPath)
+	If $ConfigPath = "" Then Return True
+	If Not FileExists($ConfigPath) And Not WriteChromePlusManagedConfig($ConfigPath) Then Return False
+
+	If IniWrite($ConfigPath, "tabs", "double_click_close", GetCheckboxIniValue($hChromePlusDoubleClickClose)) = 0 Then Return False
+	If IniWrite($ConfigPath, "tabs", "right_click_close", GetCheckboxIniValue($hChromePlusRightClickClose)) = 0 Then Return False
+	If IniWrite($ConfigPath, "tabs", "keep_last_tab", GetCheckboxIniValue($hChromePlusKeepLastTab)) = 0 Then Return False
+	If IniWrite($ConfigPath, "tabs", "wheel_tab", GetCheckboxIniValue($hChromePlusWheelTab)) = 0 Then Return False
+	If IniWrite($ConfigPath, "tabs", "wheel_tab_when_press_rbutton", GetCheckboxIniValue($hChromePlusWheelTabWhenPressRButton)) = 0 Then Return False
+	If IniWrite($ConfigPath, "tabs", "open_url_new_tab", GetCheckboxIniValue($hChromePlusOpenUrlNewTab)) = 0 Then Return False
+	If IniWrite($ConfigPath, "tabs", "open_bookmark_new_tab", GetCheckboxIniValue($hChromePlusOpenBookmarkNewTab)) = 0 Then Return False
+	If IniWrite($ConfigPath, "tabs", "new_tab_disable", GetCheckboxIniValue($hChromePlusNewTabDisable)) = 0 Then Return False
+	If Not WriteIniTextValue($ConfigPath, "tabs", "new_tab_disable_name", StringStripWS(GUICtrlRead($hChromePlusNewTabDisableName), 3)) Then Return False
+	Return True
+EndFunc   ;==>SaveChromePlusTabsSettings
 
 Func RefreshCopyProfileState()
 	If Not $hCopyProfile Then Return
@@ -2467,6 +2746,7 @@ Func DownloadFirefox()
 	GUICtrlSetData($hFirefoxPath, $FirefoxPath)
 	OnFirefoxPathChange()
 	If IsChromeBrowser($CurrentBrowserType) Then MaybeInstallChromePlusPatch($DownloadedFirefoxPath, $os, True)
+	UpdateBrowserSpecificControls()
 	_GUICtrlStatusBar_SetText($hStatus, _t("BrowserDownloadSuccess", "浏览器已下载并解压完成。"))
 	Local $OpenDownloadedBrowserConfirm = _t("OpenDownloadedBrowserConfirm", "浏览器已下载并解压完成。\n是否马上打开浏览器？")
 	If MsgBox(36 + 256, $CustomArch, $OpenDownloadedBrowserConfirm, 0, $hSettings) = 6 Then SettingsOK()
@@ -2900,6 +3180,11 @@ Func SettingsApply()
 	; plugins dir
 	If IsMozillaBrowser($BrowserType) And $CustomPluginsDir <> "" And Not FileExists($CustomPluginsDir) Then
 		DirCreate($CustomPluginsDir)
+	EndIf
+
+	If Not SaveChromePlusTabsSettings($FirefoxPath) Then
+		MsgBox(16, "RunFirefox", _t("ChromePlusTabsSaveFailed", "保存 Chrome++ 标签页设置失败：\n%s", GetChromePlusConfigPath($FirefoxPath)), 0, $hSettings)
+		Return SetError(3)
 	EndIf
 EndFunc   ;==>SettingsApply
 

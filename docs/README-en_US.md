@@ -10,6 +10,8 @@ Features:
 
 ### Latest updates
 
+2026.06.04 When Chrome is missing the Bush2021/chrome_plus patch, RunFirefox now asks whether to install it and shows asynchronous download/install progress; edit `chrome++.ini` yourself if you want full custom control
+
 2026.06.03 Added online Chrome download and extraction from the settings screen
 
 2026.06.01 Added automatic Firefox download and extraction from the settings screen with an always-on-top progress window

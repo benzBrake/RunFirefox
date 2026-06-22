@@ -236,6 +236,7 @@ Next
 Local $BrowserIsRunning = AppIsRunning($FirefoxPath)
 If IsChromeBrowser($BrowserType) And Not $BrowserIsRunning Then MaybeInstallChromePlusPatch($FirefoxPath)
 If IsMozillaBrowser($BrowserType) Then
+	DeleteMozillaLaunchOnLoginEntry($FirefoxPath)
 	FileDelete($FirefoxDir & "\defaults\pref\runfirefox.js")
 	$BrowserIsRunning = ProfileInUse($ProfileDir)
 	If Not $BrowserIsRunning Then
@@ -255,6 +256,7 @@ EndIf
 ;~ Start browser
 $BaseParams = BuildBrowserLaunchParams($BrowserType)
 $AppPID = Run('"' & $FirefoxPath & '" ' & $BaseParams & $Params , $FirefoxDir)
+If IsMozillaBrowser($BrowserType) Then WaitAndDeleteMozillaLaunchOnLoginEntry($FirefoxPath)
 
 FileChangeDir(@ScriptDir)
 CreateSettingsShortcut(@ScriptDir & "\" & $ScriptNameWithOutSuffix & ".vbs")
@@ -552,6 +554,62 @@ Func DeleteCfgFiles()
 	FileDelete($FirefoxDir & "\runfirefox.cfg")
 EndFunc   ;==>DeleteCfgFiles
 
+Func DeleteMozillaLaunchOnLoginEntry($BrowserPath)
+	Local Const $RunKey = "HKCU\Software\Microsoft\Windows\CurrentVersion\Run"
+	Local Const $StartupApprovedRunKey = "HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\Run"
+	Local $ValueIndex = 1, $ValueName, $Command, $Deleted = False
+
+	While 1
+		$ValueName = RegEnumVal($RunKey, $ValueIndex)
+		If @error Then ExitLoop
+
+		$Command = RegRead($RunKey, $ValueName)
+		If CommandTargetsPath($Command, $BrowserPath) Then
+			If RegDelete($RunKey, $ValueName) Then
+				RegDelete($StartupApprovedRunKey, $ValueName)
+				$Deleted = True
+				ContinueLoop
+			EndIf
+		EndIf
+
+		$ValueIndex += 1
+	WEnd
+
+	Return $Deleted
+EndFunc   ;==>DeleteMozillaLaunchOnLoginEntry
+
+Func WaitAndDeleteMozillaLaunchOnLoginEntry($BrowserPath, $MaxChecks = 10, $IntervalMs = 1000)
+	Local $i, $Deleted = False
+	For $i = 1 To $MaxChecks
+		Sleep($IntervalMs)
+		If DeleteMozillaLaunchOnLoginEntry($BrowserPath) Then $Deleted = True
+	Next
+
+	Return $Deleted
+EndFunc   ;==>WaitAndDeleteMozillaLaunchOnLoginEntry
+
+Func CommandTargetsPath($Command, $TargetPath)
+	Local $CommandPath = GetCommandExecutablePath($Command)
+	If $CommandPath = "" Then Return False
+
+	Return NormalizePathForCompare($CommandPath) = NormalizePathForCompare($TargetPath)
+EndFunc   ;==>CommandTargetsPath
+
+Func GetCommandExecutablePath($Command)
+	$Command = StringStripWS($Command, 3)
+	If $Command = "" Then Return ""
+
+	Local $Match = StringRegExp($Command, '^"([^"]+)"', 1)
+	If @error Then $Match = StringRegExp($Command, '^([^ ]+)', 1)
+	If @error Then Return ""
+
+	Return $Match[0]
+EndFunc   ;==>GetCommandExecutablePath
+
+Func NormalizePathForCompare($Path)
+	Return StringLower(StringReplace(StringStripWS($Path, 3), "/", "\"))
+EndFunc   ;==>NormalizePathForCompare
+
 Func CheckPrefs()
 	Local $var, $cfg
 	Local $prefs = FileRead($ProfileDir & "\prefs.js")
@@ -566,6 +624,8 @@ Func CheckPrefs()
 	If Not StringRegExp($prefs, '(?i)(?m)^\Quser_pref("browser.shell.checkDefaultBrowser",\E *\Qfalse);\E') Then
 		$cfg &= 'pref("browser.shell.checkDefaultBrowser", false);' & @CRLF
 	EndIf
+
+	ClearLaunchOnLoginProfilePref($prefs)
 
 	$CustomCacheDir = FullPath($CustomCacheDir)
 	If $CustomCacheDir = "" Or $CustomCacheDir = $ProfileDir Then ; profile\ is the default chache dir
@@ -597,6 +657,18 @@ Func CheckPrefs()
 	$prefs = ''
 	Return $cfg
 EndFunc   ;==>CheckPrefs
+
+Func ClearLaunchOnLoginProfilePref(ByRef $prefs)
+	Local $PrefsPath = $ProfileDir & "\prefs.js"
+	If Not FileExists($PrefsPath) Then Return
+
+	Local $NewPrefs = StringRegExpReplace($prefs, '(?i)(?m)^user_pref\("browser\.startup\.windowsLaunchOnLogin\.enabled",.*\);\R?', "")
+	If $NewPrefs = $prefs Then Return
+
+	FileDelete($PrefsPath)
+	FileWrite($PrefsPath, $NewPrefs)
+	$prefs = $NewPrefs
+EndFunc   ;==>ClearLaunchOnLoginProfilePref
 
 Func UpdateProfileLocalePrefs($BrowserLocale, ByRef $prefs)
 	Local $PrefsPath = $ProfileDir & "\prefs.js"

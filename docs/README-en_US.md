@@ -10,6 +10,8 @@ Features:
 
 ### Latest updates
 
+2026.06.22 Added the Chrome icon build asset and tightened the release flow: update the version and changelog before tagging, then let the release workflow verify version consistency before building
+
 2026.06.04 Optimized localization config loading by caching `Lang.ini` at startup, reducing repeated disk reads for UI and translation text
 
 2026.06.04 Added a dedicated Chrome++ settings tab for editing `chrome++.ini` `[tabs]` options directly; it is enabled only when the current browser is Chrome and the Chrome++ patch is installed

@@ -9,109 +9,94 @@ on:
     branches: [master]
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
-  build:
+  validate:
     runs-on: windows-latest
-    if: startsWith(github.ref, 'refs/tags/v')
+    if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install AutoIt3
+        shell: pwsh
+        run: '& .\scripts\install-autoit.ps1'
+
+      - name: Compile RunFirefox
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+
+          $autoItPath = Join-Path $env:AUTOIT_DIR 'AutoIt3.exe'
+          $wrapperPath = Join-Path $env:AUTOIT_DIR 'SciTE\AutoIt3Wrapper\AutoIt3Wrapper.au3'
+          $scriptPath = Resolve-Path -LiteralPath '.\RunFirefox.au3'
+          $arguments = "`"$wrapperPath`" /in `"$scriptPath`" /NoStatus"
+          $process = Start-Process -FilePath $autoItPath -ArgumentList $arguments -NoNewWindow -Wait -PassThru
+
+          if ($process.ExitCode -ne 0) {
+              throw "AutoIt3Wrapper failed with exit code $($process.ExitCode)."
+          }
+
+          if (-not (Test-Path -LiteralPath '.\RunFirefox.exe')) {
+              throw 'RunFirefox.exe was not produced.'
+          }
+
+  release:
+    runs-on: windows-latest
+    if: ${{ startsWith(github.ref, 'refs/tags/v') }}
+    permissions:
+      contents: write
 
     steps:
       - name: Debug Info
+        shell: pwsh
         run: |
-          echo "github.ref: ${{ github.ref }}"
-          echo "github.event_name: ${{ github.event_name }}"
-        shell: bash
+          "github.ref: $env:GITHUB_REF"
+          "github.event_name: $env:GITHUB_EVENT_NAME"
 
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
       - name: Install AutoIt3
         shell: pwsh
+        run: '& .\scripts\install-autoit.ps1'
+
+      - name: Validate release version
+        id: version
+        shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
 
-          $installers = @(
-              @{
-                  Url = 'https://www.autoitscript.com/files/autoit3/autoit-v3-setup.exe'
-                  FileName = 'autoit-v3-setup.exe'
-                  Arguments = @('/S')
-              },
-              @{
-                  Url = 'https://www.autoitscript.com/autoit3/scite/download/SciTE4AutoIt3.exe'
-                  FileName = 'SciTE4AutoIt3.exe'
-                  Arguments = @('/S')
-              }
-          )
-
-          foreach ($installer in $installers) {
-              $installerPath = Join-Path $env:RUNNER_TEMP $installer.FileName
-              Invoke-WebRequest -Uri $installer.Url -OutFile $installerPath
-
-              $process = Start-Process `
-                  -FilePath $installerPath `
-                  -ArgumentList ([string[]]$installer.Arguments) `
-                  -Wait `
-                  -PassThru
-
-              if ($process.ExitCode -ne 0) {
-                  throw "$($installer.FileName) failed with exit code $($process.ExitCode)"
-              }
+          $tag = '${{ github.ref_name }}'
+          if ($tag -notmatch '^v(?<version>\d+\.\d+\.\d+)$') {
+              throw "Release tag must match vX.Y.Z. Actual tag: $tag"
           }
 
-          $candidateDirs = @(
-              (Join-Path ${env:ProgramFiles} 'AutoIt3'),
-              (Join-Path ${env:ProgramFiles(x86)} 'AutoIt3')
-          )
-          $autoItDir = $candidateDirs |
-              Where-Object { Test-Path -LiteralPath (Join-Path $_ 'AutoIt3.exe') } |
-              Select-Object -First 1
+          $version = $Matches.version
+          $source = Get-Content -LiteralPath '.\RunFirefox.au3' -Raw
+          $escapedVersion = [regex]::Escape($version)
+          $fileVersionPattern = '(?m)^#AutoIt3Wrapper_Res_Fileversion={0}\.0\r?$' -f $escapedVersion
+          $appVersionPattern = '(?m)^Global Const \$AppVersion = "{0}"\r?$' -f $escapedVersion
 
-          if (-not $autoItDir) {
-              $searched = $candidateDirs -join ', '
-              throw "AutoIt3.exe was not found. Searched: $searched"
+          if ($source -notmatch $fileVersionPattern) {
+              throw "RunFirefox.au3 file version does not match $tag."
           }
 
-          $stripperZip = Join-Path $env:RUNNER_TEMP 'Au3Stripper.zip'
-          Invoke-WebRequest `
-              -Uri 'https://www.autoitscript.com/autoit3/scite/download/Au3Stripper.zip' `
-              -OutFile $stripperZip
-
-          $stripperDir = Join-Path $autoItDir 'SciTE\au3Stripper'
-          Remove-Item -LiteralPath $stripperDir -Recurse -Force -ErrorAction SilentlyContinue
-          Expand-Archive -LiteralPath $stripperZip -DestinationPath $stripperDir -Force
-
-          $autoItPath = Join-Path $autoItDir 'AutoIt3.exe'
-          $wrapperPath = Join-Path $autoItDir 'SciTE\AutoIt3Wrapper\AutoIt3Wrapper.au3'
-
-          if (-not (Test-Path -LiteralPath $autoItPath)) {
-              throw "AutoIt3.exe was not found at $autoItPath"
+          if ($source -notmatch $appVersionPattern) {
+              throw "RunFirefox.au3 app version does not match $tag."
           }
 
-          if (-not (Test-Path -LiteralPath $wrapperPath)) {
-              throw "AutoIt3Wrapper.au3 was not found at $wrapperPath"
-          }
-
-          "AutoIt installed at $autoItDir"
-          "AUTOIT_DIR=$autoItDir" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-          $autoItDir | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
-
-      - name: Get the version
-        id: get_version
-        run: echo "VERSION=${GITHUB_REF#*\/v}" >> $GITHUB_OUTPUT
-        shell: bash
-
-      - name: Update the version
-        shell: bash
-        run: |
-          sed -i "s/#AutoIt3Wrapper_Res_Fileversion.*/#AutoIt3Wrapper_Res_Fileversion=${{ steps.get_version.outputs.VERSION }}.0/" RunFirefox.au3
-          sed -i "s/Global Const \$AppVersion.*/Global Const \$AppVersion = \"${{ steps.get_version.outputs.VERSION }}\"/" RunFirefox.au3
+          "VERSION=$version" >> $env:GITHUB_OUTPUT
 
       - name: Generate scripts for all icons
         shell: bash
         run: |
           for icon in icons/*.ico; do
             basename=$(basename "$icon" .ico)
-            # 排除原始Firefox图标
+            # Exclude the base Firefox icon.
             if [ "$basename" != "Firefox" ]; then
               cp RunFirefox.au3 "Run${basename}.au3"
               sed -i "s/Firefox.ico/${basename}.ico/" "Run${basename}.au3"
@@ -124,54 +109,63 @@ jobs:
       - name: Build scripts in parallel
         shell: pwsh
         run: |
-          $autoItPath = Join-Path $env:AUTOIT_DIR "AutoIt3.exe"
-          $wrapperPath = Join-Path $env:AUTOIT_DIR "SciTE\AutoIt3Wrapper\AutoIt3Wrapper.au3"
-          
-          # 获取所有需要编译的.au3文件
-          $scripts = Get-ChildItem -Filter *.au3
-          
-          # 并行编译，最多4个同时运行
-          $scripts | ForEach-Object -Parallel {
-              Start-Process -FilePath $using:autoItPath -ArgumentList "`"$using:wrapperPath`" /in `"$($_.FullName)`" /NoStatus" -NoNewWindow -Wait
-          } -ThrottleLimit 4
+          $ErrorActionPreference = 'Stop'
+
+          $autoItPath = Join-Path $env:AUTOIT_DIR 'AutoIt3.exe'
+          $wrapperPath = Join-Path $env:AUTOIT_DIR 'SciTE\AutoIt3Wrapper\AutoIt3Wrapper.au3'
+          $scripts = @(Get-ChildItem -Filter 'Run*.au3')
+
+          if ($scripts.Count -eq 0) {
+              throw 'No Run*.au3 scripts were found.'
+          }
+
+          $failures = @($scripts | ForEach-Object -Parallel {
+              $arguments = "`"$using:wrapperPath`" /in `"$($_.FullName)`" /NoStatus"
+              $process = Start-Process -FilePath $using:autoItPath -ArgumentList $arguments -NoNewWindow -Wait -PassThru
+              if ($process.ExitCode -ne 0) {
+                  $_.Name
+              }
+          } -ThrottleLimit 4)
+
+          if ($failures.Count -gt 0) {
+              $failedScripts = $failures -join ', '
+              throw "AutoIt3Wrapper failed for: $failedScripts"
+          }
 
       - name: Check the output
-        shell: bash
-        run: |
-          ls -l
+        shell: pwsh
+        run: Get-ChildItem -Force
 
       - name: Package the binaries
-        shell: bash
+        shell: pwsh
         run: |
-          # 仅处理以Run开头的exe文件
-          for exe in Run*.exe; do
-            # 提取基础名称和架构标识
-            if [[ "$exe" == *_x64.exe ]]; then
-              basename="${exe%_x64.exe}"
-              arch="_x64"
-            else
-              basename="${exe%.exe}"
-              arch=""
-            fi
-            
-            # 生成最终文件名
-            zip_name="${basename}_${{ steps.get_version.outputs.VERSION }}${arch}.zip"
-            
-            # 打包命令
-            7z a -tzip "$zip_name" "$exe"
-          done
+          $ErrorActionPreference = 'Stop'
 
-      - uses: xresloader/upload-to-github-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          file: "*.zip"
-          tags: true
-          draft: false
-          overwrite: true
+          $version = '${{ steps.version.outputs.VERSION }}'
+          $exes = @(Get-ChildItem -Filter 'Run*.exe')
+
+          if ($exes.Count -eq 0) {
+              throw 'No Run*.exe files were produced.'
+          }
+
+          foreach ($exe in $exes) {
+              if ($exe.BaseName.EndsWith('_x64', [StringComparison]::Ordinal)) {
+                  $baseName = $exe.BaseName.Substring(0, $exe.BaseName.Length - 4)
+                  $arch = '_x64'
+              } else {
+                  $baseName = $exe.BaseName
+                  $arch = ''
+              }
+
+              $zipName = "$baseName`_$version$arch.zip"
+              & 7z a -tzip $zipName $exe.FullName
+
+              if ($LASTEXITCODE -ne 0) {
+                  throw "7z failed while packaging $($exe.Name)."
+              }
+          }
 
       - name: Create changelog text
-        id: changelog
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
@@ -179,13 +173,15 @@ jobs:
           $currentTag = '${{ github.ref_name }}'
           $ignoredPaths = @(
               'AGENTS.md',
+              'AGENTS.local.md',
               'README.md',
-              'README-en_US.md'
+              'docs/README-en_US.md'
           )
           $ignoredPathPrefixes = @(
+              '.github/',
               'scripts/'
           )
-          $excludedTypes = @('other', 'doc', 'docs', 'chore')
+          $excludedTypes = @('other', 'doc', 'docs', 'chore', 'ci')
           $typeTitles = @{
               feat = 'Features'
               fix = 'Bug Fixes'
@@ -271,21 +267,54 @@ jobs:
           }
 
           $changes = ($lines -join "`n").Trim()
-          "changes<<CHANGELOG" >> $env:GITHUB_OUTPUT
-          $changes >> $env:GITHUB_OUTPUT
-          "CHANGELOG" >> $env:GITHUB_OUTPUT
+          Set-Content -LiteralPath '.\release-notes.md' -Value $changes -Encoding utf8
 
-      - name: Update release
-        uses: ColinPitrat/update-release@v1.0.1
-        with:
-          files: "README.md"
-          token: ${{ secrets.GITHUB_TOKEN }}
-          tag: v${{ steps.get_version.outputs.VERSION }}
-          body: ${{ steps.changelog.outputs.changes }}
+      - name: Publish GitHub release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $ErrorActionPreference = 'Stop'
 
-      - uses: EndBug/add-and-commit@v9
-        with:
-          push: origin HEAD:master
-          add: "*.txt RunFirefox.au3"
-          fetch: true
-          message: "Bump update information"
+          $tag = '${{ github.ref_name }}'
+          $assets = @(Get-ChildItem -Filter '*.zip' | ForEach-Object { $_.FullName })
+
+          if ($assets.Count -eq 0) {
+              throw 'No zip assets were found.'
+          }
+
+          gh release view $tag --repo $env:GITHUB_REPOSITORY *> $null
+          $releaseExists = $LASTEXITCODE -eq 0
+
+          if ($releaseExists) {
+              gh release edit $tag --repo $env:GITHUB_REPOSITORY --title $tag --notes-file '.\release-notes.md'
+              if ($LASTEXITCODE -ne 0) {
+                  throw "Failed to update release $tag."
+              }
+
+              foreach ($asset in $assets) {
+                  gh release upload $tag $asset --repo $env:GITHUB_REPOSITORY --clobber
+                  if ($LASTEXITCODE -ne 0) {
+                      throw "Failed to upload release asset: $asset"
+                  }
+              }
+          } else {
+              $createArgs = @(
+                  'release',
+                  'create',
+                  $tag
+              ) + $assets + @(
+                  '--repo',
+                  $env:GITHUB_REPOSITORY,
+                  '--title',
+                  $tag,
+                  '--notes-file',
+                  '.\release-notes.md',
+                  '--verify-tag'
+              )
+
+              gh @createArgs
+              if ($LASTEXITCODE -ne 0) {
+                  throw "Failed to create release $tag."
+              }
+          }

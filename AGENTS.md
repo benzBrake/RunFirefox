@@ -80,4 +80,4 @@ Suggested tag: v2.8.5
 
 那就表示这次提交后比较适合补一个 `v2.8.5` tag，再交给现有 workflow 去构建 release。
 
-tag 之前更新 README.md / README-en_US.md 中的更新日志
+tag 之前更新 RunFirefox.au3 版本号，以及 README.md / docs/README-en_US.md 中的更新日志

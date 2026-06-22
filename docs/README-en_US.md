@@ -10,6 +10,8 @@ Features:
 
 ### Latest updates
 
+2026.06.22 Fixed leftover Windows startup entries after enabling launch-on-login in Firefox / Mozilla-based browsers; RunFirefox now cleans the related registry entries before and after launch and removes the profile startup preference
+
 2026.06.22 Added the Chrome icon build asset and tightened the release flow: update the version and changelog before tagging, then let the release workflow verify version consistency before building
 
 2026.06.04 Optimized localization config loading by caching `Lang.ini` at startup, reducing repeated disk reads for UI and translation text

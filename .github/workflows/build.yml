@@ -43,6 +43,17 @@ jobs:
               throw 'RunFirefox.exe was not produced.'
           }
 
+      - name: Upload nightly artifact
+        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/master' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: RunFirefox-nightly-${{ github.run_number }}-${{ github.sha }}
+          path: |
+            RunFirefox.exe
+            RunFirefox_x64.exe
+          if-no-files-found: error
+          retention-days: 14
+
   release:
     runs-on: windows-latest
     if: ${{ startsWith(github.ref, 'refs/tags/v') }}

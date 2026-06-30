@@ -68,6 +68,7 @@ Global $AppPID, $TaskBarLastChange
 Global $AllowBrowserUpdate, $CheckAppUpdate, $AppUpdateLastCheck, $RunInBackground, $BrowserType, $FirefoxPath, $ProfileDir
 Global $CustomPluginsDir, $CustomCacheDir, $CacheSize, $CacheSizeSmart, $CheckDefaultBrowser, $Params
 Global $ExApp, $ExAppAutoExit, $ExApp2
+Global $GithubDirectMirror, $GithubJsDelivrMirror
 
 Global $DefaultProfDir, $hSettings, $hFirefoxPath, $hProfileDir, $hlanguage
 Global $hCopyProfile, $hCustomPluginsDir, $hGetPluginsDir
@@ -171,12 +172,23 @@ If Not $LANGUAGE Then
 Else
 	$LANGUAGE = GetSupportedLanguage($LANGUAGE, "zh-CN")
 EndIf
-$GithubMirror = IniRead($inifile, "Settings", "GithubMirror", _UpgradeGetDefaultGithubMirror($LANGUAGE))
-If $FirstLaunch Then IniWrite($inifile, "Settings", "GithubMirror", $GithubMirror)
-If StringInStr($GithubMirror, "mirror.serv00.net/gh") Then
-	$GithubMirror = _UpgradeGetDefaultGithubMirror($LANGUAGE)
-	IniWrite($inifile, "Settings", "GithubMirror", $GithubMirror)
+Local $LegacyGithubMirror = IniRead($inifile, "Settings", "GithubMirror", "")
+$GithubDirectMirror = IniRead($inifile, "Settings", "GithubDirectMirror", "")
+$GithubJsDelivrMirror = IniRead($inifile, "Settings", "GithubJsDelivrMirror", "")
+If $LegacyGithubMirror <> "" Then
+	If _UpgradeIsJsDelivrGithubMirror($LegacyGithubMirror) Then
+		If $GithubJsDelivrMirror = "" Then $GithubJsDelivrMirror = $LegacyGithubMirror
+	Else
+		If $GithubDirectMirror = "" Then $GithubDirectMirror = $LegacyGithubMirror
+	EndIf
+	IniDelete($inifile, "Settings", "GithubMirror")
 EndIf
+If StringInStr($GithubDirectMirror, "mirror.serv00.net/gh") Then $GithubDirectMirror = ""
+If StringInStr($GithubJsDelivrMirror, "mirror.serv00.net/gh") Then $GithubJsDelivrMirror = ""
+If $GithubDirectMirror = "" Then $GithubDirectMirror = _UpgradeGetDefaultGithubDirectMirror()
+If $GithubJsDelivrMirror = "" Then $GithubJsDelivrMirror = _UpgradeGetDefaultGithubJsDelivrMirror($LANGUAGE)
+IniWrite($inifile, "Settings", "GithubDirectMirror", $GithubDirectMirror)
+IniWrite($inifile, "Settings", "GithubJsDelivrMirror", $GithubJsDelivrMirror)
 
 If $CmdLine[0] >= 4 And $CmdLine[1] = "--load-chrome-version" Then
 	WriteChromeUpdateInfoFile($CmdLine[2], $CmdLine[3], $CmdLine[4])
@@ -447,13 +459,13 @@ EndFunc   ;==>OnExit
 
 ;~ 查检 RunFirefox更新
 Func CheckAppUpdate()
-	Local $AppUpdateLastCheck, $repo = 'benzBrake/RunFirefox', $latestVersion, $releaseNotes, $downloadUrl, $MirrorAddress = $GithubMirror
+	Local $AppUpdateLastCheck, $repo = 'benzBrake/RunFirefox', $latestVersion, $releaseNotes, $downloadUrl, $MirrorAddress = $GithubDirectMirror
 	$MirrorAddress = _UpgradeNormalizeMirrorAddress($MirrorAddress)
 	$AppUpdateLastCheck = _NowCalc()
 	IniWrite($inifile, "Settings", "AppUpdateLastCheck", $AppUpdateLastCheck)
 
 	HttpSetProxy(0) ; Use IE defaults for proxy
-	$latestVersion = GetLatestReleaseVersion($repo, $MirrorAddress);
+	$latestVersion = GetLatestReleaseVersion($repo, $MirrorAddress, $GithubJsDelivrMirror);
 	;~ 获取的版本号不对则返回
 	If Not _StringStartsWith($latestVersion, 'v') Then Return
 	;~ 去除版本号开头的 v
@@ -477,7 +489,7 @@ Func CheckAppUpdate()
 	EndIf
 	Local $downloadFileName = $CustomArch & '_' & $latestVersion & $archStr & '.zip'
 	Local $githubDownloadUrl = 'https://github.com/' & $repo & '/releases/download/v' & $latestVersion & '/' & $downloadFileName
-	Local $downloadUrls = _UpgradeBuildGithubReleaseDownloadUrls($githubDownloadUrl, $MirrorAddress)
+	Local $downloadUrls = _UpgradeBuildGithubReleaseDownloadUrls($githubDownloadUrl, $MirrorAddress, $GithubJsDelivrMirror)
 
 	Local $temp = @ScriptDir & "\RunFirefox_temp"
 	$file = $temp & "\RunFirefox.zip"
@@ -2667,7 +2679,7 @@ Func GetExecutableArch($ExePath)
 EndFunc   ;==>GetExecutableArch
 
 Func DownloadChromePlusArchiveWithProgress($ArchiveUrl, $ArchivePath)
-	Local $aUrls = _UpgradeBuildGithubReleaseDownloadUrls($ArchiveUrl, $GithubMirror)
+	Local $aUrls = _UpgradeBuildGithubReleaseDownloadUrls($ArchiveUrl, $GithubDirectMirror, $GithubJsDelivrMirror)
 	Local $TargetDir, $TargetFile
 	SplitPath($ArchivePath, $TargetDir, $TargetFile)
 	If Not FileExists($TargetDir) Then DirCreate($TargetDir)
@@ -2723,7 +2735,7 @@ Func GetChromePlusReleaseInfo(ByRef $ReleaseTag, ByRef $ArchiveUrl)
 	EndIf
 
 	If $CachedReleaseTag = "" Then
-		Local $LatestPageUrl = _UpgradeBuildGithubPageUrl("https://github.com/" & $ChromePlusRepo & "/releases/latest", $GithubMirror)
+		Local $LatestPageUrl = _UpgradeBuildGithubPageUrl("https://github.com/" & $ChromePlusRepo & "/releases/latest", $GithubDirectMirror)
 		Local $LatestPage = BinaryToString(InetRead($LatestPageUrl, 1), 4)
 		If $LatestPage <> "" Then
 			Local $TagMatch = StringRegExp($LatestPage, '/' & $ChromePlusRepo & '/releases/tag/([^"?/#<>]+)', 1)
@@ -2828,6 +2840,17 @@ Func BuildBrowserDownloadUrl($Value, $Channel, $os)
 	Return BuildFirefoxDownloadUrl($Channel, $os)
 EndFunc   ;==>BuildBrowserDownloadUrl
 
+Func BuildBrowserDownloadUrls($Value, $Channel, $os)
+	Local $DownloadUrl = BuildBrowserDownloadUrl($Value, $Channel, $os)
+	If @error Or $DownloadUrl = "" Then Return SetError(1, 0, 0)
+
+	If NormalizeBrowserType($Value) = $BrowserZen Then Return _UpgradeBuildGithubReleaseDownloadUrls($DownloadUrl, $GithubDirectMirror, $GithubJsDelivrMirror)
+
+	Local $aUrls[1]
+	$aUrls[0] = $DownloadUrl
+	Return $aUrls
+EndFunc   ;==>BuildBrowserDownloadUrls
+
 Func ShowCurrentChannel()
 	If IsChromeBrowser(GetSelectedBrowserType()) Then Return
 	Local $path = GUICtrlRead($hFirefoxPath)
@@ -2848,11 +2871,12 @@ Func DownloadFirefox()
 	Local $ChannelString = GUICtrlRead($hChannel)
 	Local $Channel = StringRegExpReplace($ChannelString, " *-.*", "")
 
-	$FirefoxURL = BuildBrowserDownloadUrl($CurrentBrowserType, $Channel, $os)
-	If @error Or $FirefoxURL = "" Then
+	Local $FirefoxURLs = BuildBrowserDownloadUrls($CurrentBrowserType, $Channel, $os)
+	If @error Or Not IsArray($FirefoxURLs) Or UBound($FirefoxURLs) = 0 Then
 		_GUICtrlStatusBar_SetText($hStatus, _t("BrowserVersionLoadFailed", "读取浏览器版本失败。"))
 		Return
 	EndIf
+	$FirefoxURL = $FirefoxURLs[0]
 
 	Local $TargetFirefoxPath = FullPath(GUICtrlRead($hFirefoxPath))
 	Local $TargetDir, $TargetFile
@@ -2864,7 +2888,7 @@ Func DownloadFirefox()
 		If MsgBox(36 + 256, $CustomArch, $ConfirmOverwrite, 0, $hSettings) <> 6 Then Return
 	EndIf
 
-	Local $DownloadedFirefoxPath = DownloadAndExtractFirefox($FirefoxURL, $TargetDir, $os, $Channel, $CurrentBrowserType)
+	Local $DownloadedFirefoxPath = DownloadAndExtractFirefox($FirefoxURLs, $TargetDir, $os, $Channel, $CurrentBrowserType)
 	If @error Then
 		Local $ErrorMessage = _t("BrowserDownloadFailed", "浏览器下载或解压失败：\n%s\n\n请检查网络和目标目录权限后重试。", $DownloadedFirefoxPath)
 		MsgBox(16, $CustomArch, $ErrorMessage, 0, $hSettings)
@@ -2881,14 +2905,17 @@ Func DownloadFirefox()
 	If MsgBox(36 + 256, $CustomArch, $OpenDownloadedBrowserConfirm, 0, $hSettings) = 6 Then SettingsOK()
 EndFunc   ;==>DownloadFirefox
 
-Func DownloadAndExtractFirefox($DownloadUrl, $TargetDir, $os, $Channel, $CurrentBrowserType)
+Func DownloadAndExtractFirefox($aDownloadUrls, $TargetDir, $os, $Channel, $CurrentBrowserType)
 	Local $TempDir = @TempDir & "\RunFirefox_FirefoxDownload"
+	If Not IsArray($aDownloadUrls) Or UBound($aDownloadUrls) = 0 Then Return SetError(1, 0, _t("CannotStartBrowserDownload", "无法开始下载浏览器。"))
+	Local $DownloadUrl
+	$DownloadUrl = $aDownloadUrls[0]
 	Local $InstallerExt = GetUrlFileExtension($DownloadUrl)
 	Local $Installer = $TempDir & "\BrowserSetup_" & NormalizeBrowserType($CurrentBrowserType) & "_" & $Channel & "_" & $os & $InstallerExt
 	Local $ExtractDir = $TempDir & "\extract"
 	Local $TargetFirefoxPath = $TargetDir & "\" & GetBrowserExecutableName($CurrentBrowserType)
-	Local $hDownload, $DownloadedBytes, $TotalBytes, $Percent, $DetailText, $ret, $ExtractLog, $SevenZipExe
-	Local $CopiedBrowserFiles = False
+	Local $hDownload, $DownloadedBytes, $TotalBytes, $Percent, $DetailText, $ret, $ExtractLog, $SevenZipExe, $i
+	Local $CopiedBrowserFiles = False, $DownloadSuccessful = False, $TriedDownloadUrls = ""
 
 	DirRemove($TempDir, 1)
 	If Not FileExists($TempDir) Then DirCreate($TempDir)
@@ -2899,34 +2926,40 @@ Func DownloadAndExtractFirefox($DownloadUrl, $TargetDir, $os, $Channel, $Current
 	$FirefoxDownloadCancelled = 0
 	ShowFirefoxDownloadProgress(_t("DownloadingBrowser", "正在下载浏览器 ..."), $DownloadUrl)
 
-	$hDownload = InetGet($DownloadUrl, $Installer, 19, 1)
-	If @error Or $hDownload = 0 Then
-		CloseFirefoxDownloadProgress()
-		DirRemove($TempDir, 1)
-		Return SetError(3, 0, _t("CannotStartBrowserDownload", "无法开始下载浏览器。"))
-	EndIf
+	For $i = 0 To UBound($aDownloadUrls) - 1
+		$DownloadUrl = $aDownloadUrls[$i]
+		If $TriedDownloadUrls <> "" Then $TriedDownloadUrls &= @CRLF
+		$TriedDownloadUrls &= $DownloadUrl
+		FileDelete($Installer)
+		UpdateFirefoxDownloadProgress(_t("DownloadingBrowser", "正在下载浏览器 ..."), $DownloadUrl, 0)
+		$hDownload = InetGet($DownloadUrl, $Installer, 19, 1)
+		If @error Or $hDownload = 0 Then ContinueLoop
 
-	Do
-		$DownloadedBytes = InetGetInfo($hDownload, 0)
-		$TotalBytes = InetGetInfo($hDownload, 1)
-		If $TotalBytes > 0 Then
-			$Percent = Int($DownloadedBytes * 100 / $TotalBytes)
-			If $Percent > 100 Then $Percent = 100
-			$DetailText = _t("FirefoxDownloadProgressKnown", "已下载 {Downloaded} / {Total}")
-			$DetailText = StringReplace($DetailText, "{Downloaded}", FormatBytes($DownloadedBytes))
-			$DetailText = StringReplace($DetailText, "{Total}", FormatBytes($TotalBytes))
-		Else
-			$Percent = Mod(Int($DownloadedBytes / 65536), 100)
-			$DetailText = _t("FirefoxDownloadProgressUnknown", "已下载 %s", FormatBytes($DownloadedBytes))
-		EndIf
-		UpdateFirefoxDownloadProgress(_t("DownloadingBrowser", "正在下载浏览器 ..."), $DetailText, $Percent)
-		PumpDownloadProgressEvents($hFirefoxDownloadProgress, $hFirefoxDownloadCancel, $FirefoxDownloadCancelled, $FirefoxDownloadCanCancel)
+		Do
+			$DownloadedBytes = InetGetInfo($hDownload, 0)
+			$TotalBytes = InetGetInfo($hDownload, 1)
+			If $TotalBytes > 0 Then
+				$Percent = Int($DownloadedBytes * 100 / $TotalBytes)
+				If $Percent > 100 Then $Percent = 100
+				$DetailText = _t("FirefoxDownloadProgressKnown", "已下载 {Downloaded} / {Total}")
+				$DetailText = StringReplace($DetailText, "{Downloaded}", FormatBytes($DownloadedBytes))
+				$DetailText = StringReplace($DetailText, "{Total}", FormatBytes($TotalBytes))
+			Else
+				$Percent = Mod(Int($DownloadedBytes / 65536), 100)
+				$DetailText = _t("FirefoxDownloadProgressUnknown", "已下载 %s", FormatBytes($DownloadedBytes))
+			EndIf
+			UpdateFirefoxDownloadProgress(_t("DownloadingBrowser", "正在下载浏览器 ..."), $DetailText, $Percent)
+			PumpDownloadProgressEvents($hFirefoxDownloadProgress, $hFirefoxDownloadCancel, $FirefoxDownloadCancelled, $FirefoxDownloadCanCancel)
+			If $FirefoxDownloadCancelled Then ExitLoop
+			Sleep(200)
+		Until InetGetInfo($hDownload, 2)
+
+		$DownloadSuccessful = InetGetInfo($hDownload, 3)
+		InetClose($hDownload)
 		If $FirefoxDownloadCancelled Then ExitLoop
-		Sleep(200)
-	Until InetGetInfo($hDownload, 2)
+		If $DownloadSuccessful And FileExists($Installer) Then ExitLoop
+	Next
 
-	Local $DownloadSuccessful = InetGetInfo($hDownload, 3)
-	InetClose($hDownload)
 	If $FirefoxDownloadCancelled Then
 		CloseFirefoxDownloadProgress()
 		FileDelete($Installer)
@@ -2936,7 +2969,7 @@ Func DownloadAndExtractFirefox($DownloadUrl, $TargetDir, $os, $Channel, $Current
 	If Not $DownloadSuccessful Or Not FileExists($Installer) Then
 		CloseFirefoxDownloadProgress()
 		DirRemove($TempDir, 1)
-		Return SetError(5, 0, _t("FailToDownloadBrowserInstaller", "下载浏览器安装包失败。"))
+		Return SetError(5, 0, BuildBrowserDownloadFailureDetail(_t("FailToDownloadBrowserInstaller", "下载浏览器安装包失败。"), $TriedDownloadUrls, $Installer))
 	EndIf
 
 	SetFirefoxDownloadExtracting()
@@ -2966,6 +2999,17 @@ Func DownloadAndExtractFirefox($DownloadUrl, $TargetDir, $os, $Channel, $Current
 	DirRemove($TempDir, 1)
 	Return $TargetFirefoxPath
 EndFunc   ;==>DownloadAndExtractFirefox
+
+Func BuildBrowserDownloadFailureDetail($BaseMessage, $TriedDownloadUrls, $Installer)
+	Local $Detail = $BaseMessage
+	If $TriedDownloadUrls <> "" Then
+		$Detail &= @CRLF & @CRLF & _t("TriedDownloadUrls", "尝试下载地址：") & @CRLF & $TriedDownloadUrls
+	EndIf
+	If $Installer <> "" Then
+		$Detail &= @CRLF & @CRLF & _t("BrowserInstallerSavePath", "安装包保存路径：") & @CRLF & $Installer
+	EndIf
+	Return $Detail
+EndFunc   ;==>BuildBrowserDownloadFailureDetail
 
 Func ShowFirefoxDownloadProgress($StatusText, $DetailText)
 	$FirefoxDownloadPreviousGuiMode = Opt("GUIOnEventMode", 0)

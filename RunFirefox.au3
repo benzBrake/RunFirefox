@@ -84,8 +84,10 @@ Global $ChromeStableVersion = "", $ChromeStableDownloadUrl = "", $ChromeBetaVers
 Global $BrowserVersionLoadHandle = 0, $BrowserVersionLoadFile = "", $BrowserVersionLoadBrowserType = "", $BrowserVersionLoadChannel = "", $BrowserVersionLoadKind = "", $BrowserVersionLoadAnim = 0
 Global $hFirefoxDownloadProgress, $hFirefoxDownloadStatus, $hFirefoxDownloadDetail, $hFirefoxDownloadBar, $hFirefoxDownloadCancel
 Global $FirefoxDownloadCancelled = 0, $FirefoxDownloadCanCancel = 0
+Global $FirefoxDownloadPreviousGuiMode = -1
 Global $hChromePlusProgress, $hChromePlusStatus, $hChromePlusDetail, $hChromePlusBar, $hChromePlusCancel
 Global $ChromePlusDownloadCancelled = 0, $ChromePlusDownloadCanCancel = 0
+Global $ChromePlusDownloadPreviousGuiMode = -1
 Global $hExApp, $hExAppAutoExit, $hExApp2
 Global $aExApp, $aExApp2, $aExAppPID[2]
 
@@ -2690,6 +2692,7 @@ Func DownloadChromePlusArchiveWithProgress($ArchiveUrl, $ArchivePath)
 				$DetailText = _t("FirefoxDownloadProgressUnknown", "已下载 %s", FormatBytes($DownloadedBytes))
 			EndIf
 			UpdateChromePlusProgress(_t("DownloadingChromePlusPatch", "正在下载 Chrome++ 补丁 ..."), $DetailText, $Percent)
+			PumpDownloadProgressEvents($hChromePlusProgress, $hChromePlusCancel, $ChromePlusDownloadCancelled, $ChromePlusDownloadCanCancel)
 			If $ChromePlusDownloadCancelled Then ExitLoop
 			Sleep(200)
 		Until InetGetInfo($hDownload, 2)
@@ -2917,6 +2920,7 @@ Func DownloadAndExtractFirefox($DownloadUrl, $TargetDir, $os, $Channel, $Current
 			$DetailText = _t("FirefoxDownloadProgressUnknown", "已下载 %s", FormatBytes($DownloadedBytes))
 		EndIf
 		UpdateFirefoxDownloadProgress(_t("DownloadingBrowser", "正在下载浏览器 ..."), $DetailText, $Percent)
+		PumpDownloadProgressEvents($hFirefoxDownloadProgress, $hFirefoxDownloadCancel, $FirefoxDownloadCancelled, $FirefoxDownloadCanCancel)
 		If $FirefoxDownloadCancelled Then ExitLoop
 		Sleep(200)
 	Until InetGetInfo($hDownload, 2)
@@ -2964,6 +2968,7 @@ Func DownloadAndExtractFirefox($DownloadUrl, $TargetDir, $os, $Channel, $Current
 EndFunc   ;==>DownloadAndExtractFirefox
 
 Func ShowFirefoxDownloadProgress($StatusText, $DetailText)
+	$FirefoxDownloadPreviousGuiMode = Opt("GUIOnEventMode", 0)
 	$hFirefoxDownloadProgress = GUICreate(_t("BrowserDownloadProgressTitle", "正在准备浏览器"), 420, 135, -1, -1, BitOR($WS_CAPTION, $WS_SYSMENU), -1, $hSettings)
 	GUISetOnEvent($GUI_EVENT_CLOSE, "CancelFirefoxDownload")
 	$hFirefoxDownloadStatus = GUICtrlCreateLabel($StatusText, 15, 15, 390, 20)
@@ -2995,6 +3000,10 @@ Func CloseFirefoxDownloadProgress()
 	GUIDelete($hFirefoxDownloadProgress)
 	$hFirefoxDownloadProgress = 0
 	$FirefoxDownloadCanCancel = 0
+	If $FirefoxDownloadPreviousGuiMode <> -1 Then
+		Opt("GUIOnEventMode", $FirefoxDownloadPreviousGuiMode)
+		$FirefoxDownloadPreviousGuiMode = -1
+	EndIf
 EndFunc   ;==>CloseFirefoxDownloadProgress
 
 Func CancelFirefoxDownload()
@@ -3002,6 +3011,7 @@ Func CancelFirefoxDownload()
 EndFunc   ;==>CancelFirefoxDownload
 
 Func ShowChromePlusProgress($StatusText, $DetailText)
+	$ChromePlusDownloadPreviousGuiMode = Opt("GUIOnEventMode", 0)
 	$hChromePlusProgress = GUICreate(_t("ChromePlusPatchProgressTitle", "正在准备 Chrome++ 补丁"), 420, 135, -1, -1, BitOR($WS_CAPTION, $WS_SYSMENU), -1, $hSettings)
 	GUISetOnEvent($GUI_EVENT_CLOSE, "CancelChromePlusDownload")
 	$hChromePlusStatus = GUICtrlCreateLabel($StatusText, 15, 15, 390, 20)
@@ -3033,11 +3043,30 @@ Func CloseChromePlusProgress()
 	GUIDelete($hChromePlusProgress)
 	$hChromePlusProgress = 0
 	$ChromePlusDownloadCanCancel = 0
+	If $ChromePlusDownloadPreviousGuiMode <> -1 Then
+		Opt("GUIOnEventMode", $ChromePlusDownloadPreviousGuiMode)
+		$ChromePlusDownloadPreviousGuiMode = -1
+	EndIf
 EndFunc   ;==>CloseChromePlusProgress
 
 Func CancelChromePlusDownload()
 	If $ChromePlusDownloadCanCancel Then $ChromePlusDownloadCancelled = 1
 EndFunc   ;==>CancelChromePlusDownload
+
+Func PumpDownloadProgressEvents($hProgress, $hCancel, ByRef $Cancelled, $CanCancel)
+	If Not $hProgress Or Not $CanCancel Then Return
+
+	Local $aMsg
+	Do
+		$aMsg = GUIGetMsg(1)
+		If Not IsArray($aMsg) Then Return
+		If $aMsg[0] = 0 Then Return
+		If $aMsg[1] = $hProgress And ($aMsg[0] = $hCancel Or $aMsg[0] = $GUI_EVENT_CLOSE) Then
+			$Cancelled = 1
+			Return
+		EndIf
+	Until False
+EndFunc   ;==>PumpDownloadProgressEvents
 
 Func FormatBytes($Bytes)
 	If $Bytes >= 1048576 Then Return Round($Bytes / 1048576, 1) & " MB"

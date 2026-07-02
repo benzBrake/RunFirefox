@@ -259,6 +259,7 @@ Local $BrowserIsRunning = AppIsRunning($FirefoxPath)
 If IsChromeBrowser($BrowserType) And Not $BrowserIsRunning Then MaybeInstallChromePlusPatch($FirefoxPath)
 If IsMozillaBrowser($BrowserType) Then
 	DeleteMozillaLaunchOnLoginEntry($FirefoxPath)
+	DeleteMozillaPrivateBrowsingShortcut()
 	FileDelete($FirefoxDir & "\defaults\pref\runfirefox.js")
 	$BrowserIsRunning = ProfileInUse($ProfileDir)
 	If Not $BrowserIsRunning Then
@@ -632,6 +633,38 @@ Func NormalizePathForCompare($Path)
 	Return StringLower(StringReplace(StringStripWS($Path, 3), "/", "\"))
 EndFunc   ;==>NormalizePathForCompare
 
+Func DeleteMozillaPrivateBrowsingShortcut()
+	If Not IsMozillaBrowser($BrowserType) Then Return False
+
+	Local $ProgramsDir = EnvGet("APPDATA") & "\Microsoft\Windows\Start Menu\Programs"
+	Local $PrivateBrowsingPath = $FirefoxDir & "\private_browsing.exe"
+	If Not FileExists($ProgramsDir) Or Not FileExists($PrivateBrowsingPath) Then Return False
+
+	Local $search = FileFindFirstFile($ProgramsDir & "\*.lnk")
+	If $search = -1 Then Return False
+
+	Local $Deleted = False
+	Local $file, $ShellObj, $objShortcut, $path
+	$ShellObj = ObjCreate("WScript.Shell")
+	If Not @error Then
+		While 1
+			$file = $ProgramsDir & "\" & FileFindNextFile($search)
+			If @error Then ExitLoop
+
+			$objShortcut = $ShellObj.CreateShortCut($file)
+			$path = $objShortcut.TargetPath
+			If NormalizePathForCompare($path) = NormalizePathForCompare($PrivateBrowsingPath) Then
+				If FileDelete($file) Then $Deleted = True
+			EndIf
+		WEnd
+		$objShortcut = ""
+		$ShellObj = ""
+	EndIf
+	FileClose($search)
+
+	Return $Deleted
+EndFunc   ;==>DeleteMozillaPrivateBrowsingShortcut
+
 Func CheckPrefs()
 	Local $var, $cfg
 	Local $prefs = FileRead($ProfileDir & "\prefs.js")
@@ -749,6 +782,7 @@ Func CheckPinnedPrograms($browser_path)
 								; helper.exe writes AppUserModelIDs to SOFTWARE\Mozilla\Firefox\TaskBarIDs
 								Local $pid = Run($FirefoxDir & "\uninstall\helper.exe /UpdateShortcutAppUserModelIds")
 								ProcessWaitClose($pid, 5)
+								DeleteMozillaPrivateBrowsingShortcut()
 								$AppUserModelId = AppIdFromRegistry()
 							EndIf
 						EndIf

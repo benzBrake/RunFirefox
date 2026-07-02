@@ -10,6 +10,10 @@ Features:
 
 ### Latest updates
 
+2026.07.02 Added Floorp to the settings screen with online download and extraction for the Windows x64 installer
+
+2026.07.02 Added Firefox Developer Edition and Nightly icon build assets
+
 2026.06.22 Fixed leftover Windows startup entries after enabling launch-on-login in Firefox / Mozilla-based browsers; RunFirefox now cleans the related registry entries before and after launch and removes the profile startup preference
 
 2026.06.22 Added the Chrome icon build asset and tightened the release flow: update the version and changelog before tagging, then let the release workflow verify version consistency before building

@@ -60,8 +60,12 @@ Global Const $ChromePlusApiUserAgent = "RunFirefox/" & $AppVersion
 Global Const $ChromePlusCacheRoot = @TempDir & "\RunFirefox_ChromePlus"
 Global Const $BrowserFirefox = "firefox"
 Global Const $BrowserZen = "zen"
+Global Const $BrowserFloorp = "floorp"
 Global Const $BrowserChrome = "chrome"
 Global Const $ZenUpdateBaseUrl = "https://updates.zen-browser.app/updates/browser/WINNT_x86_64-msvc-x64"
+Global Const $FloorpRepo = "Floorp-Projects/Floorp"
+Global Const $FloorpLatestReleaseUrl = "https://github.com/" & $FloorpRepo & "/releases/latest"
+Global Const $FloorpWindowsX64Asset = "floorp-windows-x86_64.installer.exe"
 Global $FirstRun = 0, $FirstLaunch = 0, $FirefoxExe, $FirefoxDir, $isZotero = false
 Global $TaskBarDir = @AppDataDir & "\Microsoft\Internet Explorer\Quick Launch\User Pinned\TaskBar"
 Global $AppPID, $TaskBarLastChange
@@ -81,6 +85,7 @@ Global $hChromePlusNewTabDisable, $hChromePlusNewTabDisableName, $hChromePlusNew
 Global $LANG_DATA
 Global $FirefoxVersionsObj = 0
 Global $ZenReleaseUpdateXml = "", $ZenTwilightUpdateXml = ""
+Global $FloorpReleaseInfoLoaded = False, $FloorpReleaseTag = ""
 Global $ChromeStableVersion = "", $ChromeStableDownloadUrl = "", $ChromeBetaVersion = "", $ChromeBetaDownloadUrl = "", $ChromeDevVersion = "", $ChromeDevDownloadUrl = "", $ChromeCanaryVersion = "", $ChromeCanaryDownloadUrl = ""
 Global $BrowserVersionLoadHandle = 0, $BrowserVersionLoadFile = "", $BrowserVersionLoadBrowserType = "", $BrowserVersionLoadChannel = "", $BrowserVersionLoadKind = "", $BrowserVersionLoadAnim = 0
 Global $hFirefoxDownloadProgress, $hFirefoxDownloadStatus, $hFirefoxDownloadDetail, $hFirefoxDownloadBar, $hFirefoxDownloadCancel
@@ -1561,7 +1566,7 @@ EndFunc   ;==>OnFirefoxPathChange
 Func ChangeBrowserType()
 	Local $NewBrowserType = GetSelectedBrowserType()
 	Local $CurrentPath = StringLower(GUICtrlRead($hFirefoxPath))
-	If $CurrentPath = ".\firefox\firefox.exe" Or $CurrentPath = ".\zenbrowser\zen.exe" Or $CurrentPath = ".\chrome\chrome.exe" Then
+	If $CurrentPath = ".\firefox\firefox.exe" Or $CurrentPath = ".\zenbrowser\zen.exe" Or $CurrentPath = ".\floorp\floorp.exe" Or $CurrentPath = ".\chrome\chrome.exe" Then
 		GUICtrlSetData($hFirefoxPath, GetDefaultBrowserPath($NewBrowserType))
 	EndIf
 	$BrowserType = $NewBrowserType
@@ -1586,6 +1591,8 @@ Func UpdateFirefoxDownloadLabels($LoadVersion)
 	Local $ChannelLabel = $Channel
 	If $CurrentBrowserType = $BrowserZen Then
 		If $LoadVersion And IsBrowserVersionCached($CurrentBrowserType, $Channel) Then $ChannelLabel = GetZenChannelLabel($Channel)
+	ElseIf $CurrentBrowserType = $BrowserFloorp Then
+		If $LoadVersion And IsBrowserVersionCached($CurrentBrowserType, $Channel) Then $ChannelLabel = GetFloorpChannelLabel($Channel)
 	ElseIf IsChromeBrowser($CurrentBrowserType) Then
 		$ChannelLabel = GetChromeChannelLabel($Channel, $LoadVersion)
 	Else
@@ -1624,6 +1631,7 @@ Func BeginBrowserVersionLoad($CurrentBrowserType = "", $Channel = "")
 	Else
 		Local $Url = $FirefoxVersionUrl
 		If NormalizeBrowserType($CurrentBrowserType) = $BrowserZen Then $Url = $ZenUpdateBaseUrl & "/" & GetZenUpdateChannel($Channel) & "/update.xml"
+		If NormalizeBrowserType($CurrentBrowserType) = $BrowserFloorp Then $Url = $FloorpLatestReleaseUrl
 		$BrowserVersionLoadKind = "inet"
 		$BrowserVersionLoadHandle = InetGet($Url, $BrowserVersionLoadFile, 1, 1)
 	EndIf
@@ -1700,6 +1708,8 @@ Func PollBrowserVersionLoad()
 			If $LoadedBrowserType = $BrowserZen Then
 				SetZenUpdateXml($LoadedChannel, $Content)
 				$Loaded = True
+			ElseIf $LoadedBrowserType = $BrowserFloorp Then
+				$Loaded = CacheFloorpReleaseInfo($Content)
 			Else
 				$Loaded = CacheFirefoxVersions($Content)
 			EndIf
@@ -1751,6 +1761,7 @@ EndFunc   ;==>UpdateBrowserVersionLoadingLabel
 Func IsBrowserVersionCached($CurrentBrowserType, $Channel)
 	If IsChromeBrowser($CurrentBrowserType) Then Return GetChromeVersionCache($Channel) <> ""
 	If NormalizeBrowserType($CurrentBrowserType) = $BrowserZen Then Return GetZenUpdateXmlCache($Channel) <> ""
+	If NormalizeBrowserType($CurrentBrowserType) = $BrowserFloorp Then Return $FloorpReleaseInfoLoaded
 	Return IsObj($FirefoxVersionsObj)
 EndFunc   ;==>IsBrowserVersionCached
 
@@ -1763,6 +1774,10 @@ Func IsChromeBrowser($Value)
 	Return NormalizeBrowserType($Value) = $BrowserChrome
 EndFunc   ;==>IsChromeBrowser
 
+Func IsFloorpBrowser($Value)
+	Return NormalizeBrowserType($Value) = $BrowserFloorp
+EndFunc   ;==>IsFloorpBrowser
+
 Func IsMozillaBrowser($Value)
 	Return Not IsChromeBrowser($Value)
 EndFunc   ;==>IsMozillaBrowser
@@ -1770,6 +1785,7 @@ EndFunc   ;==>IsMozillaBrowser
 Func NormalizeBrowserType($Value)
 	$Value = StringLower(StringStripWS($Value, 3))
 	If $Value = $BrowserZen Or $Value = "zenbrowser" Then Return $BrowserZen
+	If $Value = $BrowserFloorp Then Return $BrowserFloorp
 	If $Value = $BrowserChrome Or $Value = "google chrome" Then Return $BrowserChrome
 	Return $BrowserFirefox
 EndFunc   ;==>NormalizeBrowserType
@@ -1777,34 +1793,39 @@ EndFunc   ;==>NormalizeBrowserType
 Func GetBrowserDisplayName($Value)
 	If NormalizeBrowserType($Value) = $BrowserChrome Then Return "Chrome"
 	If NormalizeBrowserType($Value) = $BrowserZen Then Return "ZenBrowser"
+	If NormalizeBrowserType($Value) = $BrowserFloorp Then Return "Floorp"
 	Return "Firefox"
 EndFunc   ;==>GetBrowserDisplayName
 
 Func GetBrowserTypeLabel($Value)
 	If NormalizeBrowserType($Value) = $BrowserChrome Then Return _t("BrowserChrome", "Chrome")
 	If NormalizeBrowserType($Value) = $BrowserZen Then Return _t("BrowserZen", "ZenBrowser")
+	If NormalizeBrowserType($Value) = $BrowserFloorp Then Return _t("BrowserFloorp", "Floorp")
 	Return _t("BrowserFirefox", "Firefox 原版")
 EndFunc   ;==>GetBrowserTypeLabel
 
 Func GetBrowserTypeByLabel($Label)
 	If $Label = _t("BrowserChrome", "Chrome") Or StringLower($Label) = "chrome" Or StringLower($Label) = "google chrome" Then Return $BrowserChrome
 	If $Label = _t("BrowserZen", "ZenBrowser") Or StringLower($Label) = "zenbrowser" Then Return $BrowserZen
+	If $Label = _t("BrowserFloorp", "Floorp") Or StringLower($Label) = "floorp" Then Return $BrowserFloorp
 	Return $BrowserFirefox
 EndFunc   ;==>GetBrowserTypeByLabel
 
 Func GetBrowserTypeComboData()
-	Return _t("BrowserFirefox", "Firefox 原版") & "|" & _t("BrowserZen", "ZenBrowser") & "|" & _t("BrowserChrome", "Chrome")
+	Return _t("BrowserFirefox", "Firefox 原版") & "|" & _t("BrowserZen", "ZenBrowser") & "|" & _t("BrowserFloorp", "Floorp") & "|" & _t("BrowserChrome", "Chrome")
 EndFunc   ;==>GetBrowserTypeComboData
 
 Func GetBrowserExecutableName($Value)
 	If NormalizeBrowserType($Value) = $BrowserChrome Then Return "chrome.exe"
 	If NormalizeBrowserType($Value) = $BrowserZen Then Return "zen.exe"
+	If NormalizeBrowserType($Value) = $BrowserFloorp Then Return "floorp.exe"
 	Return "firefox.exe"
 EndFunc   ;==>GetBrowserExecutableName
 
 Func GetDefaultBrowserPath($Value)
 	If NormalizeBrowserType($Value) = $BrowserChrome Then Return ".\Chrome\chrome.exe"
 	If NormalizeBrowserType($Value) = $BrowserZen Then Return ".\ZenBrowser\zen.exe"
+	If NormalizeBrowserType($Value) = $BrowserFloorp Then Return ".\Floorp\floorp.exe"
 	Return ".\Firefox\firefox.exe"
 EndFunc   ;==>GetDefaultBrowserPath
 
@@ -2180,6 +2201,7 @@ Func UpdateBrowserChannelOptions($Value, $SelectedChannel)
 	Local $Options = "esr|release|beta|dev|nightly"
 	Local $DefaultChannel = "release"
 	If NormalizeBrowserType($Value) = $BrowserZen Then $Options = "release|twilight"
+	If NormalizeBrowserType($Value) = $BrowserFloorp Then $Options = "release"
 	If IsChromeBrowser($Value) Then
 		$Options = "stable|beta|dev|canary"
 		$DefaultChannel = "stable"
@@ -2292,6 +2314,33 @@ Func GetZenUpdateChannel($Channel)
 	Return "release"
 EndFunc   ;==>GetZenUpdateChannel
 
+Func CacheFloorpReleaseInfo($Content)
+	$FloorpReleaseInfoLoaded = True
+	$FloorpReleaseTag = ""
+
+	Local $Match = StringRegExp($Content, '(?i)/' & $FloorpRepo & '/releases/tag/([^"#?<>\s]+)', 1)
+	If Not @error Then
+		$FloorpReleaseTag = $Match[0]
+		Return True
+	EndIf
+
+	$Match = StringRegExp($Content, '(?i)Release\s+Floorp\s+([0-9][^<\s]+)', 1)
+	If Not @error Then $FloorpReleaseTag = "v" & $Match[0]
+
+	Return True
+EndFunc   ;==>CacheFloorpReleaseInfo
+
+Func GetLatestFloorpVersion()
+	If $FloorpReleaseTag = "" Then Return ""
+	Return StringRegExpReplace($FloorpReleaseTag, "(?i)^v", "")
+EndFunc   ;==>GetLatestFloorpVersion
+
+Func GetFloorpChannelLabel($Channel)
+	Local $Version = GetLatestFloorpVersion()
+	If $Version = "" Then Return $Channel
+	Return $Channel & " (" & $Version & ")"
+EndFunc   ;==>GetFloorpChannelLabel
+
 Func GetChromeChannelLabel($Channel, $LoadVersion = False)
 	$Channel = NormalizeChromeChannel($Channel)
 	Local $Version = ""
@@ -2364,6 +2413,11 @@ Func BuildZenDownloadUrl($Channel, $os)
 	If $ReleaseTag = "" Then Return "https://github.com/zen-browser/desktop/releases/latest/download/zen.installer.exe"
 	Return "https://github.com/zen-browser/desktop/releases/download/" & $ReleaseTag & "/zen.installer.exe"
 EndFunc   ;==>BuildZenDownloadUrl
+
+Func BuildFloorpDownloadUrl($Channel, $os)
+	If $FloorpReleaseTag = "" Then Return "https://github.com/" & $FloorpRepo & "/releases/latest/download/" & $FloorpWindowsX64Asset
+	Return "https://github.com/" & $FloorpRepo & "/releases/download/" & $FloorpReleaseTag & "/" & $FloorpWindowsX64Asset
+EndFunc   ;==>BuildFloorpDownloadUrl
 
 Func BuildChromeDownloadUrl($Channel, $os)
 	Local $DownloadUrl = GetChromeDownloadUrlCache($Channel)
@@ -2837,6 +2891,7 @@ EndFunc   ;==>DecodeXmlAttribute
 Func BuildBrowserDownloadUrl($Value, $Channel, $os)
 	If IsChromeBrowser($Value) Then Return BuildChromeDownloadUrl($Channel, $os)
 	If NormalizeBrowserType($Value) = $BrowserZen Then Return BuildZenDownloadUrl($Channel, $os)
+	If NormalizeBrowserType($Value) = $BrowserFloorp Then Return BuildFloorpDownloadUrl($Channel, $os)
 	Return BuildFirefoxDownloadUrl($Channel, $os)
 EndFunc   ;==>BuildBrowserDownloadUrl
 
@@ -2844,7 +2899,7 @@ Func BuildBrowserDownloadUrls($Value, $Channel, $os)
 	Local $DownloadUrl = BuildBrowserDownloadUrl($Value, $Channel, $os)
 	If @error Or $DownloadUrl = "" Then Return SetError(1, 0, 0)
 
-	If NormalizeBrowserType($Value) = $BrowserZen Then Return _UpgradeBuildGithubReleaseDownloadUrls($DownloadUrl, $GithubDirectMirror, $GithubJsDelivrMirror)
+	If NormalizeBrowserType($Value) = $BrowserZen Or NormalizeBrowserType($Value) = $BrowserFloorp Then Return _UpgradeBuildGithubReleaseDownloadUrls($DownloadUrl, $GithubDirectMirror, $GithubJsDelivrMirror)
 
 	Local $aUrls[1]
 	$aUrls[0] = $DownloadUrl

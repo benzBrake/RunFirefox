@@ -10,6 +10,8 @@ Features:
 
 ### Latest updates
 
+2026.07.02 Added Waterfox to the settings screen with online download and extraction for the Windows x64 installer
+
 2026.07.02 Added Floorp to the settings screen with online download and extraction for the Windows x64 installer
 
 2026.07.02 Added Firefox Developer Edition and Nightly icon build assets

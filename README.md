@@ -13,6 +13,8 @@
 
 ### 最近更新
 
+2026.07.02 支持在设置界面选择 Waterfox，并在线下载、解压 Waterfox Windows 64 位安装包
+
 2026.07.02 支持在设置界面选择 Floorp，并在线下载、解压 Floorp Windows 64 位安装包
 
 2026.07.02 新增 Firefox Developer Edition 与 Nightly 图标构建资源

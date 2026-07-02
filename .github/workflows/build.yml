@@ -193,12 +193,167 @@ jobs:
               'scripts/'
           )
           $excludedTypes = @('other', 'doc', 'docs', 'chore', 'ci')
-          $typeTitles = @{
+          $typeTitlesEn = @{
               feat = 'Features'
               fix = 'Bug Fixes'
               perf = 'Performance'
               refactor = 'Refactoring'
               i18n = 'Internationalization'
+          }
+          $typeTitlesZh = @{
+              feat = '功能'
+              fix = '问题修复'
+              perf = '性能优化'
+              refactor = '重构'
+              i18n = '国际化'
+          }
+
+          function Get-FileContentAtRef {
+              param(
+                  [string]$Ref,
+                  [string]$Path
+              )
+
+              if ([string]::IsNullOrWhiteSpace($Ref)) {
+                  return @()
+              }
+
+              $content = @(git show "$($Ref):$Path" 2>$null)
+              if ($LASTEXITCODE -ne 0) {
+                  return @()
+              }
+
+              return $content
+          }
+
+          function Get-UpdateEntries {
+              param(
+                  [string[]]$Content,
+                  [string]$HeadingPattern
+              )
+
+              $entries = New-Object System.Collections.Generic.List[string]
+              $inSection = $false
+
+              foreach ($line in $Content) {
+                  $trimmed = $line.Trim()
+                  if (-not $inSection) {
+                      if ($trimmed -match $HeadingPattern) {
+                          $inSection = $true
+                      }
+                      continue
+                  }
+
+                  if ($trimmed -match '^#{1,6}\s+') {
+                      break
+                  }
+
+                  if ([string]::IsNullOrWhiteSpace($trimmed)) {
+                      continue
+                  }
+
+                  $entries.Add($trimmed)
+              }
+
+              return $entries
+          }
+
+          function Get-NewUpdateEntries {
+              param(
+                  [string]$Path,
+                  [string]$HeadingPattern,
+                  [string]$PreviousTag
+              )
+
+              $currentContent = @(Get-Content -LiteralPath $Path)
+              $currentEntries = @(Get-UpdateEntries -Content $currentContent -HeadingPattern $HeadingPattern)
+              $previousContent = @(Get-FileContentAtRef -Ref $PreviousTag -Path $Path)
+              $previousEntries = @(Get-UpdateEntries -Content $previousContent -HeadingPattern $HeadingPattern)
+
+              if ($previousEntries.Count -eq 0) {
+                  return $currentEntries
+              }
+
+              $previousSet = [System.Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
+              foreach ($entry in $previousEntries) {
+                  [void]$previousSet.Add($entry)
+              }
+
+              $newEntries = New-Object System.Collections.Generic.List[string]
+              foreach ($entry in $currentEntries) {
+                  if (-not $previousSet.Contains($entry)) {
+                      $newEntries.Add($entry)
+                  }
+              }
+
+              return $newEntries
+          }
+
+          function Get-TypeTitle {
+              param(
+                  [string]$Type,
+                  [string]$Language
+              )
+
+              if ($Language -eq 'zh-CN' -and $typeTitlesZh.ContainsKey($Type)) {
+                  return $typeTitlesZh[$Type]
+              }
+
+              if ($typeTitlesEn.ContainsKey($Type)) {
+                  return $typeTitlesEn[$Type]
+              }
+
+              return $Type.Substring(0, 1).ToUpperInvariant() + $Type.Substring(1)
+          }
+
+          function Add-ReadmeReleaseSection {
+              param(
+                  [System.Collections.Generic.List[string]]$Lines,
+                  [string]$Title,
+                  [string[]]$Entries,
+                  [string]$EmptyText
+              )
+
+              $Lines.Add("## $Title")
+              $Lines.Add('')
+
+              if ($Entries.Count -eq 0) {
+                  $Lines.Add("- $EmptyText")
+              } else {
+                  foreach ($entry in $Entries) {
+                      $Lines.Add("- $entry")
+                  }
+              }
+
+              $Lines.Add('')
+          }
+
+          function Add-CommitReleaseSection {
+              param(
+                  [System.Collections.Generic.List[string]]$Lines,
+                  [string]$Title,
+                  [string]$Language,
+                  [System.Collections.Specialized.OrderedDictionary]$Groups,
+                  [string]$EmptyText
+              )
+
+              $Lines.Add("## $Title")
+              $Lines.Add('')
+
+              if ($Groups.Count -eq 0) {
+                  $Lines.Add("- $EmptyText")
+                  $Lines.Add('')
+                  return
+              }
+
+              foreach ($group in $Groups.GetEnumerator()) {
+                  $Lines.Add("### $(Get-TypeTitle -Type $group.Key -Language $Language)")
+                  $Lines.Add('')
+                  foreach ($item in $group.Value) {
+                      $Lines.Add($item)
+                  }
+                  $Lines.Add('')
+              }
           }
 
           function Test-IgnoredReleaseNoteCommit {
@@ -255,26 +410,23 @@ jobs:
                   continue
               }
 
-              $title = if ($typeTitles.ContainsKey($type)) { $typeTitles[$type] } else { $type.Substring(0, 1).ToUpperInvariant() + $type.Substring(1) }
-              if (-not $groups.Contains($title)) {
-                  $groups[$title] = New-Object System.Collections.Generic.List[string]
+              if (-not $groups.Contains($type)) {
+                  $groups[$type] = New-Object System.Collections.Generic.List[string]
               }
 
-              $groups[$title].Add("- $text ($($sha.Substring(0, 7)))")
+              $groups[$type].Add("- $text ($($sha.Substring(0, 7)))")
           }
 
+          $zhEntries = @(Get-NewUpdateEntries -Path 'README.md' -HeadingPattern '^###\s+最近更新\s*$' -PreviousTag $previousTag)
+          $enEntries = @(Get-NewUpdateEntries -Path 'docs/README-en_US.md' -HeadingPattern '^###\s+Latest updates\s*$' -PreviousTag $previousTag)
           $lines = New-Object System.Collections.Generic.List[string]
-          if ($groups.Count -eq 0) {
-              $lines.Add('No release-relevant changes.')
+
+          if ($zhEntries.Count -gt 0 -or $enEntries.Count -gt 0) {
+              Add-ReadmeReleaseSection -Lines $lines -Title '中文' -Entries $zhEntries -EmptyText '暂无发布相关变更。'
+              Add-ReadmeReleaseSection -Lines $lines -Title 'English' -Entries $enEntries -EmptyText 'No release-relevant changes.'
           } else {
-              foreach ($group in $groups.GetEnumerator()) {
-                  $lines.Add("### $($group.Key)")
-                  $lines.Add('')
-                  foreach ($item in $group.Value) {
-                      $lines.Add($item)
-                  }
-                  $lines.Add('')
-              }
+              Add-CommitReleaseSection -Lines $lines -Title '中文' -Language 'zh-CN' -Groups $groups -EmptyText '暂无发布相关变更。'
+              Add-CommitReleaseSection -Lines $lines -Title 'English' -Language 'en-US' -Groups $groups -EmptyText 'No release-relevant changes.'
           }
 
           $changes = ($lines -join "`n").Trim()

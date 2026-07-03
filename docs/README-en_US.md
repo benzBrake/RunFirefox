@@ -10,6 +10,8 @@ Features:
 
 ### Latest updates
 
+2026.07.03 Added Helium to the settings screen with online download and extraction for the Windows x64 ZIP package; Helium is treated as a Chromium-based browser for Chrome++ patch installation and settings
+
 2026.07.02 Added Waterfox to the settings screen with online download and extraction for the Windows x64 installer
 
 2026.07.02 Added Floorp to the settings screen with online download and extraction for the Windows x64 installer

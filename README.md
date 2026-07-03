@@ -13,6 +13,8 @@
 
 ### 最近更新
 
+2026.07.03 支持在设置界面选择 Helium，并在线下载、解压 Helium Windows x64 ZIP 包；Helium 作为 Chrome 系浏览器兼容 Chrome++ 补丁安装与设置页
+
 2026.07.02 支持在设置界面选择 Waterfox，并在线下载、解压 Waterfox Windows 64 位安装包
 
 2026.07.02 支持在设置界面选择 Floorp，并在线下载、解压 Floorp Windows 64 位安装包

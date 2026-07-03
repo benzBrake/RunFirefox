@@ -3,6 +3,7 @@
 Global Const $UPGRADE_DEFAULT_GITHUB_JSDELIVR_MIRROR_CHINA = "https://cdn.jsdmirror.com/gh"
 Global Const $UPGRADE_DEFAULT_GITHUB_JSDELIVR_MIRROR_GLOBAL = "https://gocre.jsdelivr.net/gh"
 Global Const $UPGRADE_DEFAULT_GITHUB_DIRECT_MIRROR = "https://gh-proxy.org/"
+Global Const $UPGRADE_FALLBACK_GITHUB_DIRECT_MIRRORS = "https://gh.llkk.cc/|https://ghproxy.net/"
 
 Func _UpgradeIsChineseLanguage($sLanguage = "")
     If StringRegExp($sLanguage, "(?i)^zh") Then Return True
@@ -60,6 +61,11 @@ Func _UpgradeBuildGithubReleaseDownloadUrls($sGithubUrl, $sDirectMirror, $sJsDel
     EndIf
     ; jsDelivr-style /gh mirrors repository files; release assets need a direct GitHub URL mirror.
     If $sDirectMirror <> "" Then _UpgradeAddUrl($aUrls, $iCount, $sDirectMirror & $sGithubUrl)
+    Local $aFallbackMirrors = StringSplit($UPGRADE_FALLBACK_GITHUB_DIRECT_MIRRORS, "|", 2)
+    For $i = 0 To UBound($aFallbackMirrors) - 1
+        Local $sFallbackMirror = _UpgradeNormalizeMirrorAddress($aFallbackMirrors[$i])
+        If $sFallbackMirror <> "" Then _UpgradeAddUrl($aUrls, $iCount, $sFallbackMirror & $sGithubUrl)
+    Next
     _UpgradeAddUrl($aUrls, $iCount, $sGithubUrl)
     ReDim $aUrls[$iCount]
     Return $aUrls

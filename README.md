@@ -15,6 +15,12 @@
 
 2026.07.03 支持在设置界面选择 Helium，并在线下载、解压 Helium Windows x64 ZIP 包；Helium 作为 Chrome 系浏览器兼容 Chrome++ 补丁安装与设置页
 
+2026.07.03 Chrome++ 设置页在未检测到补丁时增加“下载并安装 Chrome++”按钮，可直接安装到当前 Chrome 系浏览器目录
+
+2026.07.03 Chrome++ 补丁安装失败时保留诊断日志，并在错误窗口提供查看日志按钮
+
+2026.07.03 Chrome++ 补丁读取 GitHub 发布信息失败时，回退到 GitCode 镜像 tags 接口获取最新版本号
+
 2026.07.02 支持在设置界面选择 Waterfox，并在线下载、解压 Waterfox Windows 64 位安装包
 
 2026.07.02 支持在设置界面选择 Floorp，并在线下载、解压 Floorp Windows 64 位安装包

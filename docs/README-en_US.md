@@ -12,6 +12,12 @@ Features:
 
 2026.07.03 Added Helium to the settings screen with online download and extraction for the Windows x64 ZIP package; Helium is treated as a Chromium-based browser for Chrome++ patch installation and settings
 
+2026.07.03 Added a "Download and install Chrome++" button to the Chrome++ settings tab when the patch is missing, allowing direct installation into the current Chromium-based browser directory
+
+2026.07.03 Chrome++ patch installation failures now keep a diagnostic log and provide a view-log button in the error dialog
+
+2026.07.03 Chrome++ patch release lookup now falls back to the GitCode mirror tags API when GitHub release information cannot be reached
+
 2026.07.02 Added Waterfox to the settings screen with online download and extraction for the Windows x64 installer
 
 2026.07.02 Added Floorp to the settings screen with online download and extraction for the Windows x64 installer

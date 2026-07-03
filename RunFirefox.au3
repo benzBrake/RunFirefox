@@ -97,12 +97,9 @@ Global $WaterfoxReleaseInfoLoaded = False, $WaterfoxReleaseVersion = ""
 Global $HeliumReleaseInfoLoaded = False, $HeliumReleaseTag = ""
 Global $ChromeStableVersion = "", $ChromeStableDownloadUrl = "", $ChromeBetaVersion = "", $ChromeBetaDownloadUrl = "", $ChromeDevVersion = "", $ChromeDevDownloadUrl = "", $ChromeCanaryVersion = "", $ChromeCanaryDownloadUrl = ""
 Global $BrowserVersionLoadHandle = 0, $BrowserVersionLoadFile = "", $BrowserVersionLoadBrowserType = "", $BrowserVersionLoadChannel = "", $BrowserVersionLoadKind = "", $BrowserVersionLoadAnim = 0
-Global $hFirefoxDownloadProgress, $hFirefoxDownloadStatus, $hFirefoxDownloadDetail, $hFirefoxDownloadBar, $hFirefoxDownloadCancel
-Global $FirefoxDownloadCancelled = 0, $FirefoxDownloadCanCancel = 0
-Global $FirefoxDownloadPreviousGuiMode = -1
-Global $hChromePlusProgress, $hChromePlusStatus, $hChromePlusDetail, $hChromePlusBar, $hChromePlusCancel
-Global $ChromePlusDownloadCancelled = 0, $ChromePlusDownloadCanCancel = 0
-Global $ChromePlusDownloadPreviousGuiMode = -1
+Global $hDownloadProgress, $hDownloadProgressStatus, $hDownloadProgressDetail, $hDownloadProgressBar, $hDownloadProgressCancel
+Global $DownloadProgressCancelled = 0, $DownloadProgressCanCancel = 0
+Global $DownloadProgressPreviousGuiMode = -1
 Global $hExApp, $hExAppAutoExit, $hExApp2
 Global $aExApp, $aExApp2, $aExAppPID[2]
 
@@ -2834,8 +2831,7 @@ Func InstallChromePlusPatchInteractive($BrowserPath, $PreferredArch = "")
 			"OS arch: " & @OSArch & @CRLF & _
 			"Cache root: " & $ChromePlusCacheRoot & @CRLF & @CRLF
 
-	$ChromePlusDownloadCancelled = 0
-	ShowChromePlusProgress(_t("PreparingChromePlusPatch", "正在准备 Chrome++ 补丁 ..."), _t("PreparingChromePlusPatchDetail", "正在读取补丁版本信息，请稍候 ..."))
+	ShowDownloadProgress(_t("ChromePlusPatchProgressTitle", "正在准备 Chrome++ 补丁"), _t("PreparingChromePlusPatch", "正在准备 Chrome++ 补丁 ..."), _t("PreparingChromePlusPatchDetail", "正在读取补丁版本信息，请稍候 ..."))
 
 	If GetChromePlusReleaseInfo($ReleaseTag, $ArchiveUrl, $InstallLog) Then
 		$InstallLog &= "Release tag: " & $ReleaseTag & @CRLF
@@ -2854,8 +2850,8 @@ Func InstallChromePlusPatchInteractive($BrowserPath, $PreferredArch = "")
 
 			If Not FileExists($ArchivePath) Then
 				If Not DownloadChromePlusArchiveWithProgress($ArchiveUrl, $ArchivePath, $InstallLog) Then
-					If $ChromePlusDownloadCancelled Then
-						CloseChromePlusProgress()
+					If IsDownloadProgressCancelled() Then
+						CloseDownloadProgress()
 						If $hStatus Then _GUICtrlStatusBar_SetText($hStatus, _t("ChromePlusPatchInstallCancelled", "已取消 Chrome++ 补丁下载。"))
 						Return False
 					EndIf
@@ -2870,7 +2866,7 @@ Func InstallChromePlusPatchInteractive($BrowserPath, $PreferredArch = "")
 				Else
 					If FileExists($ExtractDir) Then DirRemove($ExtractDir, 1)
 					If Not FileExists($ExtractDir) Then DirCreate($ExtractDir)
-					SetChromePlusProgressExtracting()
+					SetDownloadProgressBusy(_t("ExtractingChromePlusPatch", "正在安装 Chrome++ 补丁，请稍候 ..."), _t("ExtractingChromePlusPatchDetail", "安装期间请不要关闭 {AppName}。"))
 					$ExtractLog = $VersionDir & "\extract.log"
 					$InstallLog &= "Extract log: " & $ExtractLog & @CRLF
 					$ExtractPid = Run(@ComSpec & ' /c ""' & $SevenZipExe & '" x -y -bd -bb1 -o"' & $ExtractDir & '" "' & $ArchivePath & '" > "' & $ExtractLog & '" 2>&1"', $VersionDir, @SW_HIDE)
@@ -2907,7 +2903,7 @@ Func InstallChromePlusPatchInteractive($BrowserPath, $PreferredArch = "")
 		$ErrorMessage = _t("FailToGetChromePlusReleaseInfo", "读取 Chrome++ 发布信息失败。")
 	EndIf
 
-	CloseChromePlusProgress()
+	CloseDownloadProgress()
 	If $Success Then
 		If $hStatus Then _GUICtrlStatusBar_SetText($hStatus, _t("ChromePlusPatchInstalled", "Chrome++ 补丁已安装。"))
 		Return True
@@ -2980,15 +2976,15 @@ Func DownloadChromePlusArchiveWithProgress($ArchiveUrl, $ArchivePath, ByRef $Ins
 				$Percent = Mod(Int($DownloadedBytes / 65536), 100)
 				$DetailText = _t("FirefoxDownloadProgressUnknown", "已下载 %s", FormatBytes($DownloadedBytes))
 			EndIf
-			UpdateChromePlusProgress(_t("DownloadingChromePlusPatch", "正在下载 Chrome++ 补丁 ..."), $DetailText, $Percent)
-			PumpDownloadProgressEvents($hChromePlusProgress, $hChromePlusCancel, $ChromePlusDownloadCancelled, $ChromePlusDownloadCanCancel)
-			If $ChromePlusDownloadCancelled Then ExitLoop
+			UpdateDownloadProgress(_t("DownloadingChromePlusPatch", "正在下载 Chrome++ 补丁 ..."), $DetailText, $Percent)
+			PumpDownloadProgressEvents()
+			If IsDownloadProgressCancelled() Then ExitLoop
 			Sleep(200)
 		Until InetGetInfo($hDownload, 2)
 
 		$ret = InetGetInfo($hDownload, 3)
 		InetClose($hDownload)
-		If $ChromePlusDownloadCancelled Then Return False
+		If IsDownloadProgressCancelled() Then Return False
 		$InstallLog &= "Download result: " & $ret & ", file exists: " & FileExists($ArchivePath) & ", size: " & FileGetSize($ArchivePath) & @CRLF
 		If $ret And FileExists($ArchivePath) And FileGetSize($ArchivePath) > 0 Then Return True
 	Next
@@ -3304,15 +3300,14 @@ Func DownloadAndExtractFirefox($aDownloadUrls, $TargetDir, $os, $Channel, $Curre
 	If Not FileExists($TargetDir) Then DirCreate($TargetDir)
 	If Not FileExists($TargetDir) Then Return SetError(2, 0, _t("CannotCreateBrowserDirectory", "无法创建浏览器目标目录。"))
 
-	$FirefoxDownloadCancelled = 0
-	ShowFirefoxDownloadProgress(_t("DownloadingBrowser", "正在下载浏览器 ..."), $DownloadUrl)
+	ShowDownloadProgress(_t("BrowserDownloadProgressTitle", "正在准备浏览器"), _t("DownloadingBrowser", "正在下载浏览器 ..."), $DownloadUrl)
 
 	For $i = 0 To UBound($aDownloadUrls) - 1
 		$DownloadUrl = $aDownloadUrls[$i]
 		If $TriedDownloadUrls <> "" Then $TriedDownloadUrls &= @CRLF
 		$TriedDownloadUrls &= $DownloadUrl
 		FileDelete($Installer)
-		UpdateFirefoxDownloadProgress(_t("DownloadingBrowser", "正在下载浏览器 ..."), $DownloadUrl, 0)
+		UpdateDownloadProgress(_t("DownloadingBrowser", "正在下载浏览器 ..."), $DownloadUrl, 0)
 		$hDownload = InetGet($DownloadUrl, $Installer, 19, 1)
 		If @error Or $hDownload = 0 Then ContinueLoop
 
@@ -3329,40 +3324,40 @@ Func DownloadAndExtractFirefox($aDownloadUrls, $TargetDir, $os, $Channel, $Curre
 				$Percent = Mod(Int($DownloadedBytes / 65536), 100)
 				$DetailText = _t("FirefoxDownloadProgressUnknown", "已下载 %s", FormatBytes($DownloadedBytes))
 			EndIf
-			UpdateFirefoxDownloadProgress(_t("DownloadingBrowser", "正在下载浏览器 ..."), $DetailText, $Percent)
-			PumpDownloadProgressEvents($hFirefoxDownloadProgress, $hFirefoxDownloadCancel, $FirefoxDownloadCancelled, $FirefoxDownloadCanCancel)
-			If $FirefoxDownloadCancelled Then ExitLoop
+			UpdateDownloadProgress(_t("DownloadingBrowser", "正在下载浏览器 ..."), $DetailText, $Percent)
+			PumpDownloadProgressEvents()
+			If IsDownloadProgressCancelled() Then ExitLoop
 			Sleep(200)
 		Until InetGetInfo($hDownload, 2)
 
 		$DownloadSuccessful = InetGetInfo($hDownload, 3)
 		InetClose($hDownload)
-		If $FirefoxDownloadCancelled Then ExitLoop
+		If IsDownloadProgressCancelled() Then ExitLoop
 		If $DownloadSuccessful And FileExists($Installer) Then ExitLoop
 	Next
 
-	If $FirefoxDownloadCancelled Then
-		CloseFirefoxDownloadProgress()
+	If IsDownloadProgressCancelled() Then
+		CloseDownloadProgress()
 		FileDelete($Installer)
 		DirRemove($TempDir, 1)
 		Return SetError(4, 0, _t("BrowserDownloadCancelled", "已取消浏览器下载。"))
 	EndIf
 	If Not $DownloadSuccessful Or Not FileExists($Installer) Then
-		CloseFirefoxDownloadProgress()
+		CloseDownloadProgress()
 		DirRemove($TempDir, 1)
 		Return SetError(5, 0, BuildBrowserDownloadFailureDetail(_t("FailToDownloadBrowserInstaller", "下载浏览器安装包失败。"), $TriedDownloadUrls, $Installer))
 	EndIf
 
-	SetFirefoxDownloadExtracting()
+	SetDownloadProgressBusy(_t("ExtractingBrowser", "正在解压浏览器，请稍候 ..."), _t("ExtractingBrowserDetail", "解压期间请不要关闭 {AppName}。"))
 	$ExtractLog = $TempDir & "\extract.log"
 	$SevenZipExe = PrepareSevenZipTool($TempDir)
 	If @error Then
-		CloseFirefoxDownloadProgress()
+		CloseDownloadProgress()
 		Return SetError(6, 0, _t("FailToExtractBrowserInstaller", "解压浏览器安装包失败。") & @CRLF & @CRLF & _t("FirefoxExtractLogKept", "诊断文件已保留在：\n%s", $TempDir))
 	EndIf
 	If Not FileExists($ExtractDir) Then DirCreate($ExtractDir)
 	$ret = RunWait(@ComSpec & ' /c ""' & $SevenZipExe & '" x -y -bd -bb1 -o"' & $ExtractDir & '" "' & $Installer & '" > "' & $ExtractLog & '" 2>&1"', $TempDir, @SW_HIDE)
-	CloseFirefoxDownloadProgress()
+	CloseDownloadProgress()
 
 	ExtractNestedBrowserArchives($SevenZipExe, $ExtractDir, $TempDir)
 	Local $ExtractedFirefoxPath = FindBrowserExecutableForType($ExtractDir, $CurrentBrowserType)
@@ -3393,102 +3388,65 @@ Func BuildBrowserDownloadFailureDetail($BaseMessage, $TriedDownloadUrls, $Instal
 	Return $Detail
 EndFunc   ;==>BuildBrowserDownloadFailureDetail
 
-Func ShowFirefoxDownloadProgress($StatusText, $DetailText)
-	$FirefoxDownloadPreviousGuiMode = Opt("GUIOnEventMode", 0)
-	$hFirefoxDownloadProgress = GUICreate(_t("BrowserDownloadProgressTitle", "正在准备浏览器"), 420, 135, -1, -1, BitOR($WS_CAPTION, $WS_SYSMENU), -1, $hSettings)
-	GUISetOnEvent($GUI_EVENT_CLOSE, "CancelFirefoxDownload")
-	$hFirefoxDownloadStatus = GUICtrlCreateLabel($StatusText, 15, 15, 390, 20)
-	$hFirefoxDownloadDetail = GUICtrlCreateLabel($DetailText, 15, 42, 390, 36)
-	$hFirefoxDownloadBar = GUICtrlCreateProgress(15, 82, 390, 18)
-	$hFirefoxDownloadCancel = GUICtrlCreateButton(_t("Cancel", "取消"), 170, 108, 80, 22)
-	GUICtrlSetOnEvent(-1, "CancelFirefoxDownload")
-	$FirefoxDownloadCanCancel = 1
-	GUISetState(@SW_SHOW, $hFirefoxDownloadProgress)
-	WinSetOnTop($hFirefoxDownloadProgress, "", 1)
-EndFunc   ;==>ShowFirefoxDownloadProgress
+Func ShowDownloadProgress($TitleText, $StatusText, $DetailText)
+	If $hDownloadProgress Then CloseDownloadProgress()
+	$DownloadProgressPreviousGuiMode = Opt("GUIOnEventMode", 0)
+	$DownloadProgressCancelled = 0
+	$DownloadProgressCanCancel = 1
+	$hDownloadProgress = GUICreate($TitleText, 420, 135, -1, -1, BitOR($WS_CAPTION, $WS_SYSMENU), -1, $hSettings)
+	GUISetOnEvent($GUI_EVENT_CLOSE, "CancelDownloadProgress")
+	$hDownloadProgressStatus = GUICtrlCreateLabel($StatusText, 15, 15, 390, 20)
+	$hDownloadProgressDetail = GUICtrlCreateLabel($DetailText, 15, 42, 390, 36)
+	$hDownloadProgressBar = GUICtrlCreateProgress(15, 82, 390, 18)
+	$hDownloadProgressCancel = GUICtrlCreateButton(_t("Cancel", "取消"), 170, 108, 80, 22)
+	GUICtrlSetOnEvent(-1, "CancelDownloadProgress")
+	GUISetState(@SW_SHOW, $hDownloadProgress)
+	WinSetOnTop($hDownloadProgress, "", 1)
+EndFunc   ;==>ShowDownloadProgress
 
-Func UpdateFirefoxDownloadProgress($StatusText, $DetailText, $Percent)
-	If Not $hFirefoxDownloadProgress Then Return
-	GUICtrlSetData($hFirefoxDownloadStatus, $StatusText)
-	GUICtrlSetData($hFirefoxDownloadDetail, $DetailText)
-	GUICtrlSetData($hFirefoxDownloadBar, $Percent)
-EndFunc   ;==>UpdateFirefoxDownloadProgress
+Func UpdateDownloadProgress($StatusText, $DetailText, $Percent)
+	If Not $hDownloadProgress Then Return
+	GUICtrlSetData($hDownloadProgressStatus, $StatusText)
+	GUICtrlSetData($hDownloadProgressDetail, $DetailText)
+	GUICtrlSetData($hDownloadProgressBar, $Percent)
+EndFunc   ;==>UpdateDownloadProgress
 
-Func SetFirefoxDownloadExtracting()
-	If Not $hFirefoxDownloadProgress Then Return
-	$FirefoxDownloadCanCancel = 0
-	GUICtrlSetState($hFirefoxDownloadCancel, $GUI_DISABLE)
-	UpdateFirefoxDownloadProgress(_t("ExtractingBrowser", "正在解压浏览器，请稍候 ..."), _t("ExtractingBrowserDetail", "解压期间请不要关闭 {AppName}。"), 100)
-EndFunc   ;==>SetFirefoxDownloadExtracting
+Func SetDownloadProgressBusy($StatusText, $DetailText)
+	If Not $hDownloadProgress Then Return
+	$DownloadProgressCanCancel = 0
+	GUICtrlSetState($hDownloadProgressCancel, $GUI_DISABLE)
+	UpdateDownloadProgress($StatusText, $DetailText, 100)
+EndFunc   ;==>SetDownloadProgressBusy
 
-Func CloseFirefoxDownloadProgress()
-	If Not $hFirefoxDownloadProgress Then Return
-	GUIDelete($hFirefoxDownloadProgress)
-	$hFirefoxDownloadProgress = 0
-	$FirefoxDownloadCanCancel = 0
-	If $FirefoxDownloadPreviousGuiMode <> -1 Then
-		Opt("GUIOnEventMode", $FirefoxDownloadPreviousGuiMode)
-		$FirefoxDownloadPreviousGuiMode = -1
+Func CloseDownloadProgress()
+	If Not $hDownloadProgress Then Return
+	GUIDelete($hDownloadProgress)
+	$hDownloadProgress = 0
+	$DownloadProgressCanCancel = 0
+	If $DownloadProgressPreviousGuiMode <> -1 Then
+		Opt("GUIOnEventMode", $DownloadProgressPreviousGuiMode)
+		$DownloadProgressPreviousGuiMode = -1
 	EndIf
-EndFunc   ;==>CloseFirefoxDownloadProgress
+EndFunc   ;==>CloseDownloadProgress
 
-Func CancelFirefoxDownload()
-	If $FirefoxDownloadCanCancel Then $FirefoxDownloadCancelled = 1
-EndFunc   ;==>CancelFirefoxDownload
+Func CancelDownloadProgress()
+	If $DownloadProgressCanCancel Then $DownloadProgressCancelled = 1
+EndFunc   ;==>CancelDownloadProgress
 
-Func ShowChromePlusProgress($StatusText, $DetailText)
-	$ChromePlusDownloadPreviousGuiMode = Opt("GUIOnEventMode", 0)
-	$hChromePlusProgress = GUICreate(_t("ChromePlusPatchProgressTitle", "正在准备 Chrome++ 补丁"), 420, 135, -1, -1, BitOR($WS_CAPTION, $WS_SYSMENU), -1, $hSettings)
-	GUISetOnEvent($GUI_EVENT_CLOSE, "CancelChromePlusDownload")
-	$hChromePlusStatus = GUICtrlCreateLabel($StatusText, 15, 15, 390, 20)
-	$hChromePlusDetail = GUICtrlCreateLabel($DetailText, 15, 42, 390, 36)
-	$hChromePlusBar = GUICtrlCreateProgress(15, 82, 390, 18)
-	$hChromePlusCancel = GUICtrlCreateButton(_t("Cancel", "取消"), 170, 108, 80, 22)
-	GUICtrlSetOnEvent(-1, "CancelChromePlusDownload")
-	$ChromePlusDownloadCanCancel = 1
-	GUISetState(@SW_SHOW, $hChromePlusProgress)
-	WinSetOnTop($hChromePlusProgress, "", 1)
-EndFunc   ;==>ShowChromePlusProgress
+Func IsDownloadProgressCancelled()
+	Return $DownloadProgressCancelled
+EndFunc   ;==>IsDownloadProgressCancelled
 
-Func UpdateChromePlusProgress($StatusText, $DetailText, $Percent)
-	If Not $hChromePlusProgress Then Return
-	GUICtrlSetData($hChromePlusStatus, $StatusText)
-	GUICtrlSetData($hChromePlusDetail, $DetailText)
-	GUICtrlSetData($hChromePlusBar, $Percent)
-EndFunc   ;==>UpdateChromePlusProgress
-
-Func SetChromePlusProgressExtracting()
-	If Not $hChromePlusProgress Then Return
-	$ChromePlusDownloadCanCancel = 0
-	GUICtrlSetState($hChromePlusCancel, $GUI_DISABLE)
-	UpdateChromePlusProgress(_t("ExtractingChromePlusPatch", "正在安装 Chrome++ 补丁，请稍候 ..."), _t("ExtractingChromePlusPatchDetail", "安装期间请不要关闭 {AppName}。"), 100)
-EndFunc   ;==>SetChromePlusProgressExtracting
-
-Func CloseChromePlusProgress()
-	If Not $hChromePlusProgress Then Return
-	GUIDelete($hChromePlusProgress)
-	$hChromePlusProgress = 0
-	$ChromePlusDownloadCanCancel = 0
-	If $ChromePlusDownloadPreviousGuiMode <> -1 Then
-		Opt("GUIOnEventMode", $ChromePlusDownloadPreviousGuiMode)
-		$ChromePlusDownloadPreviousGuiMode = -1
-	EndIf
-EndFunc   ;==>CloseChromePlusProgress
-
-Func CancelChromePlusDownload()
-	If $ChromePlusDownloadCanCancel Then $ChromePlusDownloadCancelled = 1
-EndFunc   ;==>CancelChromePlusDownload
-
-Func PumpDownloadProgressEvents($hProgress, $hCancel, ByRef $Cancelled, $CanCancel)
-	If Not $hProgress Or Not $CanCancel Then Return
+Func PumpDownloadProgressEvents()
+	If Not $hDownloadProgress Or Not $DownloadProgressCanCancel Then Return
 
 	Local $aMsg
 	Do
 		$aMsg = GUIGetMsg(1)
 		If Not IsArray($aMsg) Then Return
 		If $aMsg[0] = 0 Then Return
-		If $aMsg[1] = $hProgress And ($aMsg[0] = $hCancel Or $aMsg[0] = $GUI_EVENT_CLOSE) Then
-			$Cancelled = 1
+		If $aMsg[1] = $hDownloadProgress And ($aMsg[0] = $hDownloadProgressCancel Or $aMsg[0] = $GUI_EVENT_CLOSE) Then
+			$DownloadProgressCancelled = 1
 			Return
 		EndIf
 	Until False

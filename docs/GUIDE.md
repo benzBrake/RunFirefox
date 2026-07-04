@@ -7,7 +7,6 @@
    - [Firefox](https://ftp.mozilla.org/pub/firefox/releases/)
    - [Floorp](https://github.com/Floorp-Projects/Floorp/releases/)，**不要选择floorp-stub.installer.exe**
    - [LibreWolf](https://librewolf.net/installation/windows/)
-   - [Mercury](https://thorium.rocks/mercury)
 3. 解压浏览器安装包，**LibreWolf**的安装包不能用 WinRAR 打开，需要用到**UniExtract2**，[点此下载](https://github.com/Bioruebe/UniExtract2/releases/download/v2.0.0-rc.3/UniExtractRC3.zip)
 4. 使用**UniExtract2**提取安装包的内容
 5. 安装包解压出来的文件和`RunLibreWolf.exe`放到同一个文件夹下。

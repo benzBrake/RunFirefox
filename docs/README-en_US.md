@@ -10,6 +10,8 @@ Features:
 
 ### Latest updates
 
+2026.07.04 Updated the portable guide to explain that some browsers can now be downloaded directly from the settings screen, while browsers without built-in download support such as LibreWolf still use the manual steps
+
 2026.07.03 Added Helium to the settings screen with online download and extraction for the Windows x64 ZIP package; Helium is treated as a Chromium-based browser for Chrome++ patch installation and settings
 
 2026.07.03 Added a "Download and install Chrome++" button to the Chrome++ settings tab when the patch is missing, allowing direct installation into the current Chromium-based browser directory

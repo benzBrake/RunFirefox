@@ -1,5 +1,9 @@
 # RunFirefox
 
+[![Stable](https://img.shields.io/github/v/release/benzBrake/RunFirefox?style=for-the-badge&label=Stable%20Download&color=2ea44f)](https://github.com/benzBrake/RunFirefox/releases/latest)
+[![Beta](https://img.shields.io/badge/Beta-nightly.link-orange?style=for-the-badge&logo=githubactions&logoColor=white)](https://nightly.link/benzBrake/RunFirefox/workflows/build/master)
+[![Downloads](https://img.shields.io/github/downloads/benzBrake/RunFirefox/total?style=for-the-badge&label=Downloads)](https://github.com/benzBrake/RunFirefox/releases)
+
 Derived from MyFirefox, this is a portable version launcher for Firefox.
 
 Features:
@@ -63,6 +67,8 @@ Features:
 ### How to download
 
 Click on the "Latest" button on the right. If you have trouble finding it, press Ctrl+F and search for the text "Latest" on this page.
+
+Beta builds: https://nightly.link/benzBrake/RunFirefox/workflows/build/master
 
 ### Thanks to
 

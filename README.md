@@ -2,6 +2,10 @@
 
 [English Version](docs/README-en_US.md)
 
+[![Stable](https://img.shields.io/github/v/release/benzBrake/RunFirefox?style=for-the-badge&label=%E7%A8%B3%E5%AE%9A%E7%89%88%E4%B8%8B%E8%BD%BD&color=2ea44f)](https://github.com/benzBrake/RunFirefox/releases/latest)
+[![Beta](https://img.shields.io/badge/%E6%B5%8B%E8%AF%95%E7%89%88-nightly.link-orange?style=for-the-badge&logo=githubactions&logoColor=white)](https://nightly.link/benzBrake/RunFirefox/workflows/build/master)
+[![Downloads](https://img.shields.io/github/downloads/benzBrake/RunFirefox/total?style=for-the-badge&label=%E7%B4%AF%E8%AE%A1%E4%B8%8B%E8%BD%BD)](https://github.com/benzBrake/RunFirefox/releases)
+
 从 MyFirefox 修改而来，是 Firefox 的便携版引导器
 
 1. 自定义Firefox浏览器程序文件、数据文件夹、缓存文件夹的位置等。
@@ -79,6 +83,8 @@
 ### 如何下载
 
 右边 Latest，如果你视力不好，按 Ctrl + F 在此页面查找文本 Latest
+
+测试版下载链接：https://nightly.link/benzBrake/RunFirefox/workflows/build/master
 
 ### 感谢
 

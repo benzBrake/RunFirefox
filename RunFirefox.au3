@@ -1665,6 +1665,7 @@ Func Settings()
 	$hStatus = _GUICtrlStatusBar_Create($hSettings, -1, _t("DoublieClickToOpenSettingsWindow", '双击软件目录下的 "%s.vbs" 文件可调出此窗口', $ScriptNameWithOutSuffix))
 	Opt("ExpandEnvStrings", 1)
 
+	ApplyDetectedBrowserTypeFromPath()
 	UpdateBrowserChannelOptions($BrowserType, "release")
 	UpdateBrowserSpecificControls()
 	ShowCurrentChannel()
@@ -1703,10 +1704,25 @@ Func AddExApp2()
 EndFunc   ;==>AddExApp2
 
 Func OnFirefoxPathChange()
+	ApplyDetectedBrowserTypeFromPath()
 	ShowCurrentChannel()
 	ChangeChannel()
 	UpdateBrowserSpecificControls()
 EndFunc   ;==>OnFirefoxPathChange
+
+Func ApplyDetectedBrowserTypeFromPath()
+	If Not $hBrowserType Then Return
+
+	Local $DetectedBrowserType = DetectBrowserTypeFromPath(GUICtrlRead($hFirefoxPath))
+	If $DetectedBrowserType = "" Then Return
+	If NormalizeBrowserType(GetSelectedBrowserType()) = $DetectedBrowserType Then Return
+
+	Local $SelectedChannel = "release"
+	If $hChannel Then $SelectedChannel = GUICtrlRead($hChannel)
+	$BrowserType = $DetectedBrowserType
+	GUICtrlSetData($hBrowserType, GetBrowserTypeComboData(), GetBrowserTypeLabel($DetectedBrowserType))
+	If $hChannel Then UpdateBrowserChannelOptions($DetectedBrowserType, $SelectedChannel)
+EndFunc   ;==>ApplyDetectedBrowserTypeFromPath
 
 Func ChangeBrowserType()
 	Local $NewBrowserType = GetSelectedBrowserType()
@@ -1928,6 +1944,56 @@ Func GetSelectedBrowserType()
 	If Not $hBrowserType Then Return $BrowserType
 	Return GetBrowserTypeByLabel(GUICtrlRead($hBrowserType))
 EndFunc   ;==>GetSelectedBrowserType
+
+Func DetectBrowserTypeFromPath($BrowserPath)
+	$BrowserPath = StringStripWS($BrowserPath, 3)
+	If $BrowserPath = "" Then Return ""
+
+	Local $FullBrowserPath = FullPath($BrowserPath)
+	Local $BrowserExe = ""
+	Local $BrowserDir = ""
+	SplitPath($FullBrowserPath, $BrowserDir, $BrowserExe)
+
+	Local $BrowserExeLower = StringLower($BrowserExe)
+	Local $Identity = GetExecutableIdentityText($FullBrowserPath)
+
+	If StringInStr($Identity, "helium") Or StringInStr($Identity, "the helium authors") Then Return $BrowserHelium
+	If $BrowserExeLower = "zen.exe" Or StringInStr($Identity, "zen browser") Or StringInStr($Identity, "zenbrowser") Then Return $BrowserZen
+	If $BrowserExeLower = "floorp.exe" Or StringInStr($Identity, "floorp") Then Return $BrowserFloorp
+	If $BrowserExeLower = "waterfox.exe" Or StringInStr($Identity, "waterfox") Then Return $BrowserWaterfox
+	If IsChromiumBrowserIdentity($Identity, $BrowserExeLower) Then Return $BrowserChrome
+	If $BrowserExeLower = "firefox.exe" Or StringInStr($Identity, "firefox") Then Return $BrowserFirefox
+
+	Return ""
+EndFunc   ;==>DetectBrowserTypeFromPath
+
+Func GetExecutableIdentityText($ExePath)
+	Local $Identity = ""
+	If Not FileExists($ExePath) Then Return $Identity
+
+	$Identity &= " " & StringLower(ReadExecutableVersionField($ExePath, "ProductName"))
+	$Identity &= " " & StringLower(ReadExecutableVersionField($ExePath, "FileDescription"))
+	$Identity &= " " & StringLower(ReadExecutableVersionField($ExePath, "CompanyName"))
+	$Identity &= " " & StringLower(ReadExecutableVersionField($ExePath, "InternalName"))
+	$Identity &= " " & StringLower(ReadExecutableVersionField($ExePath, "OriginalFilename"))
+	Return $Identity
+EndFunc   ;==>GetExecutableIdentityText
+
+Func ReadExecutableVersionField($ExePath, $FieldName)
+	Local $Value = FileGetVersion($ExePath, $FieldName)
+	If @error Then Return ""
+	Return $Value
+EndFunc   ;==>ReadExecutableVersionField
+
+Func IsChromiumBrowserIdentity($Identity, $BrowserExeLower)
+	If $BrowserExeLower = "chrome.exe" Or $BrowserExeLower = "chromium.exe" Then Return True
+	If $BrowserExeLower = "msedge.exe" Or $BrowserExeLower = "brave.exe" Then Return True
+	If $BrowserExeLower = "vivaldi.exe" Or $BrowserExeLower = "opera.exe" Then Return True
+	If StringInStr($Identity, "google chrome") Or StringInStr($Identity, "chromium") Then Return True
+	If StringInStr($Identity, "microsoft edge") Or StringInStr($Identity, "brave") Then Return True
+	If StringInStr($Identity, "vivaldi") Or StringInStr($Identity, "opera") Then Return True
+	Return False
+EndFunc   ;==>IsChromiumBrowserIdentity
 
 Func IsChromeBrowser($Value)
 	Local $Normalized = NormalizeBrowserType($Value)
@@ -3714,6 +3780,7 @@ Func SettingsApply()
 
 	Opt("ExpandEnvStrings", 0)
 	$FirefoxPath = RelativePath(GUICtrlRead($hFirefoxPath))
+	ApplyDetectedBrowserTypeFromPath()
 	$BrowserType = GetSelectedBrowserType()
 
 	If GUICtrlRead($hAllowBrowserUpdate) = $GUI_CHECKED Then

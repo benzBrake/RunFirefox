@@ -1509,7 +1509,7 @@ Func Settings()
 	GUICtrlCreateTabItem(_t("General", "常规"))
 
 	GUICtrlCreateGroup(_t("BrowserFiles", "浏览器程序文件"), 10, 80, 480, 120)
-	GUICtrlCreateLabel(_t("FirefoxPath", "Firefox 路径"), 20, 100, 120, 20)
+	GUICtrlCreateLabel(_t("FirefoxPath", "浏览器路径"), 20, 100, 120, 20)
 	$hFirefoxPath = GUICtrlCreateEdit($FirefoxPath, 140, 95, 270, 20, $ES_AUTOHSCROLL)
 	GUICtrlSetTip(-1, _t("BrowserExecutablePath", "浏览器主程序路径"))
 	GUICtrlSetOnEvent(-1, "OnFirefoxPathChange")

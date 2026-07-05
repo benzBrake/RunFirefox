@@ -97,6 +97,7 @@ Global $WaterfoxReleaseInfoLoaded = False, $WaterfoxReleaseVersion = ""
 Global $HeliumReleaseInfoLoaded = False, $HeliumReleaseTag = ""
 Global $ChromeStableVersion = "", $ChromeStableDownloadUrl = "", $ChromeBetaVersion = "", $ChromeBetaDownloadUrl = "", $ChromeDevVersion = "", $ChromeDevDownloadUrl = "", $ChromeCanaryVersion = "", $ChromeCanaryDownloadUrl = ""
 Global $BrowserVersionLoadHandle = 0, $BrowserVersionLoadFile = "", $BrowserVersionLoadBrowserType = "", $BrowserVersionLoadChannel = "", $BrowserVersionLoadKind = "", $BrowserVersionLoadAnim = 0
+Global $AppUpdateCheckHandle = 0, $AppUpdateCheckFile = ""
 Global $hDownloadProgress, $hDownloadProgressStatus, $hDownloadProgressDetail, $hDownloadProgressBar, $hDownloadProgressCancel
 Global $DownloadProgressCancelled = 0, $DownloadProgressCanCancel = 0
 Global $DownloadProgressPreviousGuiMode = -1
@@ -203,6 +204,11 @@ IniWrite($inifile, "Settings", "GithubJsDelivrMirror", $GithubJsDelivrMirror)
 
 If $CmdLine[0] >= 4 And $CmdLine[1] = "--load-chrome-version" Then
 	WriteChromeUpdateInfoFile($CmdLine[2], $CmdLine[3], $CmdLine[4])
+	Exit
+EndIf
+
+If $CmdLine[0] >= 2 And $CmdLine[1] = "--check-app-update" Then
+	WriteAppUpdateCheckResultFile($CmdLine[2])
 	Exit
 EndIf
 
@@ -458,6 +464,7 @@ EndFunc   ;==>GethWndbyPID
 
 
 Func OnExit()
+	CancelAppUpdateCheck()
 	If $hEvent Then
 		_WinAPI_CloseHandle($hEvent)
 		For $i = 0 To UBound($fReg) - 1
@@ -471,7 +478,13 @@ EndFunc   ;==>OnExit
 
 ;~ 查检 RunFirefox更新
 Func CheckAppUpdate()
-	Local $AppUpdateLastCheck, $repo = 'benzBrake/RunFirefox', $latestVersion, $releaseNotes, $downloadUrl, $MirrorAddress = $GithubDirectMirror
+	Local $latestVersion, $releaseNotes
+	If Not GetAvailableAppUpdate($latestVersion, $releaseNotes) Then Return
+	PromptAndApplyAppUpdate($latestVersion, $releaseNotes)
+EndFunc   ;==>CheckAppUpdate
+
+Func GetAvailableAppUpdate(ByRef $latestVersion, ByRef $releaseNotes)
+	Local $AppUpdateLastCheck, $repo = 'benzBrake/RunFirefox', $MirrorAddress = $GithubDirectMirror
 	$MirrorAddress = _UpgradeNormalizeMirrorAddress($MirrorAddress)
 	$AppUpdateLastCheck = _NowCalc()
 	IniWrite($inifile, "Settings", "AppUpdateLastCheck", $AppUpdateLastCheck)
@@ -479,19 +492,28 @@ Func CheckAppUpdate()
 	HttpSetProxy(0) ; Use IE defaults for proxy
 	$latestVersion = GetLatestReleaseVersion($repo, $MirrorAddress, $GithubJsDelivrMirror);
 	;~ 获取的版本号不对则返回
-	If Not _StringStartsWith($latestVersion, 'v') Then Return
+	If Not _StringStartsWith($latestVersion, 'v') Then Return False
 	;~ 去除版本号开头的 v
 	$latestVersion = StringTrimLeft($latestVersion, 1)
 	;~ 比较版本号，如果版本号相同则返回
-	If VersionCompare($latestVersion, $AppVersion) <= 0 Then Return
+	If VersionCompare($latestVersion, $AppVersion) <= 0 Then Return False
 	;~ 获取更新日志
 	$releaseNotes = GetReleaseNotesByVersion($repo, "v" & $latestVersion, $MirrorAddress);
+	Return True
+EndFunc   ;==>GetAvailableAppUpdate
 
+Func PromptAndApplyAppUpdate($latestVersion, $releaseNotes)
+	Local $repo = 'benzBrake/RunFirefox', $downloadUrl, $MirrorAddress = $GithubDirectMirror, $msg, $file, $FileName
+	$MirrorAddress = _UpgradeNormalizeMirrorAddress($MirrorAddress)
 	$UpdateAvailable = _t("UpdateAvailable", "{AppName} {Version} 已发布，更新内容：\n\n\n{Notes}\n是否自动更新？")
 	$UpdateAvailable = StringReplace($UpdateAvailable, "{AppName}", $CustomArch)
 	$UpdateAvailable = StringReplace($UpdateAvailable, "{Version}", $latestVersion)
 	$UpdateAvailable = StringReplace($UpdateAvailable, "{Notes}", $releaseNotes)
-	$msg = MsgBox(68, $CustomArch, $UpdateAvailable);
+	If $hSettings Then
+		$msg = MsgBox(68, $CustomArch, $UpdateAvailable, 0, $hSettings)
+	Else
+		$msg = MsgBox(68, $CustomArch, $UpdateAvailable)
+	EndIf
 	If $msg <> 6 Then Return
 
 	;~ 拼接下载链接
@@ -572,7 +594,90 @@ Func CheckAppUpdate()
 	DirRemove($temp, 1)
 	TrayItemDelete($hCancelAppUpdate)
 	TraySetState(2)
-EndFunc   ;==>CheckAppUpdate
+EndFunc   ;==>PromptAndApplyAppUpdate
+
+Func WriteAppUpdateCheckResultFile($OutputFile)
+	Local $latestVersion = "", $releaseNotes = ""
+	FileDelete($OutputFile)
+	If GetAvailableAppUpdate($latestVersion, $releaseNotes) Then
+		IniWrite($OutputFile, "AppUpdate", "Success", 1)
+		IniWrite($OutputFile, "AppUpdate", "HasUpdate", 1)
+		IniWrite($OutputFile, "AppUpdate", "Version", $latestVersion)
+		IniWrite($OutputFile, "AppUpdate", "Notes", EncodeAppUpdateResultText($releaseNotes))
+	Else
+		IniWrite($OutputFile, "AppUpdate", "Success", 1)
+		IniWrite($OutputFile, "AppUpdate", "HasUpdate", 0)
+	EndIf
+EndFunc   ;==>WriteAppUpdateCheckResultFile
+
+Func EncodeAppUpdateResultText($Text)
+	If $Text = "" Then Return ""
+	Return StringTrimLeft(StringToBinary($Text, 4), 2)
+EndFunc   ;==>EncodeAppUpdateResultText
+
+Func DecodeAppUpdateResultText($Text)
+	If $Text = "" Then Return ""
+	Return BinaryToString("0x" & $Text, 4)
+EndFunc   ;==>DecodeAppUpdateResultText
+
+Func StartAppUpdateCheckProcess($OutputFile)
+	Local $Command = ""
+	If @Compiled Then
+		$Command = '"' & @AutoItExe & '"'
+	Else
+		$Command = '"' & @AutoItExe & '" "' & @ScriptFullPath & '"'
+	EndIf
+	$Command &= ' --check-app-update "' & $OutputFile & '"'
+	Return Run($Command, @ScriptDir, @SW_HIDE)
+EndFunc   ;==>StartAppUpdateCheckProcess
+
+Func BeginAppUpdateCheck()
+	If $AppUpdateCheckHandle Then Return
+	If Not $CheckAppUpdate Then Return
+	If _DateDiff("h", $AppUpdateLastCheck, _NowCalc()) < 48 Then Return
+
+	$AppUpdateLastCheck = _NowCalc()
+	IniWrite($inifile, "Settings", "AppUpdateLastCheck", $AppUpdateLastCheck)
+	$AppUpdateCheckFile = @TempDir & "\RunFirefox_AppUpdate_" & @AutoItPID & ".tmp"
+	FileDelete($AppUpdateCheckFile)
+	$AppUpdateCheckHandle = StartAppUpdateCheckProcess($AppUpdateCheckFile)
+	If Not $AppUpdateCheckHandle Then
+		CancelAppUpdateCheck()
+		Return
+	EndIf
+	AdlibRegister("PollAppUpdateCheck", 500)
+EndFunc   ;==>BeginAppUpdateCheck
+
+Func CancelAppUpdateCheck()
+	AdlibUnRegister("PollAppUpdateCheck")
+	If $AppUpdateCheckHandle Then
+		If ProcessExists($AppUpdateCheckHandle) Then ProcessClose($AppUpdateCheckHandle)
+	EndIf
+	If $AppUpdateCheckFile <> "" Then FileDelete($AppUpdateCheckFile)
+	$AppUpdateCheckHandle = 0
+	$AppUpdateCheckFile = ""
+EndFunc   ;==>CancelAppUpdateCheck
+
+Func PollAppUpdateCheck()
+	If Not $AppUpdateCheckHandle Then
+		CancelAppUpdateCheck()
+		Return
+	EndIf
+	If ProcessExists($AppUpdateCheckHandle) Then Return
+
+	Local $LoadedFile = $AppUpdateCheckFile
+	$AppUpdateCheckHandle = 0
+	AdlibUnRegister("PollAppUpdateCheck")
+
+	Local $Success = FileExists($LoadedFile) And IniRead($LoadedFile, "AppUpdate", "Success", 0) = 1
+	Local $HasUpdate = $Success And IniRead($LoadedFile, "AppUpdate", "HasUpdate", 0) = 1
+	Local $latestVersion = IniRead($LoadedFile, "AppUpdate", "Version", "")
+	Local $releaseNotes = DecodeAppUpdateResultText(IniRead($LoadedFile, "AppUpdate", "Notes", ""))
+	FileDelete($LoadedFile)
+	$AppUpdateCheckFile = ""
+
+	If $HasUpdate And $latestVersion <> "" Then PromptAndApplyAppUpdate($latestVersion, $releaseNotes)
+EndFunc   ;==>PollAppUpdateCheck
 
 
 Func DeleteCfgFiles()
@@ -1547,18 +1652,14 @@ Func Settings()
 	GUICtrlSetOnEvent(-1, "AddExApp2")
 
 	GUICtrlCreateTabItem("")
-	GUICtrlCreateButton(_t("CheckForUpdateManually", "检查更新"), 80, 440, 130, 20)
-	GUICtrlSetTip(-1, _t("CheckForUpdateManuallyTooltip", "立即检查 {AppName} 更新"))
-	GUICtrlSetOnEvent(-1, "CheckAppUpdate")
-	GUICtrlCreateTabItem("")
-	GUICtrlCreateButton(_t("Confirm", "确定"), 235, 440, 70, 20)
+	GUICtrlCreateButton(_t("Confirm", "确定"), 180, 440, 70, 20)
 	GUICtrlSetTip(-1, _t("ConfirmTooltip", "保存设置并启动浏览器"))
 	GUICtrlSetOnEvent(-1, "SettingsOK")
 	GUICtrlSetState(-1, $GUI_FOCUS)
-	GUICtrlCreateButton(_t("Cancel", "取消"), 330, 440, 70, 20)
+	GUICtrlCreateButton(_t("Cancel", "取消"), 285, 440, 70, 20)
 	GUICtrlSetTip(-1, _t("CancelTooltip", "不保存设置并退出"))
 	GUICtrlSetOnEvent(-1, "ExitApp")
-	GUICtrlCreateButton(_t("Apply", "应用"), 425, 440, 70, 20)
+	GUICtrlCreateButton(_t("Apply", "应用"), 390, 440, 70, 20)
 	GUICtrlSetTip(-1, _t("ApplyTooltip", "保存设置"))
 	GUICtrlSetOnEvent(-1, "SettingsApply")
 	$hStatus = _GUICtrlStatusBar_Create($hSettings, -1, _t("DoublieClickToOpenSettingsWindow", '双击软件目录下的 "%s.vbs" 文件可调出此窗口', $ScriptNameWithOutSuffix))
@@ -1570,11 +1671,13 @@ Func Settings()
 	UpdateFirefoxDownloadLabels(False)
 
 	GUISetState(@SW_SHOW)
+	BeginAppUpdateCheck()
 	AdlibRegister("RefreshFirefoxVersionLabels", 250)
 	While Not $SettingsOK
 		Sleep(100)
 	WEnd
 	AdlibUnRegister("RefreshFirefoxVersionLabels")
+	CancelAppUpdateCheck()
 	CancelBrowserVersionLoad()
 	GUIDelete($hSettings)
 EndFunc   ;==>Settings

@@ -1877,7 +1877,7 @@ Func UpdateBrowserDownloadNowState()
 	Local $LatestVersion = NormalizeDisplayedVersionForCompare(GUICtrlRead($hDownloadFirefox64))
 	Local $CurrentVersion = NormalizeDisplayedVersionForCompare(GUICtrlRead($hCurrentBrowserVersion))
 	Local $CurrentBrowserType = NormalizeBrowserType(GetSelectedBrowserType())
-	If $LatestVersion <> "" And (($CurrentVersion <> "" And $LatestVersion <> $CurrentVersion) Or ($CurrentVersion = "" And $CurrentBrowserType = $BrowserWaterfox)) Then
+	If $LatestVersion <> "" And ($CurrentVersion = "" Or $LatestVersion <> $CurrentVersion) Then
 		GUICtrlSetState($hBrowserDownloadNow, $GUI_SHOW)
 	Else
 		GUICtrlSetState($hBrowserDownloadNow, $GUI_HIDE)

@@ -14,6 +14,8 @@ Features:
 
 ### Latest updates
 
+2026.07.06 Adjusted the Advanced settings layout so the cache and Chromium settings areas use the same top spacing as the other tabs
+
 2026.07.06 Added a cache settings group to Advanced settings for configuring the cache folder and related options in one place
 
 2026.07.06 Added Google API management to Chromium settings, allowing build-injected API keys to be imported, the missing-API warning to be hidden, or related environment variables to be cleared

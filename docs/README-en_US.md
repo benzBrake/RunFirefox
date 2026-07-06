@@ -14,6 +14,8 @@ Features:
 
 ### Latest updates
 
+2026.07.06 Added Bosskey to Utilities settings, allowing a keyboard shortcut to hide/restore the browser with an optional tray icon while hidden
+
 2026.07.06 Adjusted the Advanced settings layout so the cache and Chromium settings areas use the same top spacing as the other tabs
 
 2026.07.06 Added a cache settings group to Advanced settings for configuring the cache folder and related options in one place

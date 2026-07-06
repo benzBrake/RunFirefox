@@ -37,8 +37,11 @@
 #include <WinAPIReg.au3>
 #include <Security.au3>
 #include <WinAPIMisc.au3>
+#include <WinAPISys.au3>
+#include <WinAPISysWin.au3>
 #include <FileConstants.au3>
 #include <Array.au3>
+#include <Misc.au3>
 #include "libs\_String.au3"
 #include "libs\AppUserModelId.au3"
 #include "libs\Polices.au3"
@@ -86,6 +89,7 @@ Global $AllowBrowserUpdate, $CheckAppUpdate, $AppUpdateLastCheck, $RunInBackgrou
 Global $BrowserUpdateCheckMode, $BrowserUpdateLastCheck
 Global $CustomPluginsDir, $CustomCacheDir, $CacheSize, $CacheSizeSmart, $CheckDefaultBrowser, $Params
 Global $ExApp, $ExAppAutoExit, $ExApp2
+Global $BossKeyEnabled, $BossKey, $BossKeyHideToTray, $BossKeyBrowserHidden = 0, $BossKeyTrayVisible = 0
 Global $GithubDirectMirror, $GithubJsDelivrMirror
 
 Global $DefaultProfDir, $hSettings, $hFirefoxPath, $hProfileDir, $hlanguage
@@ -111,6 +115,7 @@ Global $hDownloadProgress, $hDownloadProgressStatus, $hDownloadProgressDetail, $
 Global $DownloadProgressCancelled = 0, $DownloadProgressCanCancel = 0
 Global $DownloadProgressPreviousGuiMode = -1
 Global $hExApp, $hExAppAutoExit, $hExApp2
+Global $hBossKeyEnabled, $hBossKey, $hBossKeyHideToTray, $BossKeyCaptureValue = "", $BossKeyHotkeyProc = 0, $BossKeyInputWndProc = 0, $BossKeyKeys = 0
 Global $aExApp, $aExApp2, $aExAppPID[2]
 
 Global $hEvent, $ClientKey, $FileAsso, $URLAsso, $ChromeProgID
@@ -160,6 +165,9 @@ If Not FileExists($inifile) Then
 	IniWrite($inifile, "Settings", "ExApp", "")
 	IniWrite($inifile, "Settings", "ExAppAutoExit", 1)
 	IniWrite($inifile, "Settings", "ExApp2", "")
+	IniWrite($inifile, "Settings", "BossKeyEnabled", 0)
+	IniWrite($inifile, "Settings", "BossKey", "^`")
+	IniWrite($inifile, "Settings", "BossKeyHideToTray", 0)
 	IniWrite($inifile, "Settings", "LastPlatformDir", "")
 	IniWrite($inifile, "Settings", "LastProfileDir", "")
 EndIf
@@ -188,6 +196,9 @@ $Params = IniRead($inifile, "Settings", "Params", "")
 $ExApp = IniRead($inifile, "Settings", "ExApp", "")
 $ExAppAutoExit = IniRead($inifile, "Settings", "ExAppAutoExit", 1) * 1
 $ExApp2 = IniRead($inifile, "Settings", "ExApp2", "")
+$BossKeyEnabled = IniRead($inifile, "Settings", "BossKeyEnabled", 0) * 1
+$BossKey = IniRead($inifile, "Settings", "BossKey", "^`")
+$BossKeyHideToTray = IniRead($inifile, "Settings", "BossKeyHideToTray", 0) * 1
 $LastPlatformDir = IniRead($inifile, "Settings", "LastPlatformDir", "")
 $LastProfileDir = IniRead($inifile, "Settings", "LastProfileDir", "")
 $LANGUAGE = IniRead($inifile, "Settings", "Language", "")
@@ -377,6 +388,7 @@ If $CheckDefaultBrowser Then ; register REG for notification
 	Next
 EndIf
 OnAutoItExitRegister("OnExit")
+RegisterBossKeyHotKey()
 
 ReduceMemory()
 AdlibRegister("ReduceMemory", 300000)
@@ -478,9 +490,90 @@ Func GethWndbyPID($pid, $class = "")
 	Next
 EndFunc   ;==>GethWndbyPID
 
+Func RegisterBossKeyHotKey()
+	If Not $BossKeyEnabled Or $BossKey = "" Then Return
+	HotKeySet($BossKey, "ToggleBrowserBossKey")
+EndFunc   ;==>RegisterBossKeyHotKey
+
+Func ToggleBrowserBossKey()
+	If $BossKeyBrowserHidden Then
+		RestoreBrowserWindows()
+	Else
+		HideBrowserWindowsByBossKey()
+	EndIf
+EndFunc   ;==>ToggleBrowserBossKey
+
+Func HideBrowserWindowsByBossKey()
+	Local $list = WinList("[REGEXPCLASS:(?i)" & GetBrowserWindowClass($BrowserType) & "; REGEXPTITLE:\S+]")
+	Local $Hidden = 0
+	For $i = 1 To $list[0][0]
+		If Not BitAND(WinGetState($list[$i][1]), 2) Then ContinueLoop
+		If Not IsOwnedBrowserWindow($list[$i][1]) Then ContinueLoop
+		WinSetState($list[$i][1], "", @SW_HIDE)
+		$Hidden = 1
+	Next
+	If Not $Hidden Then Return
+
+	$BossKeyBrowserHidden = 1
+	If $BossKeyHideToTray Then ShowBossKeyTrayIcon()
+EndFunc   ;==>HideBrowserWindowsByBossKey
+
+Func RestoreBrowserWindows()
+	If Not $BossKeyBrowserHidden And Not $BossKeyTrayVisible Then Return
+
+	Local $list = WinList("[REGEXPCLASS:(?i)" & GetBrowserWindowClass($BrowserType) & "; REGEXPTITLE:\S+]")
+	Local $Restored = 0
+	For $i = 1 To $list[0][0]
+		If BitAND(WinGetState($list[$i][1]), 2) Then ContinueLoop
+		If Not IsOwnedBrowserWindow($list[$i][1]) Then ContinueLoop
+		WinSetState($list[$i][1], "", @SW_SHOW)
+		$Restored = 1
+	Next
+
+	If Not $Restored Then Return
+	HideBossKeyTrayIcon()
+	$BossKeyBrowserHidden = 0
+EndFunc   ;==>RestoreBrowserWindows
+
+Func IsOwnedBrowserWindow($hWnd)
+	Local $pid = WinGetProcess($hWnd)
+	If $pid = $AppPID Then Return True
+
+	Local $ProcPath = GetProcPath($pid)
+	If $ProcPath = "" Then Return False
+	Return NormalizePathForCompare($ProcPath) = NormalizePathForCompare($FirefoxPath)
+EndFunc   ;==>IsOwnedBrowserWindow
+
+Func ShowBossKeyTrayIcon()
+	Opt("TrayAutoPause", 0)
+	Opt("TrayMenuMode", 3)
+	Opt("TrayOnEventMode", 1)
+	TraySetIcon($FirefoxPath)
+	TraySetClick(BitOR($TRAY_CLICK_PRIMARYDOWN, $TRAY_CLICK_PRIMARYUP, $TRAY_DBLCLICK_PRIMARY))
+	TraySetOnEvent($TRAY_EVENT_PRIMARYDOWN, "RestoreBrowserWindows")
+	TraySetOnEvent($TRAY_EVENT_PRIMARYUP, "RestoreBrowserWindows")
+	TraySetOnEvent($TRAY_EVENT_PRIMARYDOUBLE, "RestoreBrowserWindows")
+	TraySetToolTip(_t("BossKeyTrayTooltip", "浏览器已隐藏，点击还原"))
+	TraySetState(1)
+	$BossKeyTrayVisible = 1
+EndFunc   ;==>ShowBossKeyTrayIcon
+
+Func HideBossKeyTrayIcon()
+	If Not $BossKeyTrayVisible Then Return
+	TraySetOnEvent($TRAY_EVENT_PRIMARYDOWN, "")
+	TraySetOnEvent($TRAY_EVENT_PRIMARYUP, "")
+	TraySetOnEvent($TRAY_EVENT_PRIMARYDOUBLE, "")
+	TraySetToolTip("")
+	TraySetIcon()
+	TraySetState(2)
+	Opt("TrayOnEventMode", 0)
+	$BossKeyTrayVisible = 0
+EndFunc   ;==>HideBossKeyTrayIcon
+
 
 Func OnExit()
 	CancelAppUpdateCheck()
+	RestoreBrowserWindows()
 	If $hEvent Then
 		_WinAPI_CloseHandle($hEvent)
 		For $i = 0 To UBound($fReg) - 1
@@ -1691,6 +1784,20 @@ Func Settings()
 	GUICtrlSetTip(-1, _t("SelectExtraApp", "选择外部程序"))
 	GUICtrlSetOnEvent(-1, "AddExApp2")
 
+	GUICtrlCreateGroup(_t("BossKeySettings", "Bosskey"), 10, 285, 480, 95)
+	$hBossKeyEnabled = GUICtrlCreateCheckbox(_t("EnableBossKey", " 启用 Bosskey"), 20, 310, 130, 20)
+	GUICtrlSetOnEvent(-1, "RefreshBossKeyControlsState")
+	If $BossKeyEnabled Then GUICtrlSetState($hBossKeyEnabled, $GUI_CHECKED)
+	GUICtrlCreateLabel(_t("BossKeyHotkey", "快捷键"), 170, 313, 60, 20)
+	$BossKeyCaptureValue = $BossKey
+	$hBossKey = GUICtrlCreateInput(BossKeyToDisplay($BossKey), 235, 308, 100, 20)
+	GUICtrlSetTip(-1, _t("BossKeyHotkeyTooltip", "点击后直接按组合键；Backspace 或 Delete 清空"))
+	$hBossKeyHideToTray = GUICtrlCreateCheckbox(_t("BossKeyHideToTray", " 隐藏到系统托盘"), 345, 310, 135, 20)
+	If $BossKeyHideToTray Then GUICtrlSetState($hBossKeyHideToTray, $GUI_CHECKED)
+	GUICtrlCreateLabel(_t("BossKeyDescription", "按快捷键隐藏浏览器；再次按快捷键或点击托盘图标还原。"), 20, 342, 460, 20)
+	SetupBossKeyHotkeyCapture()
+	RefreshBossKeyControlsState()
+
 	GUICtrlCreateTabItem("")
 	GUICtrlCreateButton(_t("Confirm", "确定"), 260, 489, 70, 22)
 	GUICtrlSetTip(-1, _t("ConfirmTooltip", "保存设置并启动浏览器"))
@@ -1724,6 +1831,7 @@ Func Settings()
 	AdlibUnRegister("RefreshFirefoxVersionLabels")
 	CancelAppUpdateCheck()
 	CancelBrowserVersionLoad()
+	CleanupBossKeyHotkeyCapture()
 	GUIDelete($hSettings)
 EndFunc   ;==>Settings
 
@@ -1746,6 +1854,123 @@ Func AddExApp2()
 	$ExApp2 = GUICtrlRead($hExApp2) & '"' & $path & '"' & @CRLF
 	GUICtrlSetData($hExApp2, $ExApp2)
 EndFunc   ;==>AddExApp2
+
+Func SetupBossKeyHotkeyCapture()
+	$BossKeyKeys = CreateBossKeyDictionary()
+	$BossKeyHotkeyProc = DllCallbackRegister("BossKeyHotkeyInputProc", "lresult", "hwnd;uint;wparam;lparam")
+	If @error Then Return
+	$BossKeyInputWndProc = _WinAPI_SetWindowLong(GUICtrlGetHandle($hBossKey), $GWL_WNDPROC, DllCallbackGetPtr($BossKeyHotkeyProc))
+EndFunc   ;==>SetupBossKeyHotkeyCapture
+
+Func CleanupBossKeyHotkeyCapture()
+	If $hBossKey And $BossKeyInputWndProc Then _WinAPI_SetWindowLong(GUICtrlGetHandle($hBossKey), $GWL_WNDPROC, $BossKeyInputWndProc)
+	If $BossKeyHotkeyProc Then DllCallbackFree($BossKeyHotkeyProc)
+	$BossKeyHotkeyProc = 0
+	$BossKeyInputWndProc = 0
+	$BossKeyKeys = 0
+EndFunc   ;==>CleanupBossKeyHotkeyCapture
+
+Func RefreshBossKeyControlsState()
+	If Not $hBossKeyEnabled Then Return
+	Local $State = $GUI_DISABLE
+	If GUICtrlRead($hBossKeyEnabled) = $GUI_CHECKED Then $State = $GUI_ENABLE
+	GUICtrlSetState($hBossKey, $State)
+	GUICtrlSetState($hBossKeyHideToTray, $State)
+EndFunc   ;==>RefreshBossKeyControlsState
+
+Func BossKeyHotkeyInputProc($hWnd, $iMsg, $wParam, $lParam)
+	Switch $iMsg
+		Case $WM_CHAR, $WM_SYSCHAR
+			Return 0
+		Case $WM_KEYDOWN, $WM_SYSKEYDOWN
+			If $wParam = 8 Or $wParam = 46 Then
+				$BossKeyCaptureValue = ""
+				GUICtrlSetData($hBossKey, "")
+				Return 0
+			EndIf
+			If $wParam = 16 Or $wParam = 17 Or $wParam = 18 Or $wParam = 91 Or $wParam = 92 Then Return 0
+
+			Local $Key = _WinAPI_GetKeyNameText($lParam)
+			If $Key = "" Then Return 0
+			If StringLen($Key) <= 1 Then
+				$Key = StringLower($Key)
+			Else
+				If IsObj($BossKeyKeys) And $BossKeyKeys.Exists($Key) Then
+					$Key = $BossKeyKeys.Item($Key)
+				Else
+					$Key = StringReplace($Key, " ", "")
+				EndIf
+				$Key = "{" & $Key & "}"
+			EndIf
+
+			Local $DisplayPrefix = ""
+			Local $HotkeyPrefix = ""
+			If _IsPressed("10") Then
+				$DisplayPrefix &= " + Shift"
+				$HotkeyPrefix &= "+"
+			EndIf
+			If _IsPressed("11") Then
+				$DisplayPrefix &= " + Ctrl"
+				$HotkeyPrefix &= "^"
+			EndIf
+			If _IsPressed("12") Then
+				$DisplayPrefix &= " + Alt"
+				$HotkeyPrefix &= "!"
+			EndIf
+			If _IsPressed("5B") Or _IsPressed("5C") Then
+				$DisplayPrefix &= " + Win"
+				$HotkeyPrefix &= "#"
+			EndIf
+			If $DisplayPrefix = "" Then
+				$DisplayPrefix = "Ctrl"
+				$HotkeyPrefix = "^"
+			Else
+				$DisplayPrefix = StringTrimLeft($DisplayPrefix, 3)
+			EndIf
+
+			$BossKeyCaptureValue = $HotkeyPrefix & $Key
+			GUICtrlSetData($hBossKey, $DisplayPrefix & " + " & $Key)
+			Return 0
+	EndSwitch
+
+	If $BossKeyInputWndProc Then Return _WinAPI_CallWindowProc($BossKeyInputWndProc, $hWnd, $iMsg, $wParam, $lParam)
+	Return 0
+EndFunc   ;==>BossKeyHotkeyInputProc
+
+Func BossKeyToDisplay($Hotkey)
+	Local $Key = StringRegExpReplace($Hotkey, "[!+#^]+", "")
+	If $Key = "" Then Return ""
+
+	Local $Prefix = ""
+	If StringInStr($Hotkey, "+") Then $Prefix &= " + Shift"
+	If StringInStr($Hotkey, "^") Then $Prefix &= " + Ctrl"
+	If StringInStr($Hotkey, "!") Then $Prefix &= " + Alt"
+	If StringInStr($Hotkey, "#") Then $Prefix &= " + Win"
+	If $Prefix = "" Then
+		$Prefix = "Ctrl"
+	Else
+		$Prefix = StringTrimLeft($Prefix, 3)
+	EndIf
+
+	Return $Prefix & " + " & $Key
+EndFunc   ;==>BossKeyToDisplay
+
+Func CreateBossKeyDictionary()
+	Local $Dictionary = ObjCreate("Scripting.Dictionary")
+	$Dictionary.Add("Page Up", "PGUP")
+	$Dictionary.Add("Page Down", "PGDN")
+	$Dictionary.Add("Num Lock", "NUMLOCK")
+	$Dictionary.Add("Caps Lock", "CAPSLOCK")
+	$Dictionary.Add("Scroll Lock", "SCROLLLOCK")
+	For $i = 0 To 9
+		$Dictionary.Add("Num " & $i, "NUMPAD" & $i)
+	Next
+	$Dictionary.Add("Num *", "NUMPADMULT")
+	$Dictionary.Add("Num +", "NUMPADADD")
+	$Dictionary.Add("Num -", "NUMPADSUB")
+	$Dictionary.Add("Num /", "NUMPADDIV")
+	Return $Dictionary
+EndFunc   ;==>CreateBossKeyDictionary
 
 Func OnFirefoxPathChange()
 	ApplyDetectedBrowserTypeFromPath()
@@ -4172,6 +4397,17 @@ Func SettingsApply()
 	Else
 		$RunInBackground = 0
 	EndIf
+	If GUICtrlRead($hBossKeyEnabled) = $GUI_CHECKED Then
+		$BossKeyEnabled = 1
+	Else
+		$BossKeyEnabled = 0
+	EndIf
+	$BossKey = $BossKeyCaptureValue
+	If GUICtrlRead($hBossKeyHideToTray) = $GUI_CHECKED Then
+		$BossKeyHideToTray = 1
+	Else
+		$BossKeyHideToTray = 0
+	EndIf
 	Local $var = GUICtrlRead($hExApp)
 	$var = StringStripWS($var, 3)
 	$var = StringReplace($var, @CRLF, "||")
@@ -4201,6 +4437,9 @@ Func SettingsApply()
 	IniWrite($inifile, "Settings", "CacheSize", $CacheSize)
 	IniWrite($inifile, "Settings", "CacheSizeSmart", $CacheSizeSmart)
 	IniWrite($inifile, "Settings", "Params", $Params)
+	IniWrite($inifile, "Settings", "BossKeyEnabled", $BossKeyEnabled)
+	IniWrite($inifile, "Settings", "BossKey", $BossKey)
+	IniWrite($inifile, "Settings", "BossKeyHideToTray", $BossKeyHideToTray)
 	$var = $ExApp
 	If StringRegExp($var, '^".*"$') Then $var = '"' & $var & '"'
 	IniWrite($inifile, "Settings", "ExApp", $var)

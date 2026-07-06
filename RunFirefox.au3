@@ -1578,7 +1578,6 @@ Func Settings()
 	GUICtrlSetOnEvent(-1, "GetProfileDir")
 	$hCopyProfile = GUICtrlCreateCheckbox(_t("ExtractProfileFromSystem", " 从系统中提取 Firefox 配置文件"), 30, 310, -1, 20)
 
-	GUICtrlCreateLabel(_t("RunFirefoxOptions", "{AppName} 设置"), 20, 365, 460, 20)
 	GUICtrlCreateLabel(_t("UILanguage", "显示语言/Language"), 20, 385, 120, 20)
 	$hlanguage = GUICtrlCreateCombo("", 140, 380, 100, 20, $CBS_DROPDOWNLIST)
 	$sLang = '简体中文'

@@ -60,6 +60,12 @@ Global Const $ChromePlusGitCodeTagsUrl = "https://gitcode.com/gh_mirrors/ch/chro
 Global Const $ChromePlusGitCodeTagsApiUrl = "https://web-api.gitcode.com/api/v2/projects/gh_mirrors%2Fch%2Fchrome_plus/repository/tags?order_by=committed&sort=desc&repoId=gh_mirrors%252Fch%252Fchrome_plus&page=1&per_page=10"
 Global Const $ChromePlusApiUserAgent = "RunFirefox/" & $AppVersion
 Global Const $ChromePlusCacheRoot = @TempDir & "\RunFirefox_ChromePlus"
+Global Const $ChromiumGoogleApiKeyEnv = "GOOGLE_API_KEY"
+Global Const $ChromiumGoogleClientIdEnv = "GOOGLE_DEFAULT_CLIENT_ID"
+Global Const $ChromiumGoogleClientSecretEnv = "GOOGLE_DEFAULT_CLIENT_SECRET"
+Global Const $ChromiumGoogleApiKey = ""
+Global Const $ChromiumGoogleClientId = ""
+Global Const $ChromiumGoogleClientSecret = ""
 Global Const $BrowserFirefox = "firefox"
 Global Const $BrowserZen = "zen"
 Global Const $BrowserFloorp = "floorp"
@@ -91,6 +97,7 @@ Global $hBrowserBitness, $hBrowserUpdateCheckMode, $hCurrentBrowserVersion, $hWa
 Global $hChromePlusHint, $hChromePlusDownloadPatch, $hChromePlusConfigPath, $hChromePlusDoubleClickClose, $hChromePlusRightClickClose, $hChromePlusKeepLastTab
 Global $hChromePlusWheelTab, $hChromePlusWheelTabWhenPressRButton, $hChromePlusOpenUrlNewTab, $hChromePlusOpenBookmarkNewTab
 Global $hChromePlusNewTabDisable, $hChromePlusNewTabDisableName, $hChromePlusNewTabDisableNameLabel
+Global $hChromiumGoogleApiImport, $hChromiumGoogleApiSuppress, $hChromiumGoogleApiClear
 Global $LANG_DATA
 Global $FirefoxVersionsObj = 0
 Global $ZenReleaseUpdateXml = "", $ZenTwilightUpdateXml = ""
@@ -1616,6 +1623,17 @@ Func Settings()
 	GUICtrlCreateLabel("MB", 215, 170, 35, 20)
 	$hCacheSizeSmart = GUICtrlCreateCheckbox(_t("CacheSizeControl", " 自动控制缓存大小"), 250, 165, -1, 20)
 	If $CacheSizeSmart Then GUICtrlSetState(-1, $GUI_CHECKED)
+
+	GUICtrlCreateGroup(_t("ChromiumSettings", "Chromium设置"), 10, 205, 480, 55)
+	$hChromiumGoogleApiImport = GUICtrlCreateButton(_t("ImportGoogleApi", "导入GoogleAPI"), 20, 228, 140, 22)
+	GUICtrlSetOnEvent(-1, "ImportChromiumGoogleApi")
+	GUICtrlSetTip(-1, _t("ImportGoogleApiTooltip", "导入GoogleAPI密钥后，Chromium 才能登录 Google 账号"))
+	$hChromiumGoogleApiSuppress = GUICtrlCreateButton(_t("SuppressGoogleApiWarning", "清除GoogleAPI提示"), 180, 228, 140, 22)
+	GUICtrlSetOnEvent(-1, "SuppressChromiumGoogleApiWarning")
+	GUICtrlSetTip(-1, _t("SuppressGoogleApiWarningTooltip", "不导入GoogleAPI密钥，只清除缺少 Google API 密钥提示"))
+	$hChromiumGoogleApiClear = GUICtrlCreateButton(_t("ClearGoogleApi", "清除GoogleAPI"), 340, 228, 140, 22)
+	GUICtrlSetOnEvent(-1, "ClearChromiumGoogleApi")
+	GUICtrlSetTip(-1, _t("ClearGoogleApiTooltip", "缺少GoogleAPI密钥会导致 Chromium 不能登录 Google 账号"))
 
 	GUICtrlCreateLabel(_t("CommandLineArguments", "命令行参数"), 20, 325, -1, 20)
 	$hParams = GUICtrlCreateEdit("", 20, 345, 460, 70, BitOR($ES_WANTRETURN, $WS_VSCROLL, $ES_AUTOVSCROLL))
@@ -4023,6 +4041,71 @@ Func FindBrowserExecutableForType($Dir, $BrowserTypeValue)
 	Next
 	Return ""
 EndFunc   ;==>FindBrowserExecutableForType
+
+Func ImportChromiumGoogleApi()
+	If Not HasChromiumGoogleApi() Then
+		MsgBox(48, "RunFirefox", _t("GoogleApiUnavailable", "当前构建未内置 Google API 密钥。请在 GitHub Actions secrets 中配置后重新构建。"), 0, $hSettings)
+		Return
+	EndIf
+	If SetChromiumGoogleApiEnvironment($ChromiumGoogleApiKey, $ChromiumGoogleClientId, $ChromiumGoogleClientSecret) Then
+		MsgBox(0, "RunFirefox", _t("GoogleApiImportSuccess", "导入GoogleAPI密钥成功"), 0, $hSettings)
+	Else
+		MsgBox(16, "RunFirefox", _t("GoogleApiEnvironmentUpdateFailed", "修改GoogleAPI环境变量失败。"), 0, $hSettings)
+	EndIf
+EndFunc   ;==>ImportChromiumGoogleApi
+
+Func HasChromiumGoogleApi()
+	Return $ChromiumGoogleApiKey <> "" And $ChromiumGoogleClientId <> "" And $ChromiumGoogleClientSecret <> ""
+EndFunc   ;==>HasChromiumGoogleApi
+
+Func SuppressChromiumGoogleApiWarning()
+	If SetChromiumGoogleApiEnvironment("no", "no", "no") Then
+		MsgBox(0, "RunFirefox", _t("GoogleApiWarningSuppressSuccess", "清除GoogleAPI密钥提示成功"), 0, $hSettings)
+	Else
+		MsgBox(16, "RunFirefox", _t("GoogleApiEnvironmentUpdateFailed", "修改GoogleAPI环境变量失败。"), 0, $hSettings)
+	EndIf
+EndFunc   ;==>SuppressChromiumGoogleApiWarning
+
+Func ClearChromiumGoogleApi()
+	If DeleteChromiumGoogleApiEnvironment() Then
+		MsgBox(0, "RunFirefox", _t("GoogleApiClearSuccess", "清除GoogleAPI密钥成功"), 0, $hSettings)
+	Else
+		MsgBox(16, "RunFirefox", _t("GoogleApiEnvironmentUpdateFailed", "修改GoogleAPI环境变量失败。"), 0, $hSettings)
+	EndIf
+EndFunc   ;==>ClearChromiumGoogleApi
+
+Func SetChromiumGoogleApiEnvironment($ApiKey, $ClientId, $ClientSecret)
+	Local $Result = True
+	If Not SetUserEnvironmentValue($ChromiumGoogleApiKeyEnv, $ApiKey) Then $Result = False
+	If Not SetUserEnvironmentValue($ChromiumGoogleClientIdEnv, $ClientId) Then $Result = False
+	If Not SetUserEnvironmentValue($ChromiumGoogleClientSecretEnv, $ClientSecret) Then $Result = False
+	NotifyEnvironmentChanged()
+	Return $Result
+EndFunc   ;==>SetChromiumGoogleApiEnvironment
+
+Func DeleteChromiumGoogleApiEnvironment()
+	Local $Result = True
+	If Not DeleteUserEnvironmentValue($ChromiumGoogleApiKeyEnv) Then $Result = False
+	If Not DeleteUserEnvironmentValue($ChromiumGoogleClientIdEnv) Then $Result = False
+	If Not DeleteUserEnvironmentValue($ChromiumGoogleClientSecretEnv) Then $Result = False
+	NotifyEnvironmentChanged()
+	Return $Result
+EndFunc   ;==>DeleteChromiumGoogleApiEnvironment
+
+Func SetUserEnvironmentValue($Name, $Value)
+	EnvSet($Name, $Value)
+	Return RegWrite("HKCU\Environment", $Name, "REG_SZ", $Value) <> 0
+EndFunc   ;==>SetUserEnvironmentValue
+
+Func DeleteUserEnvironmentValue($Name)
+	EnvSet($Name)
+	RegDelete("HKCU\Environment", $Name)
+	Return RegRead("HKCU\Environment", $Name) = "" And @error
+EndFunc   ;==>DeleteUserEnvironmentValue
+
+Func NotifyEnvironmentChanged()
+	DllCall("user32.dll", "long_ptr", "SendMessageTimeoutW", "hwnd", 0xFFFF, "uint", 0x001A, "wparam", 0, "wstr", "Environment", "uint", 0x0002, "uint", 5000, "dword_ptr*", 0)
+EndFunc   ;==>NotifyEnvironmentChanged
 
 Func RunInBackground()
 	If GUICtrlRead($hRunInBackground) = $GUI_CHECKED Then

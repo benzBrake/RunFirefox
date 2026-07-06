@@ -24,6 +24,51 @@ jobs:
         shell: pwsh
         run: '& .\scripts\install-autoit.ps1'
 
+      - name: Inject Google API keys
+        shell: pwsh
+        env:
+          CHROMIUM_GOOGLE_API_KEY: ${{ secrets.CHROMIUM_GOOGLE_API_KEY }}
+          CHROMIUM_GOOGLE_DEFAULT_CLIENT_ID: ${{ secrets.CHROMIUM_GOOGLE_DEFAULT_CLIENT_ID }}
+          CHROMIUM_GOOGLE_DEFAULT_CLIENT_SECRET: ${{ secrets.CHROMIUM_GOOGLE_DEFAULT_CLIENT_SECRET }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+
+          function ConvertTo-AutoItStringLiteral {
+              param([string]$Value)
+
+              if ($null -eq $Value) {
+                  $Value = ''
+              }
+
+              $escaped = $Value.Replace('"', '""')
+              return '"' + $escaped + '"'
+          }
+
+          function Set-ChromiumGoogleApiConstants {
+              param([string[]]$Paths)
+
+              $replacements = @{
+                  ChromiumGoogleApiKey = (ConvertTo-AutoItStringLiteral -Value $env:CHROMIUM_GOOGLE_API_KEY)
+                  ChromiumGoogleClientId = (ConvertTo-AutoItStringLiteral -Value $env:CHROMIUM_GOOGLE_DEFAULT_CLIENT_ID)
+                  ChromiumGoogleClientSecret = (ConvertTo-AutoItStringLiteral -Value $env:CHROMIUM_GOOGLE_DEFAULT_CLIENT_SECRET)
+              }
+
+              foreach ($path in $Paths) {
+                  $source = Get-Content -LiteralPath $path -Raw
+                  foreach ($name in $replacements.Keys) {
+                      $pattern = '(?m)^Global Const \$' + [regex]::Escape($name) + ' = ".*"\r?$'
+                      if ($source -notmatch $pattern) {
+                          throw "Missing Chromium Google API constant: $name"
+                      }
+                      $line = 'Global Const $' + $name + ' = ' + $replacements[$name]
+                      $source = [regex]::Replace($source, $pattern, $line)
+                  }
+                  Set-Content -LiteralPath $path -Value $source -Encoding utf8
+              }
+          }
+
+          Set-ChromiumGoogleApiConstants -Paths @('.\RunFirefox.au3')
+
       - name: Compile RunFirefox
         shell: pwsh
         run: |
@@ -116,6 +161,56 @@ jobs:
               sed -i "s/RunFirefox_x64.exe/Run${basename}_x64.exe/" "Run${basename}.au3"
             fi
           done
+
+      - name: Inject Google API keys
+        shell: pwsh
+        env:
+          CHROMIUM_GOOGLE_API_KEY: ${{ secrets.CHROMIUM_GOOGLE_API_KEY }}
+          CHROMIUM_GOOGLE_DEFAULT_CLIENT_ID: ${{ secrets.CHROMIUM_GOOGLE_DEFAULT_CLIENT_ID }}
+          CHROMIUM_GOOGLE_DEFAULT_CLIENT_SECRET: ${{ secrets.CHROMIUM_GOOGLE_DEFAULT_CLIENT_SECRET }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+
+          function ConvertTo-AutoItStringLiteral {
+              param([string]$Value)
+
+              if ($null -eq $Value) {
+                  $Value = ''
+              }
+
+              $escaped = $Value.Replace('"', '""')
+              return '"' + $escaped + '"'
+          }
+
+          function Set-ChromiumGoogleApiConstants {
+              param([string[]]$Paths)
+
+              $replacements = @{
+                  ChromiumGoogleApiKey = (ConvertTo-AutoItStringLiteral -Value $env:CHROMIUM_GOOGLE_API_KEY)
+                  ChromiumGoogleClientId = (ConvertTo-AutoItStringLiteral -Value $env:CHROMIUM_GOOGLE_DEFAULT_CLIENT_ID)
+                  ChromiumGoogleClientSecret = (ConvertTo-AutoItStringLiteral -Value $env:CHROMIUM_GOOGLE_DEFAULT_CLIENT_SECRET)
+              }
+
+              foreach ($path in $Paths) {
+                  $source = Get-Content -LiteralPath $path -Raw
+                  foreach ($name in $replacements.Keys) {
+                      $pattern = '(?m)^Global Const \$' + [regex]::Escape($name) + ' = ".*"\r?$'
+                      if ($source -notmatch $pattern) {
+                          throw "Missing Chromium Google API constant: $name"
+                      }
+                      $line = 'Global Const $' + $name + ' = ' + $replacements[$name]
+                      $source = [regex]::Replace($source, $pattern, $line)
+                  }
+                  Set-Content -LiteralPath $path -Value $source -Encoding utf8
+              }
+          }
+
+          $scripts = @(Get-ChildItem -Filter 'Run*.au3' | ForEach-Object { $_.FullName })
+          if ($scripts.Count -eq 0) {
+              throw 'No Run*.au3 scripts were found.'
+          }
+
+          Set-ChromiumGoogleApiConstants -Paths $scripts
 
       - name: Build scripts in parallel
         shell: pwsh

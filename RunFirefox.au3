@@ -1493,11 +1493,7 @@ Func ReplaceLocalPath($content)
 EndFunc   ;==>ReplaceLocalPath
 
 Func Settings()
-	$DefaultProfDir = IniRead(@AppDataDir & '\Mozilla\Firefox\profiles.ini', 'Profile0', 'Path', '') ; 读取Firefox原版配置文件夹路径
-	If $DefaultProfDir <> "" Then
-		$DefaultProfDir = StringReplace($DefaultProfDir, "/", "\")
-		$DefaultProfDir = @AppDataDir & '\Mozilla\Firefox\' & $DefaultProfDir
-	EndIf
+	$DefaultProfDir = GetSystemProfileSourceDir($BrowserType, "release")
 
 	Opt("ExpandEnvStrings", 0)
 	$hSettings = GUICreate(_t("AppTitle", "{AppName} - 打造自己的 Firefox 便携版"), 500, 540)
@@ -1576,7 +1572,7 @@ Func Settings()
 	GUICtrlCreateButton(_t("Browse", "浏览"), 420, 295, 60, 20)
 	GUICtrlSetTip(-1, _t("ChooseProfileDirectory", "指定浏览器配置文件夹"))
 	GUICtrlSetOnEvent(-1, "GetProfileDir")
-	$hCopyProfile = GUICtrlCreateCheckbox(_t("ExtractProfileFromSystem", " 从系统中提取 Firefox 配置文件"), 20, 328, -1, 20)
+	$hCopyProfile = GUICtrlCreateCheckbox(_t("ExtractProfileFromSystem", " 从系统中提取浏览器配置文件"), 20, 328, -1, 20)
 
 	GUICtrlCreateLabel(_t("UILanguage", "显示语言/Language"), 20, 385, 120, 20)
 	$hlanguage = GUICtrlCreateCombo("", 140, 380, 100, 20, $CBS_DROPDOWNLIST)
@@ -1768,6 +1764,7 @@ Func ChangeBrowserType()
 EndFunc   ;==>ChangeBrowserType
 
 Func ChangeChannel()
+	RefreshCopyProfileState()
 	BeginBrowserVersionLoad()
 EndFunc   ;==>ChangeChannel
 
@@ -2284,23 +2281,20 @@ EndFunc   ;==>GetBrowserWindowWait
 Func UpdateBrowserSpecificControls()
 	If Not $hBrowserType Then Return
 	Local $IsChrome = IsChromeBrowser(GetSelectedBrowserType())
-	Local $ChromeState = $GUI_ENABLE
-	If $IsChrome Then $ChromeState = $GUI_DISABLE
+	Local $MozillaState = $GUI_ENABLE
+	If $IsChrome Then $MozillaState = $GUI_DISABLE
 
 	GUICtrlSetState($hChannel, $GUI_ENABLE)
-	GUICtrlSetState($hAllowBrowserUpdate, $ChromeState)
+	GUICtrlSetState($hAllowBrowserUpdate, $MozillaState)
 	GUICtrlSetState($hDownloadFirefox64, $GUI_ENABLE)
-	GUICtrlSetState($hCopyProfile, $ChromeState)
-	GUICtrlSetState($hCustomPluginsDir, $ChromeState)
-	GUICtrlSetState($hGetPluginsDir, $ChromeState)
-	GUICtrlSetState($hCacheSizeSmart, $ChromeState)
+	GUICtrlSetState($hCustomPluginsDir, $MozillaState)
+	GUICtrlSetState($hGetPluginsDir, $MozillaState)
+	GUICtrlSetState($hCacheSizeSmart, $MozillaState)
 
 	If $IsChrome Then
-		GUICtrlSetState($hCopyProfile, $GUI_UNCHECKED)
 		UpdateFirefoxDownloadLabels(False)
-	Else
-		RefreshCopyProfileState()
 	EndIf
+	RefreshCopyProfileState()
 
 	RefreshChromePlusTabState()
 EndFunc   ;==>UpdateBrowserSpecificControls
@@ -2633,13 +2627,117 @@ EndFunc   ;==>SaveChromePlusTabsSettings
 
 Func RefreshCopyProfileState()
 	If Not $hCopyProfile Then Return
-	If FileExists($DefaultProfDir) Then
+	Local $CurrentBrowserType = GetSelectedBrowserType()
+	Local $SelectedChannel = "release"
+	If $hChannel Then $SelectedChannel = GUICtrlRead($hChannel)
+	$DefaultProfDir = GetSystemProfileSourceDir($CurrentBrowserType, $SelectedChannel)
+
+	Local $SourceMarker = "\prefs.js"
+	If IsChromeBrowser($CurrentBrowserType) Then $SourceMarker = "\Local State"
+	Local $TargetProfileDir = FullPath($ProfileDir)
+	If $hProfileDir Then $TargetProfileDir = FullPath(GUICtrlRead($hProfileDir))
+
+	If $DefaultProfDir <> "" And FileExists($DefaultProfDir & $SourceMarker) Then
 		GUICtrlSetState($hCopyProfile, $GUI_ENABLE)
-		If $FirstRun And Not FileExists($ProfileDir & "\prefs.js") Then GUICtrlSetState($hCopyProfile, $GUI_CHECKED)
+		If $FirstRun And Not FileExists($TargetProfileDir & $SourceMarker) Then GUICtrlSetState($hCopyProfile, $GUI_CHECKED)
 	Else
+		GUICtrlSetState($hCopyProfile, $GUI_UNCHECKED)
 		GUICtrlSetState($hCopyProfile, $GUI_DISABLE)
 	EndIf
 EndFunc   ;==>RefreshCopyProfileState
+
+Func GetSystemProfileSourceDir($BrowserTypeValue, $Channel = "")
+	If IsChromeBrowser($BrowserTypeValue) Then Return GetSystemChromiumUserDataDir($BrowserTypeValue, $Channel)
+	Return GetSystemMozillaProfileDir($BrowserTypeValue)
+EndFunc   ;==>GetSystemProfileSourceDir
+
+Func GetSystemMozillaProfileDir($BrowserTypeValue)
+	Local $ProfilesIni = GetMozillaProfilesIniPath($BrowserTypeValue)
+	If $ProfilesIni = "" Then Return ""
+	Return ReadDefaultProfileDirFromProfilesIni($ProfilesIni)
+EndFunc   ;==>GetSystemMozillaProfileDir
+
+Func GetMozillaProfilesIniPath($BrowserTypeValue)
+	Switch NormalizeBrowserType($BrowserTypeValue)
+		Case $BrowserZen
+			Return @AppDataDir & "\zen\profiles.ini"
+		Case $BrowserFloorp
+			Return @AppDataDir & "\Floorp\profiles.ini"
+		Case $BrowserWaterfox
+			Return @AppDataDir & "\Waterfox\profiles.ini"
+	EndSwitch
+	Return @AppDataDir & "\Mozilla\Firefox\profiles.ini"
+EndFunc   ;==>GetMozillaProfilesIniPath
+
+Func ReadDefaultProfileDirFromProfilesIni($ProfilesIni)
+	If Not FileExists($ProfilesIni) Then Return ""
+
+	Local $Sections = IniReadSectionNames($ProfilesIni)
+	If @error Then Return ResolveProfilesIniProfilePath($ProfilesIni, IniRead($ProfilesIni, "Profile0", "Path", ""), IniRead($ProfilesIni, "Profile0", "IsRelative", "1"))
+
+	Local $Fallback = "", $SectionName, $ProfilePath, $ResolvedPath
+	For $i = 1 To $Sections[0]
+		$SectionName = $Sections[$i]
+		If Not StringRegExp($SectionName, "(?i)^Profile\d+$") Then ContinueLoop
+
+		$ProfilePath = IniRead($ProfilesIni, $SectionName, "Path", "")
+		If $ProfilePath = "" Then ContinueLoop
+
+		$ResolvedPath = ResolveProfilesIniProfilePath($ProfilesIni, $ProfilePath, IniRead($ProfilesIni, $SectionName, "IsRelative", "1"))
+		If $Fallback = "" Then $Fallback = $ResolvedPath
+		If IniRead($ProfilesIni, $SectionName, "Default", "0") = "1" Then Return $ResolvedPath
+	Next
+	Return $Fallback
+EndFunc   ;==>ReadDefaultProfileDirFromProfilesIni
+
+Func ResolveProfilesIniProfilePath($ProfilesIni, $ProfilePath, $IsRelative)
+	If $ProfilePath = "" Then Return ""
+	$ProfilePath = StringReplace($ProfilePath, "/", "\")
+	If $IsRelative = "0" And StringRegExp($ProfilePath, "^(?i:[a-z]:\\|\\\\)") Then Return $ProfilePath
+
+	Local $ProfilesRoot, $ProfilesFile
+	SplitPath($ProfilesIni, $ProfilesRoot, $ProfilesFile)
+	Return $ProfilesRoot & "\" & $ProfilePath
+EndFunc   ;==>ResolveProfilesIniProfilePath
+
+Func GetSystemChromiumUserDataDir($BrowserTypeValue, $Channel = "")
+	Local $Normalized = NormalizeBrowserType($BrowserTypeValue)
+	If $Normalized = $BrowserHelium Then
+		If FileExists(@LocalAppDataDir & "\Helium\User Data\Local State") Then Return @LocalAppDataDir & "\Helium\User Data"
+		If FileExists(@LocalAppDataDir & "\The Helium Authors\Helium\User Data\Local State") Then Return @LocalAppDataDir & "\The Helium Authors\Helium\User Data"
+		If FileExists(@LocalAppDataDir & "\imputnet\Helium\User Data\Local State") Then Return @LocalAppDataDir & "\imputnet\Helium\User Data"
+		If FileExists(@AppDataDir & "\Helium\User Data\Local State") Then Return @AppDataDir & "\Helium\User Data"
+		Return ""
+	EndIf
+
+	Local $CurrentBrowserPath = ""
+	If $hFirefoxPath Then $CurrentBrowserPath = StringLower(GUICtrlRead($hFirefoxPath))
+	Local $ChannelLower = StringLower($Channel)
+
+	If StringInStr($CurrentBrowserPath, "chromium") Then
+		If FileExists(@LocalAppDataDir & "\Chromium\User Data\Local State") Then Return @LocalAppDataDir & "\Chromium\User Data"
+		If FileExists(@LocalAppDataDir & "\Google\Chrome\User Data\Local State") Then Return @LocalAppDataDir & "\Google\Chrome\User Data"
+		If FileExists(@LocalAppDataDir & "\Google\Chrome SxS\User Data\Local State") Then Return @LocalAppDataDir & "\Google\Chrome SxS\User Data"
+		Return ""
+	EndIf
+
+	If $ChannelLower = "canary" Then
+		If FileExists(@LocalAppDataDir & "\Google\Chrome SxS\User Data\Local State") Then Return @LocalAppDataDir & "\Google\Chrome SxS\User Data"
+		If FileExists(@LocalAppDataDir & "\Google\Chrome\User Data\Local State") Then Return @LocalAppDataDir & "\Google\Chrome\User Data"
+		If FileExists(@LocalAppDataDir & "\Chromium\User Data\Local State") Then Return @LocalAppDataDir & "\Chromium\User Data"
+		Return ""
+	EndIf
+
+	If FileExists(@LocalAppDataDir & "\Google\Chrome\User Data\Local State") Then Return @LocalAppDataDir & "\Google\Chrome\User Data"
+	If FileExists(@LocalAppDataDir & "\Chromium\User Data\Local State") Then Return @LocalAppDataDir & "\Chromium\User Data"
+	If FileExists(@LocalAppDataDir & "\Google\Chrome SxS\User Data\Local State") Then Return @LocalAppDataDir & "\Google\Chrome SxS\User Data"
+	Return ""
+EndFunc   ;==>GetSystemChromiumUserDataDir
+
+Func ChromiumProfileInUse($UserDataDir)
+	Local $LockFile = $UserDataDir & "\lockfile"
+	Return FileExists($LockFile) And Not FileDelete($LockFile)
+EndFunc   ;==>ChromiumProfileInUse
 
 Func UpdateBrowserChannelOptions($Value, $SelectedChannel)
 	Local $Options = "esr|release|beta|dev|nightly"
@@ -4067,15 +4165,26 @@ Func SettingsApply()
 		DirCreate($ProfileDir)
 	EndIf
 
-	; 提取Firefox原版配置文件
-	If IsMozillaBrowser($BrowserType) And GUICtrlRead($hCopyProfile) = $GUI_CHECKED Then
-		While ProfileInUse($ProfileDir)
-			$msg = MsgBox(49, "RunFirefox", _t("CannotExtratProfileFromSystem", "浏览器正运行，无法提取配置文件！\n请关闭 Firefox 后继续。"), 0, $hSettings)
-			If $msg <> 1 Then ExitLoop
+	; 提取系统浏览器配置文件
+	If GUICtrlRead($hCopyProfile) = $GUI_CHECKED Then
+		$DefaultProfDir = GetSystemProfileSourceDir($BrowserType, GUICtrlRead($hChannel))
+		Local $ShouldCopyProfile = ($DefaultProfDir <> "")
+		While $ShouldCopyProfile
+			If IsChromeBrowser($BrowserType) Then
+				If Not ChromiumProfileInUse($DefaultProfDir) And Not ChromiumProfileInUse(FullPath($ProfileDir)) Then ExitLoop
+			Else
+				If Not ProfileInUse($DefaultProfDir) And Not ProfileInUse(FullPath($ProfileDir)) Then ExitLoop
+			EndIf
+			$msg = MsgBox(49, "RunFirefox", _t("CannotExtratProfileFromSystem", "浏览器正运行，无法提取配置文件！\n请关闭浏览器后继续。"), 0, $hSettings)
+			If $msg <> 1 Then $ShouldCopyProfile = False
 		WEnd
-		If $msg = 1 Then
+		If $ShouldCopyProfile Then
 			SplashTextOn("RunFirefox", _t("ExtractingProfile", "正在提取配置文件，请稍候 ..."), 300, 100)
-			Local $var = DirCopy($DefaultProfDir, $ProfileDir, 1)
+			If NormalizePathForCompare($DefaultProfDir) = NormalizePathForCompare(FullPath($ProfileDir)) Then
+				$var = True
+			Else
+				$var = DirCopy($DefaultProfDir, $ProfileDir, 1)
+			EndIf
 			SplashOff()
 			If $var Then
 				_GUICtrlStatusBar_SetText($hStatus, _t("ExtractProfileSuccess", "提取配置文件成功！"))

@@ -77,6 +77,7 @@ Global $FirstRun = 0, $FirstLaunch = 0, $FirefoxExe, $FirefoxDir, $isZotero = fa
 Global $TaskBarDir = @AppDataDir & "\Microsoft\Internet Explorer\Quick Launch\User Pinned\TaskBar"
 Global $AppPID, $TaskBarLastChange
 Global $AllowBrowserUpdate, $CheckAppUpdate, $AppUpdateLastCheck, $RunInBackground, $BrowserType, $FirefoxPath, $ProfileDir
+Global $BrowserUpdateCheckMode, $BrowserUpdateLastCheck
 Global $CustomPluginsDir, $CustomCacheDir, $CacheSize, $CacheSizeSmart, $CheckDefaultBrowser, $Params
 Global $ExApp, $ExAppAutoExit, $ExApp2
 Global $GithubDirectMirror, $GithubJsDelivrMirror
@@ -86,6 +87,7 @@ Global $hCopyProfile, $hCustomPluginsDir, $hGetPluginsDir
 Global $hCustomCacheDir, $hGetCacheDir, $hCacheSize, $hCacheSizeSmart
 Global $hParams, $hStatus, $SettingsOK
 Global $hAllowBrowserUpdate, $hCheckAppUpdate, $hRunInBackground, $hBrowserType, $hChannel, $hDownloadFirefox64, $FirefoxURL
+Global $hBrowserBitness, $hBrowserUpdateCheckMode, $hCurrentBrowserVersion, $hWaterfoxVersionHint, $hBrowserDownloadNow
 Global $hChromePlusHint, $hChromePlusDownloadPatch, $hChromePlusConfigPath, $hChromePlusDoubleClickClose, $hChromePlusRightClickClose, $hChromePlusKeepLastTab
 Global $hChromePlusWheelTab, $hChromePlusWheelTabWhenPressRButton, $hChromePlusOpenUrlNewTab, $hChromePlusOpenBookmarkNewTab
 Global $hChromePlusNewTabDisable, $hChromePlusNewTabDisableName, $hChromePlusNewTabDisableNameLabel
@@ -137,6 +139,8 @@ If Not FileExists($inifile) Then
 	IniWrite($inifile, "Settings", "AppUpdateLastCheck", "2015/01/01 00:00:00")
 	IniWrite($inifile, "Settings", "RunInBackground", 1)
 	IniWrite($inifile, "Settings", "AllowBrowserUpdate", 1)
+	IniWrite($inifile, "Settings", "BrowserUpdateCheckMode", "startup")
+	IniWrite($inifile, "Settings", "BrowserUpdateLastCheck", "2015/01/01 00:00:00")
 	IniWrite($inifile, "Settings", "BrowserType", $BrowserFirefox)
 	IniWrite($inifile, "Settings", "FirefoxPath", ".\Firefox\firefox.exe")
 	IniWrite($inifile, "Settings", "ProfileDir", ".\profiles")
@@ -159,6 +163,11 @@ If Not $AppUpdateLastCheck Then
 	$AppUpdateLastCheck = "2015/01/01 00:00:00"
 EndIf
 $AllowBrowserUpdate = IniRead($inifile, "Settings", "AllowBrowserUpdate", 1) * 1
+$BrowserUpdateCheckMode = NormalizeBrowserUpdateCheckMode(IniRead($inifile, "Settings", "BrowserUpdateCheckMode", "startup"))
+$BrowserUpdateLastCheck = IniRead($inifile, "Settings", "BrowserUpdateLastCheck", "")
+If Not $BrowserUpdateLastCheck Then
+	$BrowserUpdateLastCheck = "2015/01/01 00:00:00"
+EndIf
 $RunInBackground = IniRead($inifile, "Settings", "RunInBackground", 1) * 1
 $BrowserType = NormalizeBrowserType(IniRead($inifile, "Settings", "BrowserType", $BrowserFirefox))
 $FirefoxPath = IniRead($inifile, "Settings", "FirefoxPath", ".\Firefox\firefox.exe")
@@ -1491,7 +1500,7 @@ Func Settings()
 	EndIf
 
 	Opt("ExpandEnvStrings", 0)
-	$hSettings = GUICreate(_t("AppTitle", "{AppName} - 打造自己的 Firefox 便携版"), 500, 490)
+	$hSettings = GUICreate(_t("AppTitle", "{AppName} - 打造自己的 Firefox 便携版"), 500, 540)
 	GUISetOnEvent($GUI_EVENT_CLOSE, "ExitApp")
 	GUICtrlCreateLabel(_t("AppCopyright", "{AppName} by Ryan <github-benzBrake@woai.ru>"), 5, 10, 490, -1, $SS_CENTER)
 	GUICtrlSetCursor(-1, 0)
@@ -1505,10 +1514,10 @@ Func Settings()
 	GUICtrlSetOnEvent(-1, "OriginalWebsite")
 
 	;常规
-	GUICtrlCreateTab(5, 50, 490, 390)
+	GUICtrlCreateTab(5, 50, 490, 430)
 	GUICtrlCreateTabItem(_t("General", "常规"))
 
-	GUICtrlCreateGroup(_t("BrowserFiles", "浏览器程序文件"), 10, 80, 480, 120)
+	GUICtrlCreateGroup(_t("BrowserFiles", "浏览器程序文件"), 10, 80, 480, 180)
 	GUICtrlCreateLabel(_t("FirefoxPath", "浏览器路径"), 20, 100, 120, 20)
 	$hFirefoxPath = GUICtrlCreateEdit($FirefoxPath, 140, 95, 270, 20, $ES_AUTOHSCROLL)
 	GUICtrlSetTip(-1, _t("BrowserExecutablePath", "浏览器主程序路径"))
@@ -1537,24 +1546,41 @@ Func Settings()
 ;~ 	GUICtrlSetTip(-1, "去下载 Firefox")
 ;~ 	GUICtrlSetOnEvent(-1, "DownloadFirefox")
 
-	GUICtrlCreateLabel(_t("DownloadBrowser", "下载浏览器："), 20, 160, 120, 20)
-	$hDownloadFirefox64 = GUICtrlCreateLabel(_t("DownloadBrowserX64", "%s 64位", "Firefox release"), 140, 160, 330, 20)
+	GUICtrlCreateLabel(_t("BrowserBitness", "浏览器位数："), 20, 160, 120, 20)
+	$hBrowserBitness = GUICtrlCreateLabel("x64", 140, 160, 120, 20)
+
+	GUICtrlCreateLabel(_t("LatestVersion", "最新版本："), 280, 160, 80, 20)
+	$hDownloadFirefox64 = GUICtrlCreateLabel(_t("BrowserDownloadAddress", "下载地址"), 365, 160, 115, 20)
 	GUICtrlSetCursor(-1, 0)
 	GUICtrlSetColor(-1, 0x0000FF)
 	GUICtrlSetOnEvent(-1, "DownloadFirefox")
 
-	GUICtrlCreateGroup(_t("ProfileFiles", "浏览器用户数据文件"), 10, 210, 480, 80)
-	GUICtrlCreateLabel(_t("ProfileDirectory", "配置文件夹"), 20, 230, 120, 20)
-	$hProfileDir = GUICtrlCreateEdit($ProfileDir, 140, 225, 270, 20, $ES_AUTOHSCROLL)
+	GUICtrlCreateLabel(_t("CheckBrowserUpdate", "检查浏览器更新："), 20, 190, 120, 20)
+	$hBrowserUpdateCheckMode = GUICtrlCreateCombo("", 140, 185, 120, 20, $CBS_DROPDOWNLIST)
+	GUICtrlSetData($hBrowserUpdateCheckMode, GetBrowserUpdateCheckModeComboData(), GetBrowserUpdateCheckModeLabel($BrowserUpdateCheckMode))
+	GUICtrlSetOnEvent(-1, "ChangeBrowserUpdateCheckMode")
+
+	GUICtrlCreateLabel(_t("CurrentVersion", "当前版本："), 280, 190, 80, 20)
+	$hCurrentBrowserVersion = GUICtrlCreateLabel("-", 365, 190, 115, 20)
+	$hWaterfoxVersionHint = GUICtrlCreateLabel(_t("WaterfoxCurrentVersionUnsupported", "Waterfox 本地版本号读取不准确"), 140, 220, 220, 20)
+	GUICtrlSetColor(-1, 0xFF0000)
+	GUICtrlSetState($hWaterfoxVersionHint, $GUI_HIDE)
+	$hBrowserDownloadNow = GUICtrlCreateButton(_t("DownloadNow", "立即下载"), 365, 216, 90, 22)
+	GUICtrlSetOnEvent(-1, "DownloadFirefox")
+	GUICtrlSetState($hBrowserDownloadNow, $GUI_HIDE)
+
+	GUICtrlCreateGroup(_t("ProfileFiles", "浏览器用户数据文件"), 10, 270, 480, 80)
+	GUICtrlCreateLabel(_t("ProfileDirectory", "配置文件夹"), 20, 290, 120, 20)
+	$hProfileDir = GUICtrlCreateEdit($ProfileDir, 140, 285, 270, 20, $ES_AUTOHSCROLL)
 	GUICtrlSetTip(-1, _t("ProfileDirectoryTooltip", "浏览器配置文件夹"))
-	GUICtrlCreateButton(_t("Browse", "浏览"), 420, 225, 60, 20)
+	GUICtrlCreateButton(_t("Browse", "浏览"), 420, 285, 60, 20)
 	GUICtrlSetTip(-1, _t("ChooseProfileDirectory", "指定浏览器配置文件夹"))
 	GUICtrlSetOnEvent(-1, "GetProfileDir")
-	$hCopyProfile = GUICtrlCreateCheckbox(_t("ExtractProfileFromSystem", " 从系统中提取 Firefox 配置文件"), 30, 250, -1, 20)
+	$hCopyProfile = GUICtrlCreateCheckbox(_t("ExtractProfileFromSystem", " 从系统中提取 Firefox 配置文件"), 30, 310, -1, 20)
 
-	GUICtrlCreateGroup(_t("RunFirefoxOptions", "{AppName} 设置"), 10, 300, 480, 120)
-	GUICtrlCreateLabel(_t("UILanguage", "显示语言/Language"), 20, 320, 120, 20)
-	$hlanguage = GUICtrlCreateCombo("", 140, 315, 100, 20, $CBS_DROPDOWNLIST)
+	GUICtrlCreateLabel(_t("RunFirefoxOptions", "{AppName} 设置"), 20, 365, 460, 20)
+	GUICtrlCreateLabel(_t("UILanguage", "显示语言/Language"), 20, 385, 120, 20)
+	$hlanguage = GUICtrlCreateCombo("", 140, 380, 100, 20, $CBS_DROPDOWNLIST)
 	$sLang = '简体中文'
 	If _ItemExists($LANGUAGES, $LANGUAGE) Then
 		$sLang = _Item($LANGUAGES, $LANGUAGE)
@@ -1563,11 +1589,11 @@ Func Settings()
 	GUICtrlSetData(-1, $sLangEnum, $slang)
 	GUICtrlSetOnEvent(-1, "ChangeLanguage")
 
-	$hCheckAppUpdate = GUICtrlCreateCheckbox(_t("NoticeMeWhenNewVersionPublished", " {AppName} 发布新版时通知我"), 20, 350)
+	$hCheckAppUpdate = GUICtrlCreateCheckbox(_t("NoticeMeWhenNewVersionPublished", " {AppName} 发布新版时通知我"), 20, 415)
 	If $CheckAppUpdate Then
 		GUICtrlSetState(-1, $GUI_CHECKED)
 	EndIf
-	$hRunInBackground = GUICtrlCreateCheckbox(_t("KeepRunFirefoxRunning", " {AppName} 在后台运行直至浏览器退出"), 20, 380)
+	$hRunInBackground = GUICtrlCreateCheckbox(_t("KeepRunFirefoxRunning", " {AppName} 在后台运行直至浏览器退出"), 20, 440)
 	GUICtrlSetOnEvent(-1, "RunInBackground")
 	If $RunInBackground Then
 		GUICtrlSetState($hRunInBackground, $GUI_CHECKED)
@@ -1652,14 +1678,14 @@ Func Settings()
 	GUICtrlSetOnEvent(-1, "AddExApp2")
 
 	GUICtrlCreateTabItem("")
-	GUICtrlCreateButton(_t("Confirm", "确定"), 180, 440, 70, 20)
+	GUICtrlCreateButton(_t("Confirm", "确定"), 180, 490, 70, 20)
 	GUICtrlSetTip(-1, _t("ConfirmTooltip", "保存设置并启动浏览器"))
 	GUICtrlSetOnEvent(-1, "SettingsOK")
 	GUICtrlSetState(-1, $GUI_FOCUS)
-	GUICtrlCreateButton(_t("Cancel", "取消"), 285, 440, 70, 20)
+	GUICtrlCreateButton(_t("Cancel", "取消"), 285, 490, 70, 20)
 	GUICtrlSetTip(-1, _t("CancelTooltip", "不保存设置并退出"))
 	GUICtrlSetOnEvent(-1, "ExitApp")
-	GUICtrlCreateButton(_t("Apply", "应用"), 390, 440, 70, 20)
+	GUICtrlCreateButton(_t("Apply", "应用"), 390, 490, 70, 20)
 	GUICtrlSetTip(-1, _t("ApplyTooltip", "保存设置"))
 	GUICtrlSetOnEvent(-1, "SettingsApply")
 	$hStatus = _GUICtrlStatusBar_Create($hSettings, -1, _t("DoublieClickToOpenSettingsWindow", '双击软件目录下的 "%s.vbs" 文件可调出此窗口', $ScriptNameWithOutSuffix))
@@ -1669,11 +1695,15 @@ Func Settings()
 	UpdateBrowserChannelOptions($BrowserType, "release")
 	UpdateBrowserSpecificControls()
 	ShowCurrentChannel()
+	UpdateCurrentBrowserVersionLabel()
 	UpdateFirefoxDownloadLabels(False)
 
 	GUISetState(@SW_SHOW)
 	BeginAppUpdateCheck()
-	AdlibRegister("RefreshFirefoxVersionLabels", 250)
+	If ShouldCheckBrowserVersionNow() Then
+		MarkBrowserVersionCheckStarted()
+		AdlibRegister("RefreshFirefoxVersionLabels", 250)
+	EndIf
 	While Not $SettingsOK
 		Sleep(100)
 	WEnd
@@ -1707,6 +1737,7 @@ Func OnFirefoxPathChange()
 	ApplyDetectedBrowserTypeFromPath()
 	ShowCurrentChannel()
 	ChangeChannel()
+	UpdateCurrentBrowserVersionLabel()
 	UpdateBrowserSpecificControls()
 EndFunc   ;==>OnFirefoxPathChange
 
@@ -1732,6 +1763,7 @@ Func ChangeBrowserType()
 	EndIf
 	$BrowserType = $NewBrowserType
 	UpdateBrowserChannelOptions($BrowserType, "release")
+	UpdateCurrentBrowserVersionLabel()
 	UpdateBrowserSpecificControls()
 	BeginBrowserVersionLoad()
 EndFunc   ;==>ChangeBrowserType
@@ -1740,31 +1772,177 @@ Func ChangeChannel()
 	BeginBrowserVersionLoad()
 EndFunc   ;==>ChangeChannel
 
+Func ChangeBrowserUpdateCheckMode()
+	$BrowserUpdateCheckMode = GetSelectedBrowserUpdateCheckMode()
+	If $BrowserUpdateCheckMode = "never" Then
+		CancelBrowserVersionLoad()
+		UpdateFirefoxDownloadLabels(False)
+		Return
+	EndIf
+	BeginBrowserVersionLoad()
+EndFunc   ;==>ChangeBrowserUpdateCheckMode
+
 Func RefreshFirefoxVersionLabels()
 	AdlibUnRegister("RefreshFirefoxVersionLabels")
 	BeginBrowserVersionLoad()
 EndFunc   ;==>RefreshFirefoxVersionLabels
 
-Func UpdateFirefoxDownloadLabels($LoadVersion)
+Func ShouldCheckBrowserVersionNow()
+	Local $Mode = NormalizeBrowserUpdateCheckMode($BrowserUpdateCheckMode)
+	Switch $Mode
+		Case "never"
+			Return False
+		Case "hourly"
+			Return _DateDiff("h", $BrowserUpdateLastCheck, _NowCalc()) >= 1
+		Case "daily"
+			Return _DateDiff("d", $BrowserUpdateLastCheck, _NowCalc()) >= 1
+		Case "weekly"
+			Return _DateDiff("d", $BrowserUpdateLastCheck, _NowCalc()) >= 7
+	EndSwitch
+	Return True
+EndFunc   ;==>ShouldCheckBrowserVersionNow
+
+Func MarkBrowserVersionCheckStarted()
+	$BrowserUpdateLastCheck = _NowCalc()
+	IniWrite($inifile, "Settings", "BrowserUpdateLastCheck", $BrowserUpdateLastCheck)
+EndFunc   ;==>MarkBrowserVersionCheckStarted
+
+Func UpdateFirefoxDownloadLabels($LoadVersion, $Unavailable = False)
+	If Not $hDownloadFirefox64 Then Return
 	Local $CurrentBrowserType = GetSelectedBrowserType()
 	Local $Channel = GUICtrlRead($hChannel)
 	If $Channel = "default" Then $Channel = "release"
-	Local $ChannelLabel = $Channel
-	If $CurrentBrowserType = $BrowserZen Then
-		If $LoadVersion And IsBrowserVersionCached($CurrentBrowserType, $Channel) Then $ChannelLabel = GetZenChannelLabel($Channel)
-	ElseIf $CurrentBrowserType = $BrowserFloorp Then
-		If $LoadVersion And IsBrowserVersionCached($CurrentBrowserType, $Channel) Then $ChannelLabel = GetFloorpChannelLabel($Channel)
-	ElseIf $CurrentBrowserType = $BrowserWaterfox Then
-		If $LoadVersion And IsBrowserVersionCached($CurrentBrowserType, $Channel) Then $ChannelLabel = GetWaterfoxChannelLabel($Channel)
-	ElseIf $CurrentBrowserType = $BrowserHelium Then
-		If $LoadVersion And IsBrowserVersionCached($CurrentBrowserType, $Channel) Then $ChannelLabel = GetHeliumChannelLabel($Channel)
-	ElseIf IsChromeBrowser($CurrentBrowserType) Then
-		$ChannelLabel = GetChromeChannelLabel($Channel, $LoadVersion)
-	Else
-		If ($LoadVersion And IsBrowserVersionCached($CurrentBrowserType, $Channel)) Or IsObj($FirefoxVersionsObj) Then $ChannelLabel = GetFirefoxChannelLabel($Channel)
+
+	Local $LatestVersion = ""
+	If $LoadVersion Then $LatestVersion = GetLatestBrowserVersionForSettings($CurrentBrowserType, $Channel)
+	If $LatestVersion <> "" Then
+		GUICtrlSetData($hDownloadFirefox64, $LatestVersion)
+		UpdateBrowserDownloadNowState()
+		Return
 	EndIf
-	GUICtrlSetData($hDownloadFirefox64, _t("DownloadBrowserX64", "%s 64位", GetBrowserDisplayName($CurrentBrowserType) & " " & $ChannelLabel))
+
+	If $Unavailable Then
+		GUICtrlSetData($hDownloadFirefox64, _t("BrowserVersionUnavailable", "获取失败"))
+	Else
+		GUICtrlSetData($hDownloadFirefox64, _t("BrowserDownloadAddress", "下载地址"))
+	EndIf
+	UpdateBrowserDownloadNowState()
 EndFunc   ;==>UpdateFirefoxDownloadLabels
+
+Func GetLatestBrowserVersionForSettings($CurrentBrowserType, $Channel)
+	$CurrentBrowserType = NormalizeBrowserType($CurrentBrowserType)
+	If $Channel = "default" Then $Channel = "release"
+
+	If $CurrentBrowserType = $BrowserZen Then Return GetLatestZenVersion($Channel)
+	If $CurrentBrowserType = $BrowserFloorp Then Return GetLatestFloorpVersion()
+	If $CurrentBrowserType = $BrowserWaterfox Then Return GetLatestWaterfoxVersion()
+	If $CurrentBrowserType = $BrowserHelium Then Return GetLatestHeliumVersion()
+	If IsChromeBrowser($CurrentBrowserType) Then Return GetChromeVersionCache($Channel)
+	Return GetLatestFirefoxVersion($Channel)
+EndFunc   ;==>GetLatestBrowserVersionForSettings
+
+Func UpdateCurrentBrowserVersionLabel()
+	If Not $hCurrentBrowserVersion Then Return
+
+	Local $BrowserPath = GetCurrentSettingsBrowserPath()
+	Local $CurrentVersion = ""
+	If FileExists($BrowserPath) Then
+		If NormalizeBrowserType(GetSelectedBrowserType()) = $BrowserZen Then
+			$CurrentVersion = ReadExecutableVersionField($BrowserPath, "ProductVersion")
+			If $CurrentVersion = "" Then $CurrentVersion = ReadExecutableVersionField($BrowserPath, "FileVersion")
+		ElseIf NormalizeBrowserType(GetSelectedBrowserType()) = $BrowserWaterfox Then
+			$CurrentVersion = "-"
+		Else
+			$CurrentVersion = ReadExecutableVersionField($BrowserPath, "FileVersion")
+			If $CurrentVersion = "" Then $CurrentVersion = ReadExecutableVersionField($BrowserPath, "ProductVersion")
+		EndIf
+	EndIf
+	If $CurrentVersion = "" Then $CurrentVersion = "-"
+	GUICtrlSetData($hCurrentBrowserVersion, $CurrentVersion)
+	UpdateWaterfoxVersionHintState()
+	UpdateBrowserDownloadNowState()
+EndFunc   ;==>UpdateCurrentBrowserVersionLabel
+
+Func UpdateWaterfoxVersionHintState()
+	If Not $hWaterfoxVersionHint Then Return
+	If NormalizeBrowserType(GetSelectedBrowserType()) = $BrowserWaterfox Then
+		GUICtrlSetState($hWaterfoxVersionHint, $GUI_SHOW)
+	Else
+		GUICtrlSetState($hWaterfoxVersionHint, $GUI_HIDE)
+	EndIf
+EndFunc   ;==>UpdateWaterfoxVersionHintState
+
+Func UpdateBrowserDownloadNowState()
+	If Not $hBrowserDownloadNow Or Not $hDownloadFirefox64 Or Not $hCurrentBrowserVersion Then Return
+
+	Local $LatestVersion = NormalizeDisplayedVersionForCompare(GUICtrlRead($hDownloadFirefox64))
+	Local $CurrentVersion = NormalizeDisplayedVersionForCompare(GUICtrlRead($hCurrentBrowserVersion))
+	Local $CurrentBrowserType = NormalizeBrowserType(GetSelectedBrowserType())
+	If $LatestVersion <> "" And (($CurrentVersion <> "" And $LatestVersion <> $CurrentVersion) Or ($CurrentVersion = "" And $CurrentBrowserType = $BrowserWaterfox)) Then
+		GUICtrlSetState($hBrowserDownloadNow, $GUI_SHOW)
+	Else
+		GUICtrlSetState($hBrowserDownloadNow, $GUI_HIDE)
+	EndIf
+EndFunc   ;==>UpdateBrowserDownloadNowState
+
+Func NormalizeDisplayedVersionForCompare($Version)
+	$Version = StringLower(StringStripWS($Version, 3))
+	If $Version = "" Or $Version = "-" Then Return ""
+	If $Version = StringLower(_t("BrowserDownloadAddress", "下载地址")) Then Return ""
+	If $Version = StringLower(_t("BrowserVersionUnavailable", "获取失败")) Then Return ""
+	Local $LoadingText = StringReplace(StringLower(_t("BrowserVersionLoading", "正在读取版本 %s")), "%s", "")
+	If $LoadingText <> "" And StringInStr($Version, $LoadingText) Then Return ""
+	Return StringRegExpReplace($Version, "^[vV]", "")
+EndFunc   ;==>NormalizeDisplayedVersionForCompare
+
+Func NormalizeBrowserUpdateCheckMode($Value)
+	$Value = StringLower(StringStripWS($Value, 3))
+	Switch $Value
+		Case "startup", "hourly", "daily", "weekly", "never"
+			Return $Value
+		Case "hour", "everyhour"
+			Return "hourly"
+		Case "day", "everyday"
+			Return "daily"
+		Case "week", "everyweek"
+			Return "weekly"
+		Case "none", "off"
+			Return "never"
+	EndSwitch
+	Return "startup"
+EndFunc   ;==>NormalizeBrowserUpdateCheckMode
+
+Func GetBrowserUpdateCheckModeLabel($Value)
+	$Value = NormalizeBrowserUpdateCheckMode($Value)
+	Switch $Value
+		Case "hourly"
+			Return _t("CheckBrowserUpdateHourly", "每小时")
+		Case "daily"
+			Return _t("CheckBrowserUpdateDaily", "每天")
+		Case "weekly"
+			Return _t("CheckBrowserUpdateWeekly", "每周")
+		Case "never"
+			Return _t("CheckBrowserUpdateNever", "从不")
+	EndSwitch
+	Return _t("CheckBrowserUpdateOnStartup", "每次启动时")
+EndFunc   ;==>GetBrowserUpdateCheckModeLabel
+
+Func GetBrowserUpdateCheckModeByLabel($Label)
+	If $Label = GetBrowserUpdateCheckModeLabel("hourly") Then Return "hourly"
+	If $Label = GetBrowserUpdateCheckModeLabel("daily") Then Return "daily"
+	If $Label = GetBrowserUpdateCheckModeLabel("weekly") Then Return "weekly"
+	If $Label = GetBrowserUpdateCheckModeLabel("never") Then Return "never"
+	Return "startup"
+EndFunc   ;==>GetBrowserUpdateCheckModeByLabel
+
+Func GetSelectedBrowserUpdateCheckMode()
+	If Not $hBrowserUpdateCheckMode Then Return $BrowserUpdateCheckMode
+	Return GetBrowserUpdateCheckModeByLabel(GUICtrlRead($hBrowserUpdateCheckMode))
+EndFunc   ;==>GetSelectedBrowserUpdateCheckMode
+
+Func GetBrowserUpdateCheckModeComboData()
+	Return GetBrowserUpdateCheckModeLabel("startup") & "|" & GetBrowserUpdateCheckModeLabel("hourly") & "|" & GetBrowserUpdateCheckModeLabel("daily") & "|" & GetBrowserUpdateCheckModeLabel("weekly") & "|" & GetBrowserUpdateCheckModeLabel("never")
+EndFunc   ;==>GetBrowserUpdateCheckModeComboData
 
 Func BeginBrowserVersionLoad($CurrentBrowserType = "", $Channel = "")
 	If Not $hDownloadFirefox64 Then Return
@@ -1910,7 +2088,7 @@ Func CompleteBrowserVersionLoad($LoadedBrowserType, $LoadedChannel, $Loaded)
 	If $Loaded Then
 		UpdateFirefoxDownloadLabels(True)
 	Else
-		UpdateFirefoxDownloadLabels(False)
+		UpdateFirefoxDownloadLabels(False, True)
 		If $hStatus Then _GUICtrlStatusBar_SetText($hStatus, _t("BrowserVersionLoadFailed", "读取浏览器版本失败。"))
 	EndIf
 EndFunc   ;==>CompleteBrowserVersionLoad
@@ -1928,7 +2106,7 @@ Func UpdateBrowserVersionLoadingLabel()
 			$Spinner = "\"
 	EndSwitch
 	$BrowserVersionLoadAnim += 1
-	GUICtrlSetData($hDownloadFirefox64, _t("DownloadBrowserX64", "%s 64位", GetBrowserDisplayName($CurrentBrowserType) & " " & _t("BrowserVersionLoading", "正在读取版本 %s", $Spinner)))
+	GUICtrlSetData($hDownloadFirefox64, _t("BrowserVersionLoading", "正在读取版本 %s", $Spinner))
 EndFunc   ;==>UpdateBrowserVersionLoadingLabel
 
 Func IsBrowserVersionCached($CurrentBrowserType, $Channel)
@@ -3807,6 +3985,7 @@ Func SettingsApply()
 	Else
 		$CheckAppUpdate = 0
 	EndIf
+	$BrowserUpdateCheckMode = GetSelectedBrowserUpdateCheckMode()
 	If GUICtrlRead($hRunInBackground) = $GUI_CHECKED Then
 		$RunInBackground = 1
 	Else
@@ -3831,6 +4010,8 @@ Func SettingsApply()
 	IniWrite($inifile, "Settings", "CheckAppUpdate", $CheckAppUpdate)
 	IniWrite($inifile, "Settings", "RunInBackground", $RunInBackground)
 	IniWrite($inifile, "Settings", "AllowBrowserUpdate", $AllowBrowserUpdate)
+	IniWrite($inifile, "Settings", "BrowserUpdateCheckMode", $BrowserUpdateCheckMode)
+	IniWrite($inifile, "Settings", "BrowserUpdateLastCheck", $BrowserUpdateLastCheck)
 	IniWrite($inifile, "Settings", "BrowserType", $BrowserType)
 	IniWrite($inifile, "Settings", "FirefoxPath", $FirefoxPath)
 	IniWrite($inifile, "Settings", "ProfileDir", $ProfileDir)

@@ -1665,9 +1665,9 @@ Func Settings()
 	$hChromePlusNewTabDisableName = GUICtrlCreateEdit("", 145, 288, 335, 20, $ES_AUTOHSCROLL)
 	GUICtrlSetTip($hChromePlusNewTabDisableName, _t("ChromePlusDisableNewTabNameTooltip", '对应 chrome++.ini 的 new_tab_disable_name 原始值；可填写多个标题，并保留英文双引号与逗号，例如 "about:blank","新建标签"'))
 
-	; 外部程序
-	GUICtrlCreateTabItem(_t("ExternalPrograms", "外部程序"))
-	GUICtrlCreateLabel(_t("RunOnBrowserStart", "#浏览器启动时运行"), 20, 90, -1, 20)
+	; 辅助
+	GUICtrlCreateTabItem(_t("Auxiliary", "辅助"))
+	GUICtrlCreateLabel(_t("RunOnBrowserStart", "浏览器启动时运行"), 20, 90, -1, 20)
 	$hExAppAutoExit = GUICtrlCreateCheckbox(_t("AutoCloseAfterBrowserExit", " #浏览器退出后自动关闭"), 240, 85, -1, 20)
 	If $ExAppAutoExit = 1 Then
 		GUICtrlSetState($hExAppAutoExit, $GUI_CHECKED)
@@ -1681,7 +1681,7 @@ Func Settings()
 	GUICtrlSetTip(-1, _t("SelectExtraApp", "选择外部程序"))
 	GUICtrlSetOnEvent(-1, "AddExApp")
 
-	GUICtrlCreateLabel(_t("RunAfterBrowserExit", "#浏览器退出后运行"), 20, 190, -1, 20)
+	GUICtrlCreateLabel(_t("RunAfterBrowserExit", "浏览器退出后运行"), 20, 190, -1, 20)
 	$hExApp2 = GUICtrlCreateEdit("", 20, 210, 410, 50, BitOR($ES_WANTRETURN, $WS_VSCROLL, $ES_AUTOVSCROLL))
 	If $ExApp2 <> "" Then
 		GUICtrlSetData(-1, StringReplace($ExApp2, "||", @CRLF) & @CRLF)

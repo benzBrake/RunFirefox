@@ -14,6 +14,18 @@ Features:
 
 ### Latest updates
 
+2026.07.06 Added a cache settings group to Advanced settings for configuring the cache folder and related options in one place
+
+2026.07.06 Added Google API management to Chromium settings, allowing build-injected API keys to be imported, the missing-API warning to be hidden, or related environment variables to be cleared
+
+2026.07.06 Browser update checks are now configurable, with startup, hourly, daily, weekly, and never options, plus current version, latest version, bitness, and download controls
+
+2026.07.06 System profile extraction now supports all browser types, and the settings dialog layout, button height, and Utilities tab naming were refined
+
+2026.07.05 App update checks now run asynchronously in the background so startup is not blocked
+
+2026.07.05 Browser type detection now prefers executable metadata, and the README now includes stable, beta, and total download badges
+
 2026.07.04 Updated the portable guide to explain that some browsers can now be downloaded directly from the settings screen, while browsers without built-in download support such as LibreWolf still use the manual steps
 
 2026.07.03 Added Helium to the settings screen with online download and extraction for the Windows x64 ZIP package; Helium is treated as a Chromium-based browser for Chrome++ patch installation and settings

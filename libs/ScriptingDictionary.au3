@@ -1,3 +1,5 @@
+#include-once
+
 #cs
 	Scripting Dictionary UDF
 

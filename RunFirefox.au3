@@ -1494,12 +1494,14 @@ Func Settings()
 	$hChromePlusWheelTabWhenPressRButton = GUICtrlCreateCheckbox(_t("ChromePlusWheelTabWhenPressRButton", "按住右键时滚轮切换标签页"), 20, 258, 220, 20)
 	$hChromePlusOpenUrlNewTab = GUICtrlCreateCheckbox(_t("ChromePlusOpenUrlNewTab", "地址栏输入在新标签页打开"), 250, 258, 210, 20)
 	$hChromePlusOpenBookmarkNewTab = GUICtrlCreateCheckbox(_t("ChromePlusOpenBookmarkNewTab", "书签在新标签页打开"), 20, 288, 200, 20)
-	$hChromePlusNewTabDisable = GUICtrlCreateCheckbox(_t("ChromePlusDisableNewTab", "禁用“新建标签页”"), 250, 288, 200, 20)
+	$hChromePlusNewTabDisable = GUICtrlCreateCheckbox(_t("ChromePlusDisableNewTab", "新标签页时禁用上两项"), 250, 288, 200, 20)
 	GUICtrlSetOnEvent($hChromePlusNewTabDisable, "RefreshChromePlusNewTabDisableNameState")
 
-	$hChromePlusNewTabDisableNameLabel = GUICtrlCreateLabel(_t("ChromePlusDisableNewTabName", "禁用页标题"), 20, 333, 115, 20)
+	$hChromePlusNewTabDisableNameLabel = GUICtrlCreateLabel(_t("ChromePlusDisableNewTabName", "额外匹配标题"), 20, 333, 115, 20)
 	$hChromePlusNewTabDisableName = GUICtrlCreateEdit("", 145, 328, 335, 20, $ES_AUTOHSCROLL)
-	GUICtrlSetTip($hChromePlusNewTabDisableName, _t("ChromePlusDisableNewTabNameTooltip", '对应 chrome++.ini 的 new_tab_disable_name 原始值；可填写多个标题，并保留英文双引号与逗号，例如 "about:blank","新建标签"'))
+	GUICtrlSetTip($hChromePlusNewTabDisableName, _t("ChromePlusDisableNewTabNameTooltip", '对应 chrome++.ini 的 new_tab_disable_name 原始值；这些标题会被额外视为新标签页。可填写多个标题，并保留英文双引号与逗号，例如 "about:blank","新建标签"'))
+	GUICtrlCreateLabel(_t("ChromePlusNewTabDisableHelp", "说明：勾选后，如果当前标签页被识别为新标签页，Chrome++ 会临时禁用上面的“地址栏输入在新标签页打开”和“书签在新标签页打开”。这样在新标签页里输入地址或打开书签时，会使用当前新标签页，而不会再额外新建标签页。\n“额外匹配标题”用于补充 Chrome++ 的内置识别列表，匹配到这些标题时也按新标签页处理。"), 20, 363, 460, 78)
+	GUICtrlSetColor(-1, 0x666666)
 
 	; 辅助
 	GUICtrlCreateTabItem(_t("Auxiliary", "辅助"))

@@ -98,7 +98,7 @@ Global $hCustomCacheDir, $hGetCacheDir, $hCacheSize, $hCacheSizeSmart
 Global $hParams, $hStatus, $SettingsOK
 Global $hAllowBrowserUpdate, $hCheckAppUpdate, $hRunInBackground, $hBrowserType, $hChannel, $hDownloadFirefox64, $FirefoxURL
 Global $hBrowserBitness, $hBrowserUpdateCheckMode, $hCurrentBrowserVersion, $hWaterfoxVersionHint, $hBrowserDownloadNow
-Global $hChromePlusHint, $hChromePlusDownloadPatch, $hChromePlusConfigPath, $hChromePlusDoubleClickClose, $hChromePlusRightClickClose, $hChromePlusKeepLastTab
+Global $hChromePlusHint, $hChromePlusDownloadPatch, $hChromePlusConfigPath, $hChromePlusCurrentVersion, $hChromePlusLatestVersion, $hChromePlusDoubleClickClose, $hChromePlusRightClickClose, $hChromePlusKeepLastTab
 Global $hChromePlusWheelTab, $hChromePlusWheelTabWhenPressRButton, $hChromePlusOpenUrlNewTab, $hChromePlusOpenBookmarkNewTab
 Global $hChromePlusNewTabDisable, $hChromePlusNewTabDisableName, $hChromePlusNewTabDisableNameLabel
 Global $hChromiumGoogleApiImport, $hChromiumGoogleApiSuppress, $hChromiumGoogleApiClear
@@ -108,8 +108,10 @@ Global $ZenReleaseUpdateXml = "", $ZenTwilightUpdateXml = ""
 Global $FloorpReleaseInfoLoaded = False, $FloorpReleaseTag = ""
 Global $WaterfoxReleaseInfoLoaded = False, $WaterfoxReleaseVersion = ""
 Global $HeliumReleaseInfoLoaded = False, $HeliumReleaseTag = ""
+Global $ChromePlusReleaseInfoLoaded = False, $ChromePlusReleaseTag = "", $ChromePlusArchiveUrl = ""
 Global $ChromeStableVersion = "", $ChromeStableDownloadUrl = "", $ChromeBetaVersion = "", $ChromeBetaDownloadUrl = "", $ChromeDevVersion = "", $ChromeDevDownloadUrl = "", $ChromeCanaryVersion = "", $ChromeCanaryDownloadUrl = ""
 Global $BrowserVersionLoadHandle = 0, $BrowserVersionLoadFile = "", $BrowserVersionLoadBrowserType = "", $BrowserVersionLoadChannel = "", $BrowserVersionLoadKind = "", $BrowserVersionLoadAnim = 0
+Global $ChromePlusVersionLoadHandle = 0, $ChromePlusVersionLoadFile = "", $ChromePlusVersionLoadAnim = 0
 Global $AppUpdateCheckHandle = 0, $AppUpdateCheckFile = ""
 Global $hDownloadProgress, $hDownloadProgressStatus, $hDownloadProgressDetail, $hDownloadProgressBar, $hDownloadProgressCancel
 Global $DownloadProgressCancelled = 0, $DownloadProgressCanCancel = 0
@@ -231,6 +233,11 @@ IniWrite($inifile, "Settings", "GithubJsDelivrMirror", $GithubJsDelivrMirror)
 
 If $CmdLine[0] >= 4 And $CmdLine[1] = "--load-chrome-version" Then
 	WriteChromeUpdateInfoFile($CmdLine[2], $CmdLine[3], $CmdLine[4])
+	Exit
+EndIf
+
+If $CmdLine[0] >= 2 And $CmdLine[1] = "--load-chrome-plus-version" Then
+	WriteChromePlusReleaseInfoFile($CmdLine[2])
 	Exit
 EndIf
 
@@ -1744,18 +1751,23 @@ Func Settings()
 	$hChromePlusDownloadPatch = GUICtrlCreateButton(_t("DownloadChromePlusPatch", "下载并安装 Chrome++"), 325, 123, 155, 22)
 	GUICtrlSetOnEvent(-1, "DownloadChromePlusPatchFromSettings")
 
-	$hChromePlusDoubleClickClose = GUICtrlCreateCheckbox(_t("ChromePlusDoubleClickClose", "双击关闭标签页"), 20, 158, 200, 20)
-	$hChromePlusRightClickClose = GUICtrlCreateCheckbox(_t("ChromePlusRightClickClose", "右键关闭标签页"), 250, 158, 200, 20)
-	$hChromePlusKeepLastTab = GUICtrlCreateCheckbox(_t("ChromePlusKeepLastTab", "保留最后一个标签页"), 20, 188, 200, 20)
-	$hChromePlusWheelTab = GUICtrlCreateCheckbox(_t("ChromePlusWheelTab", "滚轮切换标签页"), 250, 188, 200, 20)
-	$hChromePlusWheelTabWhenPressRButton = GUICtrlCreateCheckbox(_t("ChromePlusWheelTabWhenPressRButton", "按住右键时滚轮切换标签页"), 20, 218, 220, 20)
-	$hChromePlusOpenUrlNewTab = GUICtrlCreateCheckbox(_t("ChromePlusOpenUrlNewTab", "地址栏输入在新标签页打开"), 250, 218, 210, 20)
-	$hChromePlusOpenBookmarkNewTab = GUICtrlCreateCheckbox(_t("ChromePlusOpenBookmarkNewTab", "书签在新标签页打开"), 20, 248, 200, 20)
-	$hChromePlusNewTabDisable = GUICtrlCreateCheckbox(_t("ChromePlusDisableNewTab", "禁用“新建标签页”"), 250, 248, 200, 20)
+	GUICtrlCreateLabel(_t("CurrentVersion", "当前版本："), 20, 158, 115, 20)
+	$hChromePlusCurrentVersion = GUICtrlCreateLabel("-", 145, 158, 170, 20)
+	GUICtrlCreateLabel(_t("LatestVersion", "最新版本："), 250, 158, 80, 20)
+	$hChromePlusLatestVersion = GUICtrlCreateLabel("-", 335, 158, 145, 20)
+
+	$hChromePlusDoubleClickClose = GUICtrlCreateCheckbox(_t("ChromePlusDoubleClickClose", "双击关闭标签页"), 20, 198, 200, 20)
+	$hChromePlusRightClickClose = GUICtrlCreateCheckbox(_t("ChromePlusRightClickClose", "右键关闭标签页"), 250, 198, 200, 20)
+	$hChromePlusKeepLastTab = GUICtrlCreateCheckbox(_t("ChromePlusKeepLastTab", "保留最后一个标签页"), 20, 228, 200, 20)
+	$hChromePlusWheelTab = GUICtrlCreateCheckbox(_t("ChromePlusWheelTab", "滚轮切换标签页"), 250, 228, 200, 20)
+	$hChromePlusWheelTabWhenPressRButton = GUICtrlCreateCheckbox(_t("ChromePlusWheelTabWhenPressRButton", "按住右键时滚轮切换标签页"), 20, 258, 220, 20)
+	$hChromePlusOpenUrlNewTab = GUICtrlCreateCheckbox(_t("ChromePlusOpenUrlNewTab", "地址栏输入在新标签页打开"), 250, 258, 210, 20)
+	$hChromePlusOpenBookmarkNewTab = GUICtrlCreateCheckbox(_t("ChromePlusOpenBookmarkNewTab", "书签在新标签页打开"), 20, 288, 200, 20)
+	$hChromePlusNewTabDisable = GUICtrlCreateCheckbox(_t("ChromePlusDisableNewTab", "禁用“新建标签页”"), 250, 288, 200, 20)
 	GUICtrlSetOnEvent($hChromePlusNewTabDisable, "RefreshChromePlusNewTabDisableNameState")
 
-	$hChromePlusNewTabDisableNameLabel = GUICtrlCreateLabel(_t("ChromePlusDisableNewTabName", "禁用页标题"), 20, 293, 115, 20)
-	$hChromePlusNewTabDisableName = GUICtrlCreateEdit("", 145, 288, 335, 20, $ES_AUTOHSCROLL)
+	$hChromePlusNewTabDisableNameLabel = GUICtrlCreateLabel(_t("ChromePlusDisableNewTabName", "禁用页标题"), 20, 333, 115, 20)
+	$hChromePlusNewTabDisableName = GUICtrlCreateEdit("", 145, 328, 335, 20, $ES_AUTOHSCROLL)
 	GUICtrlSetTip($hChromePlusNewTabDisableName, _t("ChromePlusDisableNewTabNameTooltip", '对应 chrome++.ini 的 new_tab_disable_name 原始值；可填写多个标题，并保留英文双引号与逗号，例如 "about:blank","新建标签"'))
 
 	; 辅助
@@ -1831,6 +1843,7 @@ Func Settings()
 	AdlibUnRegister("RefreshFirefoxVersionLabels")
 	CancelAppUpdateCheck()
 	CancelBrowserVersionLoad()
+	CancelChromePlusVersionLoad()
 	CleanupBossKeyHotkeyCapture()
 	GUIDelete($hSettings)
 EndFunc   ;==>Settings
@@ -2817,27 +2830,34 @@ Func RefreshChromePlusTabState()
 	If $HasPatch Then
 		GUICtrlSetData($hChromePlusHint, _t("ChromePlusTabsReady", "已检测到 Chrome++ 补丁，以下设置将写入当前目录的 chrome++.ini [tabs]。"))
 		GUICtrlSetData($hChromePlusConfigPath, GetChromePlusConfigPath($BrowserPath))
-		GUICtrlSetState($hChromePlusDownloadPatch, $GUI_HIDE)
-		GUICtrlSetState($hChromePlusDownloadPatch, $GUI_DISABLE)
+		GUICtrlSetData($hChromePlusDownloadPatch, _t("UpdateChromePlusPatch", "更新 Chrome++"))
+		GUICtrlSetState($hChromePlusDownloadPatch, $GUI_SHOW)
 		SetChromePlusTabControlsState(True)
 		LoadChromePlusTabsSettings(GetChromePlusConfigPath($BrowserPath))
+		UpdateChromePlusVersionLabels()
+		BeginChromePlusVersionLoad()
 		Return
 	EndIf
 
 	If $IsChrome Then
 		GUICtrlSetData($hChromePlusHint, _t("ChromePlusTabsPatchMissing", "当前浏览器目录未检测到 Chrome++ 补丁（version.dll），安装后才可修改这些选项。"))
 		GUICtrlSetData($hChromePlusConfigPath, GetChromePlusConfigPath($BrowserPath))
+		GUICtrlSetData($hChromePlusDownloadPatch, _t("DownloadChromePlusPatch", "下载并安装 Chrome++"))
 		GUICtrlSetState($hChromePlusDownloadPatch, $GUI_SHOW)
 		If $CanInstallPatch Then
 			GUICtrlSetState($hChromePlusDownloadPatch, $GUI_ENABLE)
 		Else
 			GUICtrlSetState($hChromePlusDownloadPatch, $GUI_DISABLE)
 		EndIf
+		UpdateChromePlusVersionLabels()
+		BeginChromePlusVersionLoad()
 	Else
 		GUICtrlSetData($hChromePlusHint, _t("ChromePlusTabsRequireChrome", "当前仅在 Chrome 系浏览器下可配置 Chrome++ 标签页选项。"))
 		GUICtrlSetData($hChromePlusConfigPath, "")
 		GUICtrlSetState($hChromePlusDownloadPatch, $GUI_HIDE)
 		GUICtrlSetState($hChromePlusDownloadPatch, $GUI_DISABLE)
+		CancelChromePlusVersionLoad()
+		UpdateChromePlusVersionLabels()
 	EndIf
 
 	SetChromePlusTabControlsState(False)
@@ -2848,6 +2868,172 @@ Func DownloadChromePlusPatchFromSettings()
 	Local $BrowserPath = GetCurrentSettingsBrowserPath()
 	If InstallChromePlusPatchInteractive($BrowserPath) Then RefreshChromePlusTabState()
 EndFunc   ;==>DownloadChromePlusPatchFromSettings
+
+Func UpdateChromePlusVersionLabels($Unavailable = False)
+	If Not $hChromePlusCurrentVersion Or Not $hChromePlusLatestVersion Then Return
+
+	Local $BrowserPath = GetCurrentSettingsBrowserPath()
+	Local $IsChrome = IsChromeBrowser(GetSelectedBrowserType())
+	Local $CurrentVersion = ""
+	Local $LatestVersion = ""
+
+	If $IsChrome Then
+		$CurrentVersion = GetChromePlusInstalledVersion($BrowserPath)
+		If $ChromePlusReleaseInfoLoaded Then
+			$LatestVersion = GetChromePlusVersionFromTag($ChromePlusReleaseTag)
+		ElseIf $ChromePlusVersionLoadHandle Then
+			$LatestVersion = _t("BrowserVersionLoading", "正在读取版本 %s", GetChromePlusVersionLoadSpinner())
+		ElseIf $Unavailable Then
+			$LatestVersion = _t("BrowserVersionUnavailable", "获取失败")
+		EndIf
+	EndIf
+
+	If $CurrentVersion = "" Then $CurrentVersion = "-"
+	If $LatestVersion = "" Then $LatestVersion = "-"
+	GUICtrlSetData($hChromePlusCurrentVersion, $CurrentVersion)
+	GUICtrlSetData($hChromePlusLatestVersion, $LatestVersion)
+	UpdateChromePlusDownloadPatchState()
+EndFunc   ;==>UpdateChromePlusVersionLabels
+
+Func UpdateChromePlusDownloadPatchState()
+	If Not $hChromePlusDownloadPatch Then Return
+
+	Local $BrowserPath = GetCurrentSettingsBrowserPath()
+	Local $IsChrome = IsChromeBrowser(GetSelectedBrowserType())
+	Local $HasPatch = $IsChrome And IsChromePlusPatchInstalled($BrowserPath)
+	Local $CanInstallPatch = $IsChrome And FileExists($BrowserPath) And GetChromePlusConfigPath($BrowserPath) <> ""
+	If Not $IsChrome Then
+		GUICtrlSetState($hChromePlusDownloadPatch, $GUI_HIDE)
+		GUICtrlSetState($hChromePlusDownloadPatch, $GUI_DISABLE)
+		Return
+	EndIf
+
+	GUICtrlSetState($hChromePlusDownloadPatch, $GUI_SHOW)
+	If Not $HasPatch Then
+		If $CanInstallPatch Then
+			GUICtrlSetState($hChromePlusDownloadPatch, $GUI_ENABLE)
+		Else
+			GUICtrlSetState($hChromePlusDownloadPatch, $GUI_DISABLE)
+		EndIf
+		Return
+	EndIf
+
+	If Not $CanInstallPatch Then
+		GUICtrlSetState($hChromePlusDownloadPatch, $GUI_DISABLE)
+		Return
+	EndIf
+
+	Local $CurrentVersion = NormalizeChromePlusVersionText(GetChromePlusInstalledVersion($BrowserPath))
+	Local $LatestVersion = NormalizeChromePlusVersionText(GetChromePlusVersionFromTag($ChromePlusReleaseTag))
+	If $LatestVersion = "" Or $CurrentVersion = "" Or VersionCompare($LatestVersion, $CurrentVersion) > 0 Then
+		GUICtrlSetState($hChromePlusDownloadPatch, $GUI_ENABLE)
+	Else
+		GUICtrlSetState($hChromePlusDownloadPatch, $GUI_DISABLE)
+	EndIf
+EndFunc   ;==>UpdateChromePlusDownloadPatchState
+
+Func GetChromePlusVersionLoadSpinner()
+	Local $Spinner = "|"
+	Switch Mod($ChromePlusVersionLoadAnim, 4)
+		Case 1
+			$Spinner = "/"
+		Case 2
+			$Spinner = "-"
+		Case 3
+			$Spinner = "\"
+	EndSwitch
+	$ChromePlusVersionLoadAnim += 1
+	Return $Spinner
+EndFunc   ;==>GetChromePlusVersionLoadSpinner
+
+Func BeginChromePlusVersionLoad()
+	If Not $hChromePlusLatestVersion Then Return
+	If Not IsChromeBrowser(GetSelectedBrowserType()) Then Return
+	If $ChromePlusReleaseInfoLoaded Then
+		UpdateChromePlusVersionLabels()
+		Return
+	EndIf
+
+	If $ChromePlusVersionLoadHandle Then
+		UpdateChromePlusVersionLabels()
+		Return
+	EndIf
+
+	$ChromePlusVersionLoadFile = @TempDir & "\RunFirefox_ChromePlusVersion_" & @AutoItPID & ".tmp"
+	FileDelete($ChromePlusVersionLoadFile)
+	$ChromePlusVersionLoadHandle = StartChromePlusVersionLoadProcess($ChromePlusVersionLoadFile)
+	If Not $ChromePlusVersionLoadHandle Then
+		CancelChromePlusVersionLoad()
+		UpdateChromePlusVersionLabels(True)
+		Return
+	EndIf
+
+	$ChromePlusVersionLoadAnim = 0
+	UpdateChromePlusVersionLabels()
+	AdlibRegister("PollChromePlusVersionLoad", 250)
+EndFunc   ;==>BeginChromePlusVersionLoad
+
+Func StartChromePlusVersionLoadProcess($OutputFile)
+	Local $Command = ""
+	If @Compiled Then
+		$Command = '"' & @AutoItExe & '"'
+	Else
+		$Command = '"' & @AutoItExe & '" "' & @ScriptFullPath & '"'
+	EndIf
+	$Command &= ' --load-chrome-plus-version "' & $OutputFile & '"'
+	Return Run($Command, @ScriptDir, @SW_HIDE)
+EndFunc   ;==>StartChromePlusVersionLoadProcess
+
+Func CancelChromePlusVersionLoad()
+	AdlibUnRegister("PollChromePlusVersionLoad")
+	If $ChromePlusVersionLoadHandle And ProcessExists($ChromePlusVersionLoadHandle) Then ProcessClose($ChromePlusVersionLoadHandle)
+	If $ChromePlusVersionLoadFile <> "" Then FileDelete($ChromePlusVersionLoadFile)
+	$ChromePlusVersionLoadHandle = 0
+	$ChromePlusVersionLoadFile = ""
+EndFunc   ;==>CancelChromePlusVersionLoad
+
+Func PollChromePlusVersionLoad()
+	If Not $ChromePlusVersionLoadHandle Then
+		CancelChromePlusVersionLoad()
+		Return
+	EndIf
+
+	UpdateChromePlusVersionLabels()
+	If ProcessExists($ChromePlusVersionLoadHandle) Then Return
+
+	Local $LoadedFile = $ChromePlusVersionLoadFile
+	$ChromePlusVersionLoadHandle = 0
+	AdlibUnRegister("PollChromePlusVersionLoad")
+
+	Local $Loaded = LoadChromePlusReleaseInfoFile($LoadedFile)
+	FileDelete($LoadedFile)
+	$ChromePlusVersionLoadFile = ""
+	UpdateChromePlusVersionLabels(Not $Loaded)
+EndFunc   ;==>PollChromePlusVersionLoad
+
+Func WriteChromePlusReleaseInfoFile($OutputFile)
+	FileDelete($OutputFile)
+	Local $ReleaseTag = "", $ArchiveUrl = "", $InstallLog = ""
+	If GetChromePlusReleaseInfo($ReleaseTag, $ArchiveUrl, $InstallLog) Then
+		IniWrite($OutputFile, "ChromePlus", "Success", 1)
+		IniWrite($OutputFile, "ChromePlus", "ReleaseTag", $ReleaseTag)
+		IniWrite($OutputFile, "ChromePlus", "ArchiveUrl", $ArchiveUrl)
+	Else
+		IniWrite($OutputFile, "ChromePlus", "Success", 0)
+	EndIf
+EndFunc   ;==>WriteChromePlusReleaseInfoFile
+
+Func LoadChromePlusReleaseInfoFile($OutputFile)
+	If Not FileExists($OutputFile) Then Return False
+	If IniRead($OutputFile, "ChromePlus", "Success", 0) <> 1 Then Return False
+
+	Local $ReleaseTag = IniRead($OutputFile, "ChromePlus", "ReleaseTag", "")
+	Local $ArchiveUrl = IniRead($OutputFile, "ChromePlus", "ArchiveUrl", "")
+	If $ReleaseTag = "" Or $ArchiveUrl = "" Then Return False
+
+	SetChromePlusReleaseInfo($ReleaseTag, $ArchiveUrl)
+	Return True
+EndFunc   ;==>LoadChromePlusReleaseInfoFile
 
 Func SaveChromePlusTabsSettings($BrowserPath)
 	Local $ResolvedBrowserPath = FullPath($BrowserPath)
@@ -3498,6 +3684,41 @@ Func IsChromePlusPatchInstalled($BrowserPath)
 	Return FileExists($BrowserDir & "\version.dll")
 EndFunc   ;==>IsChromePlusPatchInstalled
 
+Func GetChromePlusPatchPath($BrowserPath)
+	If Not FileExists($BrowserPath) Then Return ""
+
+	Local $BrowserDir, $BrowserExe
+	SplitPath($BrowserPath, $BrowserDir, $BrowserExe)
+	If Not IsChromePlusSupportedExecutable($BrowserExe) Then Return ""
+	Return $BrowserDir & "\version.dll"
+EndFunc   ;==>GetChromePlusPatchPath
+
+Func GetChromePlusInstalledVersion($BrowserPath)
+	Local $PatchPath = GetChromePlusPatchPath($BrowserPath)
+	If $PatchPath = "" Or Not FileExists($PatchPath) Then Return ""
+
+	Local $Version = ReadExecutableVersionField($PatchPath, "ProductVersion")
+	If $Version = "" Then $Version = ReadExecutableVersionField($PatchPath, "FileVersion")
+	If $Version = "" Then
+		$Version = FileGetVersion($PatchPath)
+		If @error Then $Version = ""
+	EndIf
+	Return NormalizeChromePlusVersionText($Version)
+EndFunc   ;==>GetChromePlusInstalledVersion
+
+Func NormalizeChromePlusVersionText($Version)
+	$Version = StringStripWS($Version, 3)
+	If $Version = "" Or $Version = "-" Then Return ""
+	$Version = StringRegExpReplace($Version, "(?i)^chrome\+\+[_ ]*v?", "")
+	$Version = StringRegExpReplace($Version, "^[vV]", "")
+	$Version = StringRegExpReplace($Version, "[^0-9.].*$", "")
+	Return StringStripWS($Version, 3)
+EndFunc   ;==>NormalizeChromePlusVersionText
+
+Func GetChromePlusVersionFromTag($ReleaseTag)
+	Return NormalizeChromePlusVersionText($ReleaseTag)
+EndFunc   ;==>GetChromePlusVersionFromTag
+
 Func InstallChromePlusPatchInteractive($BrowserPath, $PreferredArch = "")
 	If Not FileExists($BrowserPath) Then Return False
 
@@ -3576,8 +3797,8 @@ Func InstallChromePlusPatchInteractive($BrowserPath, $PreferredArch = "")
 			$ErrorMessage = _t("FailToExtractChromePlusPatch", "解压或安装 Chrome++ 补丁失败。")
 		EndIf
 		If $ErrorMessage = "" Then
-			If Not FileExists($BrowserDir & "\version.dll") Then FileCopy($SourceDir & "\version.dll", $BrowserDir & "\version.dll", 9)
-			If Not FileExists($BrowserDir & "\version.dll") Then
+			Local $CopiedVersionDll = FileCopy($SourceDir & "\version.dll", $BrowserDir & "\version.dll", 9)
+			If $CopiedVersionDll = 0 Or Not FileExists($BrowserDir & "\version.dll") Then
 				$InstallLog &= "version.dll was not copied to browser dir." & @CRLF
 				$ErrorMessage = _t("FailToExtractChromePlusPatch", "解压或安装 Chrome++ 补丁失败。")
 			EndIf
@@ -3681,9 +3902,16 @@ EndFunc   ;==>DownloadChromePlusArchiveWithProgress
 
 Func GetChromePlusReleaseInfo(ByRef $ReleaseTag, ByRef $ArchiveUrl, ByRef $InstallLog)
 	Static $CachedReleaseTag = "", $CachedArchiveUrl = ""
+	If $ChromePlusReleaseInfoLoaded And $ChromePlusReleaseTag <> "" And $ChromePlusArchiveUrl <> "" Then
+		$ReleaseTag = $ChromePlusReleaseTag
+		$ArchiveUrl = $ChromePlusArchiveUrl
+		$InstallLog &= "Using global cached release info." & @CRLF
+		Return True
+	EndIf
 	If $CachedReleaseTag <> "" And $CachedArchiveUrl <> "" Then
 		$ReleaseTag = $CachedReleaseTag
 		$ArchiveUrl = $CachedArchiveUrl
+		SetChromePlusReleaseInfo($CachedReleaseTag, $CachedArchiveUrl)
 		$InstallLog &= "Using cached release info." & @CRLF
 		Return True
 	EndIf
@@ -3733,8 +3961,15 @@ Func GetChromePlusReleaseInfo(ByRef $ReleaseTag, ByRef $ArchiveUrl, ByRef $Insta
 
 	$ReleaseTag = $CachedReleaseTag
 	$ArchiveUrl = $CachedArchiveUrl
+	SetChromePlusReleaseInfo($CachedReleaseTag, $CachedArchiveUrl)
 	Return True
 EndFunc   ;==>GetChromePlusReleaseInfo
+
+Func SetChromePlusReleaseInfo($ReleaseTag, $ArchiveUrl)
+	$ChromePlusReleaseInfoLoaded = True
+	$ChromePlusReleaseTag = $ReleaseTag
+	$ChromePlusArchiveUrl = $ArchiveUrl
+EndFunc   ;==>SetChromePlusReleaseInfo
 
 Func BuildChromePlusArchiveUrlFromTag($ReleaseTag)
 	Local $Version = StringRegExpReplace($ReleaseTag, "^[vV]", "")

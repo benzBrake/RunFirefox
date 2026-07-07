@@ -14,6 +14,8 @@ Features:
 
 ### Latest updates
 
+2026.07.07 Improved the Chrome++ new-tab disable setting text to clarify that related options become available immediately after the patch is installed
+
 2026.07.07 The Chrome++ settings tab now checks the installed and latest patch versions, and can update an installed patch directly
 
 2026.07.06 Added Bosskey to Utilities settings, allowing a keyboard shortcut to hide/restore the browser with an optional tray icon while hidden

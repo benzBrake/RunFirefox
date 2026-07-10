@@ -17,6 +17,8 @@
 
 ### 最近更新
 
+2026.07.10 支持在设置界面选择百分浏览器（Cent Browser），并从官网解析、下载、解压 Windows x64 便携版；百分浏览器不启用 Chrome++ 补丁
+
 2026.07.10 Naver Whale 启动时会根据 RunFirefox 语言为简体/繁体中文追加 `--lang=zh-CN` 或 `--lang=zh-TW`，绕过 Whale 中文界面不生效的问题，改善中文用户体验
 
 2026.07.10 支持在设置界面选择 Naver Whale，并在线下载、解压 Whale Windows x64 独立安装包

@@ -79,6 +79,7 @@ Global Const $BrowserWaterfox = "waterfox"
 Global Const $BrowserChrome = "chrome"
 Global Const $BrowserHelium = "helium"
 Global Const $BrowserWhale = "whale"
+Global Const $BrowserCent = "cent"
 Global Const $ZenUpdateBaseUrl = "https://updates.zen-browser.app/updates/browser/WINNT_x86_64-msvc-x64"
 Global Const $FloorpRepo = "Floorp-Projects/Floorp"
 Global Const $FloorpLatestReleaseUrl = "https://github.com/" & $FloorpRepo & "/releases/latest"
@@ -87,6 +88,7 @@ Global Const $WaterfoxDownloadPageUrl = "https://www.waterfox.com/download/"
 Global Const $HeliumRepo = "imputnet/helium-windows"
 Global Const $HeliumLatestReleaseUrl = "https://github.com/" & $HeliumRepo & "/releases/latest"
 Global Const $WhaleStandaloneX64Url = "https://installer-whale.pstatic.net/downloads/sa_installers/WhaleSetupX64.exe"
+Global Const $CentBrowserDownloadPageUrl = "https://www.centbrowser.com/"
 Global $FirstRun = 0, $FirstLaunch = 0, $FirefoxExe, $FirefoxDir, $isZotero = false
 Global $TaskBarDir = @AppDataDir & "\Microsoft\Internet Explorer\Quick Launch\User Pinned\TaskBar"
 Global $AppPID, $TaskBarLastChange
@@ -113,6 +115,7 @@ Global $ZenReleaseUpdateXml = "", $ZenTwilightUpdateXml = ""
 Global $FloorpReleaseInfoLoaded = False, $FloorpReleaseTag = ""
 Global $WaterfoxReleaseInfoLoaded = False, $WaterfoxReleaseVersion = ""
 Global $HeliumReleaseInfoLoaded = False, $HeliumReleaseTag = ""
+Global $CentReleaseInfoLoaded = False, $CentReleaseVersion = "", $CentDownloadUrl = ""
 Global $ChromePlusReleaseInfoLoaded = False, $ChromePlusReleaseTag = "", $ChromePlusArchiveUrl = ""
 Global $ChromeStableVersion = "", $ChromeStableDownloadUrl = "", $ChromeBetaVersion = "", $ChromeBetaDownloadUrl = "", $ChromeDevVersion = "", $ChromeDevDownloadUrl = "", $ChromeCanaryVersion = "", $ChromeCanaryDownloadUrl = ""
 Global $BrowserVersionLoadHandle = 0, $BrowserVersionLoadFile = "", $BrowserVersionLoadBrowserType = "", $BrowserVersionLoadChannel = "", $BrowserVersionLoadKind = "", $BrowserVersionLoadAnim = 0
@@ -304,7 +307,7 @@ For $i = 1 To $cmdline[0]
 Next
 
 Local $BrowserIsRunning = AppIsRunning($FirefoxPath)
-If IsChromeBrowser($BrowserType) And Not $BrowserIsRunning Then MaybeInstallChromePlusPatch($FirefoxPath)
+If IsChromePlusSupportedBrowser($BrowserType) And Not $BrowserIsRunning Then MaybeInstallChromePlusPatch($FirefoxPath)
 If IsMozillaBrowser($BrowserType) Then
 	DeleteMozillaLaunchOnLoginEntry($FirefoxPath)
 	DeleteMozillaPrivateBrowsingShortcut()
@@ -1745,7 +1748,7 @@ EndFunc   ;==>ApplyDetectedBrowserTypeFromPath
 Func ChangeBrowserType()
 	Local $NewBrowserType = GetSelectedBrowserType()
 	Local $CurrentPath = StringLower(GUICtrlRead($hFirefoxPath))
-	If $CurrentPath = ".\firefox\firefox.exe" Or $CurrentPath = ".\zenbrowser\zen.exe" Or $CurrentPath = ".\floorp\floorp.exe" Or $CurrentPath = ".\waterfox\waterfox.exe" Or $CurrentPath = ".\chrome\chrome.exe" Or $CurrentPath = ".\helium\chrome.exe" Or $CurrentPath = ".\whale\whale.exe" Then
+	If $CurrentPath = ".\firefox\firefox.exe" Or $CurrentPath = ".\zenbrowser\zen.exe" Or $CurrentPath = ".\floorp\floorp.exe" Or $CurrentPath = ".\waterfox\waterfox.exe" Or $CurrentPath = ".\chrome\chrome.exe" Or $CurrentPath = ".\helium\chrome.exe" Or $CurrentPath = ".\whale\whale.exe" Or $CurrentPath = ".\centbrowser\chrome.exe" Then
 		GUICtrlSetData($hFirefoxPath, GetDefaultBrowserPath($NewBrowserType))
 	EndIf
 	$BrowserType = $NewBrowserType
@@ -1825,6 +1828,7 @@ Func GetLatestBrowserVersionForSettings($CurrentBrowserType, $Channel)
 	If $CurrentBrowserType = $BrowserFloorp Then Return GetLatestFloorpVersion()
 	If $CurrentBrowserType = $BrowserWaterfox Then Return GetLatestWaterfoxVersion()
 	If $CurrentBrowserType = $BrowserHelium Then Return GetLatestHeliumVersion()
+	If $CurrentBrowserType = $BrowserCent Then Return GetLatestCentVersion()
 	If IsChromeBrowser($CurrentBrowserType) Then Return GetChromeVersionCache($Channel)
 	Return GetLatestFirefoxVersion($Channel)
 EndFunc   ;==>GetLatestBrowserVersionForSettings
@@ -1967,6 +1971,9 @@ Func BeginBrowserVersionLoad($CurrentBrowserType = "", $Channel = "")
 	If NormalizeBrowserType($CurrentBrowserType) = $BrowserHelium Then
 		$BrowserVersionLoadKind = "inet"
 		$BrowserVersionLoadHandle = InetGet($HeliumLatestReleaseUrl, $BrowserVersionLoadFile, 1, 1)
+	ElseIf NormalizeBrowserType($CurrentBrowserType) = $BrowserCent Then
+		$BrowserVersionLoadKind = "inet"
+		$BrowserVersionLoadHandle = InetGet($CentBrowserDownloadPageUrl, $BrowserVersionLoadFile, 1, 1)
 	ElseIf IsChromeBrowser($CurrentBrowserType) Then
 		$BrowserVersionLoadKind = "chrome"
 		$BrowserVersionLoadHandle = StartChromeVersionLoadProcess($Channel, "win64", $BrowserVersionLoadFile)
@@ -2057,6 +2064,8 @@ Func PollBrowserVersionLoad()
 				$Loaded = CacheWaterfoxReleaseInfo($Content)
 			ElseIf $LoadedBrowserType = $BrowserHelium Then
 				$Loaded = CacheHeliumReleaseInfo($Content)
+			ElseIf $LoadedBrowserType = $BrowserCent Then
+				$Loaded = CacheCentReleaseInfo($Content)
 			Else
 				$Loaded = CacheFirefoxVersions($Content)
 			EndIf
@@ -2107,6 +2116,7 @@ EndFunc   ;==>UpdateBrowserVersionLoadingLabel
 
 Func IsBrowserVersionCached($CurrentBrowserType, $Channel)
 	If NormalizeBrowserType($CurrentBrowserType) = $BrowserHelium Then Return $HeliumReleaseInfoLoaded
+	If NormalizeBrowserType($CurrentBrowserType) = $BrowserCent Then Return $CentReleaseInfoLoaded
 	If IsChromeBrowser($CurrentBrowserType) Then Return GetChromeVersionCache($Channel) <> ""
 	If NormalizeBrowserType($CurrentBrowserType) = $BrowserZen Then Return GetZenUpdateXmlCache($Channel) <> ""
 	If NormalizeBrowserType($CurrentBrowserType) = $BrowserFloorp Then Return $FloorpReleaseInfoLoaded
@@ -2129,10 +2139,12 @@ Func DetectBrowserTypeFromPath($BrowserPath)
 	SplitPath($FullBrowserPath, $BrowserDir, $BrowserExe)
 
 	Local $BrowserExeLower = StringLower($BrowserExe)
+	Local $FullBrowserPathLower = StringLower($FullBrowserPath)
 	Local $Identity = GetExecutableIdentityText($FullBrowserPath)
 
 	If StringInStr($Identity, "helium") Or StringInStr($Identity, "the helium authors") Then Return $BrowserHelium
 	If $BrowserExeLower = "whale.exe" Or StringInStr($Identity, "naver whale") Or StringInStr($Identity, "whale browser") Then Return $BrowserWhale
+	If $BrowserExeLower = "chrome.exe" And (StringInStr($Identity, "cent browser") Or StringInStr($Identity, "centbrowser") Or StringInStr($FullBrowserPathLower, "\centbrowser\")) Then Return $BrowserCent
 	If $BrowserExeLower = "zen.exe" Or StringInStr($Identity, "zen browser") Or StringInStr($Identity, "zenbrowser") Then Return $BrowserZen
 	If $BrowserExeLower = "floorp.exe" Or StringInStr($Identity, "floorp") Then Return $BrowserFloorp
 	If $BrowserExeLower = "waterfox.exe" Or StringInStr($Identity, "waterfox") Then Return $BrowserWaterfox
@@ -2172,12 +2184,17 @@ EndFunc   ;==>IsChromiumBrowserIdentity
 
 Func IsChromeBrowser($Value)
 	Local $Normalized = NormalizeBrowserType($Value)
-	Return $Normalized = $BrowserChrome Or $Normalized = $BrowserHelium Or $Normalized = $BrowserWhale
+	Return $Normalized = $BrowserChrome Or $Normalized = $BrowserHelium Or $Normalized = $BrowserWhale Or $Normalized = $BrowserCent
 EndFunc   ;==>IsChromeBrowser
 
 Func IsGoogleChromeBrowser($Value)
 	Return NormalizeBrowserType($Value) = $BrowserChrome
 EndFunc   ;==>IsGoogleChromeBrowser
+
+Func IsChromePlusSupportedBrowser($Value)
+	Local $Normalized = NormalizeBrowserType($Value)
+	Return $Normalized = $BrowserChrome Or $Normalized = $BrowserHelium Or $Normalized = $BrowserWhale
+EndFunc   ;==>IsChromePlusSupportedBrowser
 
 Func IsFloorpBrowser($Value)
 	Return NormalizeBrowserType($Value) = $BrowserFloorp
@@ -2195,6 +2212,7 @@ Func NormalizeBrowserType($Value)
 	If $Value = $BrowserChrome Or $Value = "google chrome" Then Return $BrowserChrome
 	If $Value = $BrowserHelium Then Return $BrowserHelium
 	If $Value = $BrowserWhale Or $Value = "naver whale" Or $Value = "whalebrowser" Then Return $BrowserWhale
+	If $Value = $BrowserCent Or $Value = "cent browser" Or $Value = "centbrowser" Or $Value = "百分浏览器" Or $Value = "百分瀏覽器" Then Return $BrowserCent
 	Return $BrowserFirefox
 EndFunc   ;==>NormalizeBrowserType
 
@@ -2202,6 +2220,7 @@ Func GetBrowserDisplayName($Value)
 	If NormalizeBrowserType($Value) = $BrowserChrome Then Return "Chrome"
 	If NormalizeBrowserType($Value) = $BrowserHelium Then Return "Helium"
 	If NormalizeBrowserType($Value) = $BrowserWhale Then Return "Naver Whale"
+	If NormalizeBrowserType($Value) = $BrowserCent Then Return "Cent Browser"
 	If NormalizeBrowserType($Value) = $BrowserZen Then Return "ZenBrowser"
 	If NormalizeBrowserType($Value) = $BrowserFloorp Then Return "Floorp"
 	If NormalizeBrowserType($Value) = $BrowserWaterfox Then Return "Waterfox"
@@ -2212,6 +2231,7 @@ Func GetBrowserTypeLabel($Value)
 	If NormalizeBrowserType($Value) = $BrowserChrome Then Return _t("BrowserChrome", "Chrome")
 	If NormalizeBrowserType($Value) = $BrowserHelium Then Return _t("BrowserHelium", "Helium")
 	If NormalizeBrowserType($Value) = $BrowserWhale Then Return _t("BrowserWhale", "Naver Whale")
+	If NormalizeBrowserType($Value) = $BrowserCent Then Return _t("BrowserCent", "百分浏览器")
 	If NormalizeBrowserType($Value) = $BrowserZen Then Return _t("BrowserZen", "ZenBrowser")
 	If NormalizeBrowserType($Value) = $BrowserFloorp Then Return _t("BrowserFloorp", "Floorp")
 	If NormalizeBrowserType($Value) = $BrowserWaterfox Then Return _t("BrowserWaterfox", "Waterfox")
@@ -2222,6 +2242,7 @@ Func GetBrowserTypeByLabel($Label)
 	If $Label = _t("BrowserChrome", "Chrome") Or StringLower($Label) = "chrome" Or StringLower($Label) = "google chrome" Then Return $BrowserChrome
 	If $Label = _t("BrowserHelium", "Helium") Or StringLower($Label) = "helium" Then Return $BrowserHelium
 	If $Label = _t("BrowserWhale", "Naver Whale") Or StringLower($Label) = "whale" Or StringLower($Label) = "naver whale" Then Return $BrowserWhale
+	If $Label = _t("BrowserCent", "百分浏览器") Or StringLower($Label) = "cent" Or StringLower($Label) = "cent browser" Or $Label = "百分浏览器" Or $Label = "百分瀏覽器" Then Return $BrowserCent
 	If $Label = _t("BrowserZen", "ZenBrowser") Or StringLower($Label) = "zenbrowser" Then Return $BrowserZen
 	If $Label = _t("BrowserFloorp", "Floorp") Or StringLower($Label) = "floorp" Then Return $BrowserFloorp
 	If $Label = _t("BrowserWaterfox", "Waterfox") Or StringLower($Label) = "waterfox" Then Return $BrowserWaterfox
@@ -2229,13 +2250,14 @@ Func GetBrowserTypeByLabel($Label)
 EndFunc   ;==>GetBrowserTypeByLabel
 
 Func GetBrowserTypeComboData()
-	Return _t("BrowserFirefox", "Firefox 原版") & "|" & _t("BrowserZen", "ZenBrowser") & "|" & _t("BrowserFloorp", "Floorp") & "|" & _t("BrowserWaterfox", "Waterfox") & "|" & _t("BrowserChrome", "Chrome") & "|" & _t("BrowserHelium", "Helium") & "|" & _t("BrowserWhale", "Naver Whale")
+	Return _t("BrowserFirefox", "Firefox 原版") & "|" & _t("BrowserZen", "ZenBrowser") & "|" & _t("BrowserFloorp", "Floorp") & "|" & _t("BrowserWaterfox", "Waterfox") & "|" & _t("BrowserChrome", "Chrome") & "|" & _t("BrowserHelium", "Helium") & "|" & _t("BrowserWhale", "Naver Whale") & "|" & _t("BrowserCent", "百分浏览器")
 EndFunc   ;==>GetBrowserTypeComboData
 
 Func GetBrowserExecutableName($Value)
 	If NormalizeBrowserType($Value) = $BrowserChrome Then Return "chrome.exe"
 	If NormalizeBrowserType($Value) = $BrowserHelium Then Return "chrome.exe"
 	If NormalizeBrowserType($Value) = $BrowserWhale Then Return "whale.exe"
+	If NormalizeBrowserType($Value) = $BrowserCent Then Return "chrome.exe"
 	If NormalizeBrowserType($Value) = $BrowserZen Then Return "zen.exe"
 	If NormalizeBrowserType($Value) = $BrowserFloorp Then Return "floorp.exe"
 	If NormalizeBrowserType($Value) = $BrowserWaterfox Then Return "waterfox.exe"
@@ -2250,6 +2272,7 @@ Func GetDefaultBrowserPath($Value)
 	If NormalizeBrowserType($Value) = $BrowserChrome Then Return ".\Chrome\chrome.exe"
 	If NormalizeBrowserType($Value) = $BrowserHelium Then Return ".\Helium\chrome.exe"
 	If NormalizeBrowserType($Value) = $BrowserWhale Then Return ".\Whale\whale.exe"
+	If NormalizeBrowserType($Value) = $BrowserCent Then Return ".\CentBrowser\chrome.exe"
 	If NormalizeBrowserType($Value) = $BrowserZen Then Return ".\ZenBrowser\zen.exe"
 	If NormalizeBrowserType($Value) = $BrowserFloorp Then Return ".\Floorp\floorp.exe"
 	If NormalizeBrowserType($Value) = $BrowserWaterfox Then Return ".\Waterfox\waterfox.exe"
@@ -2400,7 +2423,9 @@ Func RefreshChromePlusTabState()
 	If Not $hChromePlusHint Then Return
 
 	Local $BrowserPath = GetCurrentSettingsBrowserPath()
-	Local $IsChrome = IsChromeBrowser(GetSelectedBrowserType())
+	Local $SelectedBrowserType = GetSelectedBrowserType()
+	Local $IsChromium = IsChromeBrowser($SelectedBrowserType)
+	Local $IsChrome = IsChromePlusSupportedBrowser($SelectedBrowserType)
 	Local $HasPatch = $IsChrome And IsChromePlusPatchInstalled($BrowserPath)
 	Local $CanInstallPatch = $IsChrome And FileExists($BrowserPath) And GetChromePlusConfigPath($BrowserPath) <> ""
 
@@ -2429,7 +2454,11 @@ Func RefreshChromePlusTabState()
 		UpdateChromePlusVersionLabels()
 		BeginChromePlusVersionLoad()
 	Else
-		GUICtrlSetData($hChromePlusHint, _t("ChromePlusTabsRequireChrome", "当前仅在 Chrome 系浏览器下可配置 Chrome++ 标签页选项。"))
+		If $IsChromium Then
+			GUICtrlSetData($hChromePlusHint, _t("ChromePlusTabsUnsupportedBrowser", "Chrome++ 暂未兼容当前浏览器。"))
+		Else
+			GUICtrlSetData($hChromePlusHint, _t("ChromePlusTabsRequireChrome", "当前仅在 Chrome 系浏览器下可配置 Chrome++ 标签页选项。"))
+		EndIf
 		GUICtrlSetData($hChromePlusConfigPath, "")
 		GUICtrlSetState($hChromePlusDownloadPatch, $GUI_HIDE)
 		GUICtrlSetState($hChromePlusDownloadPatch, $GUI_DISABLE)
@@ -2450,11 +2479,10 @@ Func UpdateChromePlusVersionLabels($Unavailable = False)
 	If Not $hChromePlusCurrentVersion Or Not $hChromePlusLatestVersion Then Return
 
 	Local $BrowserPath = GetCurrentSettingsBrowserPath()
-	Local $IsChrome = IsChromeBrowser(GetSelectedBrowserType())
 	Local $CurrentVersion = ""
 	Local $LatestVersion = ""
 
-	If $IsChrome Then
+	If IsChromePlusSupportedBrowser(GetSelectedBrowserType()) Then
 		$CurrentVersion = GetChromePlusInstalledVersion($BrowserPath)
 		If $ChromePlusReleaseInfoLoaded Then
 			$LatestVersion = GetChromePlusVersionFromTag($ChromePlusReleaseTag)
@@ -2476,7 +2504,7 @@ Func UpdateChromePlusDownloadPatchState()
 	If Not $hChromePlusDownloadPatch Then Return
 
 	Local $BrowserPath = GetCurrentSettingsBrowserPath()
-	Local $IsChrome = IsChromeBrowser(GetSelectedBrowserType())
+	Local $IsChrome = IsChromePlusSupportedBrowser(GetSelectedBrowserType())
 	Local $HasPatch = $IsChrome And IsChromePlusPatchInstalled($BrowserPath)
 	Local $CanInstallPatch = $IsChrome And FileExists($BrowserPath) And GetChromePlusConfigPath($BrowserPath) <> ""
 	If Not $IsChrome Then
@@ -2525,7 +2553,7 @@ EndFunc   ;==>GetChromePlusVersionLoadSpinner
 
 Func BeginChromePlusVersionLoad()
 	If Not $hChromePlusLatestVersion Then Return
-	If Not IsChromeBrowser(GetSelectedBrowserType()) Then Return
+	If Not IsChromePlusSupportedBrowser(GetSelectedBrowserType()) Then Return
 	If $ChromePlusReleaseInfoLoaded Then
 		UpdateChromePlusVersionLabels()
 		Return
@@ -2614,7 +2642,7 @@ EndFunc   ;==>LoadChromePlusReleaseInfoFile
 
 Func SaveChromePlusTabsSettings($BrowserPath)
 	Local $ResolvedBrowserPath = FullPath($BrowserPath)
-	If Not IsChromeBrowser($BrowserType) Or Not IsChromePlusPatchInstalled($ResolvedBrowserPath) Then Return True
+	If Not IsChromePlusSupportedBrowser($BrowserType) Or Not IsChromePlusPatchInstalled($ResolvedBrowserPath) Then Return True
 
 	Local $ConfigPath = GetChromePlusConfigPath($ResolvedBrowserPath)
 	If $ConfigPath = "" Then Return True
@@ -2722,6 +2750,11 @@ Func GetSystemChromiumUserDataDir($BrowserTypeValue, $Channel = "")
 		If FileExists(@AppDataDir & "\Naver\Naver Whale\User Data\Local State") Then Return @AppDataDir & "\Naver\Naver Whale\User Data"
 		Return ""
 	EndIf
+	If $Normalized = $BrowserCent Then
+		If FileExists(@LocalAppDataDir & "\CentBrowser\User Data\Local State") Then Return @LocalAppDataDir & "\CentBrowser\User Data"
+		If FileExists(@AppDataDir & "\CentBrowser\User Data\Local State") Then Return @AppDataDir & "\CentBrowser\User Data"
+		Return ""
+	EndIf
 
 	Local $CurrentBrowserPath = ""
 	If $hFirefoxPath Then $CurrentBrowserPath = StringLower(GUICtrlRead($hFirefoxPath))
@@ -2760,6 +2793,7 @@ Func UpdateBrowserChannelOptions($Value, $SelectedChannel)
 	If NormalizeBrowserType($Value) = $BrowserWaterfox Then $Options = "release"
 	If NormalizeBrowserType($Value) = $BrowserHelium Then $Options = "release"
 	If NormalizeBrowserType($Value) = $BrowserWhale Then $Options = "release"
+	If NormalizeBrowserType($Value) = $BrowserCent Then $Options = "release"
 	If IsGoogleChromeBrowser($Value) Then
 		$Options = "stable|beta|dev|canary"
 		$DefaultChannel = "stable"
@@ -2966,6 +3000,56 @@ Func GetHeliumChannelLabel($Channel)
 	Return $Channel & " (" & $Version & ")"
 EndFunc   ;==>GetHeliumChannelLabel
 
+Func GetCentReleasePage()
+	If $CentReleaseInfoLoaded Then Return True
+
+	Local $Content = BinaryToString(InetRead($CentBrowserDownloadPageUrl, 1), 4)
+	If @error Or $Content = "" Then Return SetError(1, 0, False)
+
+	Return CacheCentReleaseInfo($Content)
+EndFunc   ;==>GetCentReleasePage
+
+Func CacheCentReleaseInfo($Content)
+	$CentReleaseInfoLoaded = False
+	$CentReleaseVersion = ""
+	$CentDownloadUrl = ""
+
+	Local $Match = StringRegExp($Content, '(?is)href="([^"]*centbrowser_([0-9][0-9.]*)_x64_portable\.exe)"', 1)
+	If @error Then $Match = StringRegExp($Content, '(?is)href="([^"]*centbrowser_([0-9][0-9.]*)_x64\.exe)"', 1)
+	If @error Then Return False
+
+	$CentDownloadUrl = NormalizeCentDownloadUrl($Match[0])
+	$CentReleaseVersion = $Match[1]
+	If $CentReleaseVersion = "" Then
+		$Match = StringRegExp($Content, '(?is)Version:\s*([0-9][0-9.]*)', 1)
+		If Not @error Then $CentReleaseVersion = $Match[0]
+	EndIf
+
+	If $CentDownloadUrl = "" Then Return False
+	$CentReleaseInfoLoaded = True
+	Return True
+EndFunc   ;==>CacheCentReleaseInfo
+
+Func NormalizeCentDownloadUrl($Url)
+	$Url = DecodeXmlAttribute(StringStripWS($Url, 3))
+	If $Url = "" Then Return ""
+	If StringLeft($Url, 2) = "//" Then Return "https:" & $Url
+	If StringRegExp($Url, "(?i)^https?://") Then Return $Url
+	If StringLeft($Url, 1) = "/" Then Return "https://www.centbrowser.com" & $Url
+	Return $CentBrowserDownloadPageUrl & $Url
+EndFunc   ;==>NormalizeCentDownloadUrl
+
+Func GetLatestCentVersion()
+	If $CentReleaseVersion = "" Then Return ""
+	Return $CentReleaseVersion
+EndFunc   ;==>GetLatestCentVersion
+
+Func GetCentChannelLabel($Channel)
+	Local $Version = GetLatestCentVersion()
+	If $Version = "" Then Return $Channel
+	Return $Channel & " (" & $Version & ")"
+EndFunc   ;==>GetCentChannelLabel
+
 Func GetChromeChannelLabel($Channel, $LoadVersion = False)
 	$Channel = NormalizeChromeChannel($Channel)
 	Local $Version = ""
@@ -3063,6 +3147,15 @@ Func BuildHeliumDownloadUrl($Channel, $os)
 	If $Version = "" Or $HeliumReleaseTag = "" Then Return SetError(2, 0, "")
 	Return "https://github.com/" & $HeliumRepo & "/releases/download/" & $HeliumReleaseTag & "/helium_" & $Version & "_x64-windows.zip"
 EndFunc   ;==>BuildHeliumDownloadUrl
+
+Func BuildCentDownloadUrl($Channel, $os)
+	If $os <> "win64" Then Return SetError(1, 0, "")
+	If $CentDownloadUrl = "" Then
+		If Not GetCentReleasePage() Then Return SetError(1, 0, "")
+	EndIf
+	If $CentDownloadUrl = "" Then Return SetError(2, 0, "")
+	Return $CentDownloadUrl
+EndFunc   ;==>BuildCentDownloadUrl
 
 Func BuildWhaleDownloadUrl($Channel, $os)
 	If $os <> "win64" Then Return SetError(1, 0, "")
@@ -3251,6 +3344,7 @@ EndFunc   ;==>ChromeComError
 
 Func MaybeInstallChromePlusPatch($BrowserPath, $PreferredArch = "", $AfterDownload = False)
 	If Not FileExists($BrowserPath) Then Return False
+	If DetectBrowserTypeFromPath($BrowserPath) = $BrowserCent Then Return False
 	If IsChromePlusPatchInstalled($BrowserPath) Then Return True
 
 	Local $ConfirmText
@@ -3266,6 +3360,7 @@ EndFunc   ;==>MaybeInstallChromePlusPatch
 
 Func IsChromePlusPatchInstalled($BrowserPath)
 	If Not FileExists($BrowserPath) Then Return False
+	If DetectBrowserTypeFromPath($BrowserPath) = $BrowserCent Then Return False
 
 	Local $BrowserDir, $BrowserExe
 	SplitPath($BrowserPath, $BrowserDir, $BrowserExe)
@@ -3275,6 +3370,7 @@ EndFunc   ;==>IsChromePlusPatchInstalled
 
 Func GetChromePlusPatchPath($BrowserPath)
 	If Not FileExists($BrowserPath) Then Return ""
+	If DetectBrowserTypeFromPath($BrowserPath) = $BrowserCent Then Return ""
 
 	Local $BrowserDir, $BrowserExe
 	SplitPath($BrowserPath, $BrowserDir, $BrowserExe)
@@ -3310,6 +3406,7 @@ EndFunc   ;==>GetChromePlusVersionFromTag
 
 Func InstallChromePlusPatchInteractive($BrowserPath, $PreferredArch = "")
 	If Not FileExists($BrowserPath) Then Return False
+	If DetectBrowserTypeFromPath($BrowserPath) = $BrowserCent Then Return False
 
 	Local $BrowserDir, $BrowserExe
 	SplitPath($BrowserPath, $BrowserDir, $BrowserExe)
@@ -3723,6 +3820,7 @@ EndFunc   ;==>DecodeXmlAttribute
 Func BuildBrowserDownloadUrl($Value, $Channel, $os)
 	If NormalizeBrowserType($Value) = $BrowserHelium Then Return BuildHeliumDownloadUrl($Channel, $os)
 	If NormalizeBrowserType($Value) = $BrowserWhale Then Return BuildWhaleDownloadUrl($Channel, $os)
+	If NormalizeBrowserType($Value) = $BrowserCent Then Return BuildCentDownloadUrl($Channel, $os)
 	If IsChromeBrowser($Value) Then Return BuildChromeDownloadUrl($Channel, $os)
 	If NormalizeBrowserType($Value) = $BrowserZen Then Return BuildZenDownloadUrl($Channel, $os)
 	If NormalizeBrowserType($Value) = $BrowserFloorp Then Return BuildFloorpDownloadUrl($Channel, $os)
@@ -3788,7 +3886,7 @@ Func DownloadFirefox()
 	$FirefoxPath = RelativePath($DownloadedFirefoxPath)
 	GUICtrlSetData($hFirefoxPath, $FirefoxPath)
 	OnFirefoxPathChange()
-	If IsChromeBrowser($CurrentBrowserType) Then MaybeInstallChromePlusPatch($DownloadedFirefoxPath, $os, True)
+	If IsChromePlusSupportedBrowser($CurrentBrowserType) Then MaybeInstallChromePlusPatch($DownloadedFirefoxPath, $os, True)
 	UpdateBrowserSpecificControls()
 	_GUICtrlStatusBar_SetText($hStatus, _t("BrowserDownloadSuccess", "浏览器已下载并解压完成。"))
 	Local $OpenDownloadedBrowserConfirm = _t("OpenDownloadedBrowserConfirm", "浏览器已下载并解压完成。\n是否马上打开浏览器？")
@@ -4083,7 +4181,48 @@ Func FindBrowserExecutable($Dir, $ExecutableName, $Depth = 6)
 	Return ""
 EndFunc   ;==>FindBrowserExecutable
 
+Func FindCentBrowserExecutable($Dir)
+	Local $Found = FindCentBrowserExecutableWithMarker($Dir)
+	If $Found Then Return $Found
+	Return FindBrowserExecutable($Dir, "chrome.exe")
+EndFunc   ;==>FindCentBrowserExecutable
+
+Func FindCentBrowserExecutableWithMarker($Dir, $Depth = 6)
+	If FileExists($Dir & "\chrome.exe") And IsCentBrowserExtractDir($Dir) Then Return $Dir & "\chrome.exe"
+	If $Depth <= 0 Then Return ""
+
+	Local $hSearch = FileFindFirstFile($Dir & "\*")
+	If $hSearch = -1 Then Return ""
+
+	Local $Name, $Path, $Found
+	While 1
+		$Name = FileFindNextFile($hSearch)
+		If @error Then ExitLoop
+		$Path = $Dir & "\" & $Name
+		If StringInStr(FileGetAttrib($Path), "D") Then
+			$Found = FindCentBrowserExecutableWithMarker($Path, $Depth - 1)
+			If $Found Then
+				FileClose($hSearch)
+				Return $Found
+			EndIf
+		EndIf
+	WEnd
+
+	FileClose($hSearch)
+	Return ""
+EndFunc   ;==>FindCentBrowserExecutableWithMarker
+
+Func IsCentBrowserExtractDir($Dir)
+	If FileExists($Dir & "\safemode.bat") Then Return True
+
+	Local $Identity = GetExecutableIdentityText($Dir & "\chrome.exe")
+	If StringInStr($Identity, "cent browser") Or StringInStr($Identity, "centbrowser") Then Return True
+	Return False
+EndFunc   ;==>IsCentBrowserExtractDir
+
 Func FindBrowserExecutableForType($Dir, $BrowserTypeValue)
+	If NormalizeBrowserType($BrowserTypeValue) = $BrowserCent Then Return FindCentBrowserExecutable($Dir)
+
 	Local $Candidates = StringSplit(GetBrowserExecutableCandidates($BrowserTypeValue), "|", 2)
 	Local $Found
 	For $i = 0 To UBound($Candidates) - 1

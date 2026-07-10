@@ -14,6 +14,8 @@ Features:
 
 ### Latest updates
 
+2026.07.10 Added Cent Browser to the settings screen with official-site Windows x64 portable download and extraction; Cent Browser does not enable the Chrome++ patch
+
 2026.07.10 Naver Whale now appends `--lang=zh-CN` or `--lang=zh-TW` based on the RunFirefox language, working around Whale's Chinese UI issue to improve the experience for Chinese users
 
 2026.07.10 Added Naver Whale to the settings screen with online download and extraction for the Windows x64 standalone installer

@@ -1,7 +1,7 @@
 # 便携版制作指南
 
 现在 `RunFirefox` 的设置界面已经可以直接下载并解压部分浏览器。  
-如果你要制作的是 **Firefox、Chrome、Zen、Floorp、Waterfox、Helium** 便携版，优先使用内置下载会更省事。  
+如果你要制作的是 **Firefox、Chrome、Zen、Floorp、Waterfox、Helium、Naver Whale、百分浏览器（Cent Browser）** 便携版，优先使用内置下载会更省事。
 像 **LibreWolf** 这类暂未内置下载的浏览器，再按下面的手动方式处理。
 
 ## 方式一：在设置里直接下载（适用于已支持的浏览器）

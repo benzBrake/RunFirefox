@@ -121,14 +121,23 @@ jobs:
               }
           }
 
-      - name: Upload nightly artifact
+      - name: Upload RunFirefox nightly artifact
         if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/master' }}
         uses: actions/upload-artifact@v4
         with:
-          name: RunFirefox-RunChrome-nightly-${{ github.run_number }}-${{ github.sha }}
+          name: RunFirefox-nightly-${{ github.run_number }}-${{ github.sha }}
           path: |
             RunFirefox.exe
             RunFirefox_x64.exe
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload RunChrome nightly artifact
+        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/master' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: RunChrome-nightly-${{ github.run_number }}-${{ github.sha }}
+          path: |
             RunChrome.exe
             RunChrome_x64.exe
           if-no-files-found: error

@@ -17,6 +17,8 @@
 
 ### 最近更新
 
+2026.07.10 Nightly 构建现在同时提供 RunFirefox 与 RunChrome 两个独立下载包
+
 2026.07.10 支持在设置界面选择 Vivaldi，并从官网解析、下载、解压 Windows x64 Stable 安装包；Vivaldi 不启用 Chrome++ 补丁
 
 2026.07.10 支持在设置界面选择百分浏览器（Cent Browser），并从官网解析、下载、解压 Windows x64 便携版；百分浏览器不启用 Chrome++ 补丁

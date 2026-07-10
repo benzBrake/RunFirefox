@@ -14,6 +14,10 @@ Features:
 
 ### Latest updates
 
+2026.07.10 Naver Whale now appends `--lang=zh-CN` or `--lang=zh-TW` based on the RunFirefox language, working around Whale's Chinese UI issue to improve the experience for Chinese users
+
+2026.07.10 Added Naver Whale to the settings screen with online download and extraction for the Windows x64 standalone installer
+
 2026.07.07 Improved the Chrome++ new-tab disable setting text to clarify that related options become available immediately after the patch is installed
 
 2026.07.07 The Chrome++ settings tab now checks the installed and latest patch versions, and can update an installed patch directly

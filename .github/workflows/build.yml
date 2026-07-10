@@ -24,6 +24,20 @@ jobs:
         shell: pwsh
         run: '& .\scripts\install-autoit.ps1'
 
+      - name: Generate nightly scripts
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+
+          Copy-Item -LiteralPath '.\RunFirefox.au3' -Destination '.\RunChrome.au3' -Force
+
+          $source = Get-Content -LiteralPath '.\RunChrome.au3' -Raw
+          $source = [regex]::Replace($source, '(?m)^#AutoIt3Wrapper_Icon=.*\r?$', '#AutoIt3Wrapper_Icon=icons\Chrome.ico')
+          $source = [regex]::Replace($source, '(?m)^#AutoIt3Wrapper_Outfile=.*\r?$', '#AutoIt3Wrapper_Outfile=RunChrome.exe')
+          $source = [regex]::Replace($source, '(?m)^#AutoIt3Wrapper_Outfile_x64=.*\r?$', '#AutoIt3Wrapper_Outfile_x64=RunChrome_x64.exe')
+          $source = [regex]::Replace($source, '(?m)^Global Const \$CustomArch = ".*"\r?$', 'Global Const $CustomArch = "RunChrome"')
+          Set-Content -LiteralPath '.\RunChrome.au3' -Value $source -Encoding utf8
+
       - name: Inject Google API keys
         shell: pwsh
         env:
@@ -67,35 +81,56 @@ jobs:
               }
           }
 
-          Set-ChromiumGoogleApiConstants -Paths @('.\RunFirefox.au3')
+          Set-ChromiumGoogleApiConstants -Paths @('.\RunFirefox.au3', '.\RunChrome.au3')
 
-      - name: Compile RunFirefox
+      - name: Build nightly scripts
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
 
           $autoItPath = Join-Path $env:AUTOIT_DIR 'AutoIt3.exe'
           $wrapperPath = Join-Path $env:AUTOIT_DIR 'SciTE\AutoIt3Wrapper\AutoIt3Wrapper.au3'
-          $scriptPath = Resolve-Path -LiteralPath '.\RunFirefox.au3'
-          $arguments = "`"$wrapperPath`" /in `"$scriptPath`" /NoStatus"
-          $process = Start-Process -FilePath $autoItPath -ArgumentList $arguments -NoNewWindow -Wait -PassThru
+          $scripts = @(
+              (Resolve-Path -LiteralPath '.\RunFirefox.au3').Path
+              (Resolve-Path -LiteralPath '.\RunChrome.au3').Path
+          )
 
-          if ($process.ExitCode -ne 0) {
-              throw "AutoIt3Wrapper failed with exit code $($process.ExitCode)."
+          $failures = @($scripts | ForEach-Object -Parallel {
+              $arguments = "`"$using:wrapperPath`" /in `"$_`" /NoStatus"
+              $process = Start-Process -FilePath $using:autoItPath -ArgumentList $arguments -NoNewWindow -Wait -PassThru
+              if ($process.ExitCode -ne 0) {
+                  $_
+              }
+          } -ThrottleLimit 2)
+
+          if ($failures.Count -gt 0) {
+              $failedScripts = $failures -join ', '
+              throw "AutoIt3Wrapper failed for: $failedScripts"
           }
 
-          if (-not (Test-Path -LiteralPath '.\RunFirefox.exe')) {
-              throw 'RunFirefox.exe was not produced.'
+          $expectedOutputs = @(
+              '.\RunFirefox.exe'
+              '.\RunFirefox_x64.exe'
+              '.\RunChrome.exe'
+              '.\RunChrome_x64.exe'
+          )
+
+          foreach ($output in $expectedOutputs) {
+              if (-not (Test-Path -LiteralPath $output)) {
+                  throw "$output was not produced."
+              }
           }
 
       - name: Upload nightly artifact
         if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/master' }}
         uses: actions/upload-artifact@v4
         with:
-          name: RunFirefox-nightly-${{ github.run_number }}-${{ github.sha }}
+          name: RunFirefox-RunChrome-nightly-${{ github.run_number }}-${{ github.sha }}
           path: |
             RunFirefox.exe
             RunFirefox_x64.exe
+            RunChrome.exe
+            RunChrome_x64.exe
           if-no-files-found: error
           retention-days: 14
 

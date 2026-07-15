@@ -69,9 +69,17 @@ Global Const $ChromePlusCacheRoot = @TempDir & "\RunFirefox_ChromePlus"
 Global Const $ChromiumGoogleApiKeyEnv = "GOOGLE_API_KEY"
 Global Const $ChromiumGoogleClientIdEnv = "GOOGLE_DEFAULT_CLIENT_ID"
 Global Const $ChromiumGoogleClientSecretEnv = "GOOGLE_DEFAULT_CLIENT_SECRET"
-Global Const $ChromiumGoogleApiKey = ""
-Global Const $ChromiumGoogleClientId = ""
-Global Const $ChromiumGoogleClientSecret = ""
+; These values are populated by the release workflow as per-build obfuscated data.
+; Client-side obfuscation only raises extraction cost; it cannot make shipped credentials secret.
+Global Const $ChromiumGoogleApiKeyPayload = ""
+Global Const $ChromiumGoogleApiKeyMask = ""
+Global Const $ChromiumGoogleApiKeyNonce = 0
+Global Const $ChromiumGoogleClientIdPayload = ""
+Global Const $ChromiumGoogleClientIdMask = ""
+Global Const $ChromiumGoogleClientIdNonce = 0
+Global Const $ChromiumGoogleClientSecretPayload = ""
+Global Const $ChromiumGoogleClientSecretMask = ""
+Global Const $ChromiumGoogleClientSecretNonce = 0
 Global Const $BrowserFirefox = "firefox"
 Global Const $BrowserZen = "zen"
 Global Const $BrowserFloorp = "floorp"
@@ -4306,7 +4314,10 @@ Func ImportChromiumGoogleApi()
 		MsgBox(48, "RunFirefox", _t("GoogleApiUnavailable", "当前构建未内置 Google API 密钥。请在 GitHub Actions secrets 中配置后重新构建。"), 0, $hSettings)
 		Return
 	EndIf
-	If SetChromiumGoogleApiEnvironment($ChromiumGoogleApiKey, $ChromiumGoogleClientId, $ChromiumGoogleClientSecret) Then
+	Local $ApiKey = DecodeChromiumGoogleApiValue($ChromiumGoogleApiKeyPayload, $ChromiumGoogleApiKeyMask, $ChromiumGoogleApiKeyNonce)
+	Local $ClientId = DecodeChromiumGoogleApiValue($ChromiumGoogleClientIdPayload, $ChromiumGoogleClientIdMask, $ChromiumGoogleClientIdNonce)
+	Local $ClientSecret = DecodeChromiumGoogleApiValue($ChromiumGoogleClientSecretPayload, $ChromiumGoogleClientSecretMask, $ChromiumGoogleClientSecretNonce)
+	If SetChromiumGoogleApiEnvironment($ApiKey, $ClientId, $ClientSecret) Then
 		MsgBox(0, "RunFirefox", _t("GoogleApiImportSuccess", "导入GoogleAPI密钥成功"), 0, $hSettings)
 	Else
 		MsgBox(16, "RunFirefox", _t("GoogleApiEnvironmentUpdateFailed", "修改GoogleAPI环境变量失败。"), 0, $hSettings)
@@ -4314,8 +4325,24 @@ Func ImportChromiumGoogleApi()
 EndFunc   ;==>ImportChromiumGoogleApi
 
 Func HasChromiumGoogleApi()
-	Return $ChromiumGoogleApiKey <> "" And $ChromiumGoogleClientId <> "" And $ChromiumGoogleClientSecret <> ""
+	Return DecodeChromiumGoogleApiValue($ChromiumGoogleApiKeyPayload, $ChromiumGoogleApiKeyMask, $ChromiumGoogleApiKeyNonce) <> "" And _
+			DecodeChromiumGoogleApiValue($ChromiumGoogleClientIdPayload, $ChromiumGoogleClientIdMask, $ChromiumGoogleClientIdNonce) <> "" And _
+			DecodeChromiumGoogleApiValue($ChromiumGoogleClientSecretPayload, $ChromiumGoogleClientSecretMask, $ChromiumGoogleClientSecretNonce) <> ""
 EndFunc   ;==>HasChromiumGoogleApi
+
+Func DecodeChromiumGoogleApiValue($Payload, $Mask, $Nonce)
+	If $Payload = "" Or StringLen($Payload) <> StringLen($Mask) Or Mod(StringLen($Payload), 2) <> 0 Then Return ""
+	If Not StringRegExp($Payload, "^[0-9A-F]+$") Or Not StringRegExp($Mask, "^[0-9A-F]+$") Then Return ""
+
+	Local $DecodedHex = "0x"
+	For $i = 0 To (StringLen($Payload) / 2) - 1
+		Local $PayloadByte = Dec("0x" & StringMid($Payload, $i * 2 + 1, 2))
+		Local $MaskByte = Dec("0x" & StringMid($Mask, $i * 2 + 1, 2))
+		Local $IndexMask = BitAND($i * 149 + $Nonce, 0xFF)
+		$DecodedHex &= Hex(BitXOR($PayloadByte, $MaskByte, $IndexMask), 2)
+	Next
+	Return BinaryToString(Binary($DecodedHex), 4)
+EndFunc   ;==>DecodeChromiumGoogleApiValue
 
 Func SuppressChromiumGoogleApiWarning()
 	If SetChromiumGoogleApiEnvironment("no", "no", "no") Then

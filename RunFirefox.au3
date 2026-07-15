@@ -61,7 +61,8 @@ Global Const $FirefoxVersionUrl = "https://product-details.mozilla.org/1.0/firef
 Global Const $ChromeUpdateUrl = "https://tools.google.com/service/update2"
 Global Const $ChromeUpdateUserAgent = "Google Update/1.3.32.7;winhttp;cup-ecdsa"
 Global Const $ChromePlusRepo = "Bush2021/chrome_plus"
-Global Const $ChromePlusLatestApiUrl = "https://api.github.com/repos/" & $ChromePlusRepo & "/releases/latest"
+Global Const $ChromePlusReleasesApiUrl = "https://api.github.com/repos/" & $ChromePlusRepo & "/releases?per_page=30"
+Global Const $ChromePlusJsDelivrVersionsUrl = "https://data.jsdelivr.com/v1/package/gh/" & $ChromePlusRepo
 Global Const $ChromePlusGitCodeTagsUrl = "https://gitcode.com/gh_mirrors/ch/chrome_plus/tags"
 Global Const $ChromePlusGitCodeTagsApiUrl = "https://web-api.gitcode.com/api/v2/projects/gh_mirrors%2Fch%2Fchrome_plus/repository/tags?order_by=committed&sort=desc&repoId=gh_mirrors%252Fch%252Fchrome_plus&page=1&per_page=10"
 Global Const $ChromePlusApiUserAgent = "RunFirefox/" & $AppVersion
@@ -117,6 +118,7 @@ Global $hAllowBrowserUpdate, $hCheckAppUpdate, $hRunInBackground, $hBrowserType,
 Global $hBrowserBitness, $hBrowserUpdateCheckMode, $hCurrentBrowserVersion, $hWaterfoxVersionHint, $hBrowserDownloadNow
 Global $hChromePlusHint, $hChromePlusDownloadPatch, $hChromePlusConfigPath, $hChromePlusCurrentVersion, $hChromePlusLatestVersion, $hChromePlusDoubleClickClose, $hChromePlusRightClickClose, $hChromePlusKeepLastTab
 Global $hChromePlusWheelTab, $hChromePlusWheelTabWhenPressRButton, $hChromePlusOpenUrlNewTab, $hChromePlusOpenBookmarkNewTab
+Global $hChromePlusHoverTab, $hChromePlusHoverTabDelay, $hChromePlusHoverTabDelayLabel
 Global $hChromePlusNewTabDisable, $hChromePlusNewTabDisableName, $hChromePlusNewTabDisableNameLabel
 Global $hChromiumGoogleApiImport, $hChromiumGoogleApiSuppress, $hChromiumGoogleApiClear
 Global $LANG_DATA
@@ -1512,11 +1514,16 @@ Func Settings()
 	$hChromePlusOpenBookmarkNewTab = GUICtrlCreateCheckbox(_t("ChromePlusOpenBookmarkNewTab", "书签在新标签页打开"), 20, 288, 200, 20)
 	$hChromePlusNewTabDisable = GUICtrlCreateCheckbox(_t("ChromePlusDisableNewTab", "新标签页时禁用上两项"), 250, 288, 200, 20)
 	GUICtrlSetOnEvent($hChromePlusNewTabDisable, "RefreshChromePlusNewTabDisableNameState")
+	$hChromePlusHoverTab = GUICtrlCreateCheckbox(_t("ChromePlusHoverTab", "鼠标悬停激活标签页"), 20, 318, 230, 20)
+	GUICtrlSetOnEvent($hChromePlusHoverTab, "RefreshChromePlusHoverTabDelayState")
+	$hChromePlusHoverTabDelayLabel = GUICtrlCreateLabel(_t("ChromePlusHoverTabDelay", "延迟（毫秒）"), 270, 323, 80, 20)
+	$hChromePlusHoverTabDelay = GUICtrlCreateEdit("400", 355, 318, 125, 20, BitOR($ES_NUMBER, $ES_AUTOHSCROLL))
+	GUICtrlSetTip($hChromePlusHoverTabDelay, _t("ChromePlusHoverTabDelayTooltip", "鼠标需在标签页上停留多久才会激活，范围为 0-5000 毫秒；无效值会使用 400 毫秒。"))
 
-	$hChromePlusNewTabDisableNameLabel = GUICtrlCreateLabel(_t("ChromePlusDisableNewTabName", "额外匹配标题"), 20, 333, 115, 20)
-	$hChromePlusNewTabDisableName = GUICtrlCreateEdit("", 145, 328, 335, 20, $ES_AUTOHSCROLL)
+	$hChromePlusNewTabDisableNameLabel = GUICtrlCreateLabel(_t("ChromePlusDisableNewTabName", "额外匹配标题"), 20, 368, 115, 20)
+	$hChromePlusNewTabDisableName = GUICtrlCreateEdit("", 145, 363, 335, 20, $ES_AUTOHSCROLL)
 	GUICtrlSetTip($hChromePlusNewTabDisableName, _t("ChromePlusDisableNewTabNameTooltip", '对应 chrome++.ini 的 new_tab_disable_name 原始值；这些标题会被额外视为新标签页。可填写多个标题，并保留英文双引号与逗号，例如 "about:blank","新建标签"'))
-	GUICtrlCreateLabel(_t("ChromePlusNewTabDisableHelp", "说明：勾选后，如果当前标签页被识别为新标签页，Chrome++ 会临时禁用上面的“地址栏输入在新标签页打开”和“书签在新标签页打开”。这样在新标签页里输入地址或打开书签时，会使用当前新标签页，而不会再额外新建标签页。\n“额外匹配标题”用于补充 Chrome++ 的内置识别列表，匹配到这些标题时也按新标签页处理。"), 20, 363, 460, 78)
+	GUICtrlCreateLabel(_t("ChromePlusNewTabDisableHelp", "说明：勾选后，如果当前标签页被识别为新标签页，Chrome++ 会临时禁用上面的“地址栏输入在新标签页打开”和“书签在新标签页打开”。这样在新标签页里输入地址或打开书签时，会使用当前新标签页，而不会再额外新建标签页。\n“额外匹配标题”用于补充 Chrome++ 的内置识别列表，匹配到这些标题时也按新标签页处理。"), 20, 398, 460, 62)
 	GUICtrlSetColor(-1, 0x666666)
 
 	; 辅助
@@ -2414,7 +2421,10 @@ Func SetChromePlusTabControlsState($Enabled)
 	GUICtrlSetState($hChromePlusOpenUrlNewTab, $State)
 	GUICtrlSetState($hChromePlusOpenBookmarkNewTab, $State)
 	GUICtrlSetState($hChromePlusNewTabDisable, $State)
+	GUICtrlSetState($hChromePlusHoverTab, $State)
 	If Not $Enabled Then
+		GUICtrlSetState($hChromePlusHoverTabDelay, $GUI_DISABLE)
+		GUICtrlSetState($hChromePlusHoverTabDelayLabel, $GUI_DISABLE)
 		GUICtrlSetState($hChromePlusNewTabDisableName, $GUI_DISABLE)
 		GUICtrlSetState($hChromePlusNewTabDisableNameLabel, $GUI_DISABLE)
 	EndIf
@@ -2429,9 +2439,50 @@ Func LoadChromePlusTabsSettings($ConfigPath)
 	SetCheckboxStateByValue($hChromePlusOpenUrlNewTab, IniRead($ConfigPath, "tabs", "open_url_new_tab", "0"))
 	SetCheckboxStateByValue($hChromePlusOpenBookmarkNewTab, IniRead($ConfigPath, "tabs", "open_bookmark_new_tab", "0"))
 	SetCheckboxStateByValue($hChromePlusNewTabDisable, IniRead($ConfigPath, "tabs", "new_tab_disable", "1"))
+	SetCheckboxStateByValue($hChromePlusHoverTab, IniRead($ConfigPath, "tabs", "hover_tab", "0"))
+	GUICtrlSetData($hChromePlusHoverTabDelay, NormalizeChromePlusHoverTabDelay(IniRead($ConfigPath, "tabs", "hover_tab_delay", "400")))
 	GUICtrlSetData($hChromePlusNewTabDisableName, ReadIniTextValue($ConfigPath, "tabs", "new_tab_disable_name", '"about:blank","新建标签"'))
+	RefreshChromePlusHoverTabDelayState()
 	RefreshChromePlusNewTabDisableNameState()
 EndFunc   ;==>LoadChromePlusTabsSettings
+
+Func NormalizeChromePlusHoverTabDelay($Value)
+	$Value = StringStripWS($Value, 3)
+	If Not StringRegExp($Value, "^\d+$") Then Return 400
+
+	Local $Delay = Int($Value)
+	If $Delay > 5000 Then Return 400
+	Return $Delay
+EndFunc   ;==>NormalizeChromePlusHoverTabDelay
+
+Func IsChromePlusHoverTabSupported($BrowserPath)
+	Local $Version = GetChromePlusInstalledVersion($BrowserPath)
+	Return $Version <> "" And VersionCompare($Version, "1.18.0") >= 0
+EndFunc   ;==>IsChromePlusHoverTabSupported
+
+Func RefreshChromePlusHoverTabDelayState()
+	If Not $hChromePlusHoverTabDelay Then Return
+
+	Local $Version = GetChromePlusInstalledVersion(GetCurrentSettingsBrowserPath())
+	Local $FeatureSupported = $Version <> "" And VersionCompare($Version, "1.18.0") >= 0
+	Local $Tooltip = _t("ChromePlusHoverTabDelayTooltip", "鼠标需在标签页上停留多久才会激活，范围为 0-5000 毫秒；无效值会使用 400 毫秒。")
+	If Not $FeatureSupported Then
+		If $Version = "" Then $Version = _t("BrowserVersionUnavailable", "获取失败")
+		$Tooltip = _t("ChromePlusHoverTabVersionRequired", "鼠标悬停激活标签页需要 Chrome++ 1.18.0 或更高版本。当前版本：%s", $Version)
+	EndIf
+	GUICtrlSetTip($hChromePlusHoverTab, $Tooltip)
+	GUICtrlSetTip($hChromePlusHoverTabDelay, $Tooltip)
+
+	Local $State = $GUI_DISABLE
+	If $FeatureSupported Then GUICtrlSetState($hChromePlusHoverTab, $GUI_ENABLE)
+	If $FeatureSupported And GUICtrlRead($hChromePlusHoverTab) = $GUI_CHECKED Then
+		$State = $GUI_ENABLE
+	Else
+		GUICtrlSetState($hChromePlusHoverTab, $GUI_DISABLE)
+	EndIf
+	GUICtrlSetState($hChromePlusHoverTabDelay, $State)
+	GUICtrlSetState($hChromePlusHoverTabDelayLabel, $State)
+EndFunc   ;==>RefreshChromePlusHoverTabDelayState
 
 Func RefreshChromePlusNewTabDisableNameState()
 	If Not $hChromePlusNewTabDisableName Then Return
@@ -2492,6 +2543,7 @@ Func RefreshChromePlusTabState()
 	EndIf
 
 	SetChromePlusTabControlsState(False)
+	RefreshChromePlusHoverTabDelayState()
 	RefreshChromePlusNewTabDisableNameState()
 EndFunc   ;==>RefreshChromePlusTabState
 
@@ -2681,6 +2733,10 @@ Func SaveChromePlusTabsSettings($BrowserPath)
 	If IniWrite($ConfigPath, "tabs", "open_url_new_tab", GetCheckboxIniValue($hChromePlusOpenUrlNewTab)) = 0 Then Return False
 	If IniWrite($ConfigPath, "tabs", "open_bookmark_new_tab", GetCheckboxIniValue($hChromePlusOpenBookmarkNewTab)) = 0 Then Return False
 	If IniWrite($ConfigPath, "tabs", "new_tab_disable", GetCheckboxIniValue($hChromePlusNewTabDisable)) = 0 Then Return False
+	If IsChromePlusHoverTabSupported($ResolvedBrowserPath) Then
+		If IniWrite($ConfigPath, "tabs", "hover_tab", GetCheckboxIniValue($hChromePlusHoverTab)) = 0 Then Return False
+		If IniWrite($ConfigPath, "tabs", "hover_tab_delay", NormalizeChromePlusHoverTabDelay(GUICtrlRead($hChromePlusHoverTabDelay))) = 0 Then Return False
+	EndIf
 	If Not WriteIniTextValue($ConfigPath, "tabs", "new_tab_disable_name", StringStripWS(GUICtrlRead($hChromePlusNewTabDisableName), 3)) Then Return False
 	Return True
 EndFunc   ;==>SaveChromePlusTabsSettings
@@ -3679,16 +3735,27 @@ Func GetChromePlusReleaseInfo(ByRef $ReleaseTag, ByRef $ArchiveUrl, ByRef $Insta
 	EndIf
 
 	Local $HttpDiagnostic = ""
-	Local $sJson = HttpGetTextDiagnostic($ChromePlusLatestApiUrl, $ChromePlusApiUserAgent, "application/vnd.github+json", $HttpDiagnostic)
+	Local $sJson = HttpGetTextDiagnostic($ChromePlusReleasesApiUrl, $ChromePlusApiUserAgent, "application/vnd.github+json", $HttpDiagnostic)
 	$InstallLog &= $HttpDiagnostic & @CRLF
 	If $sJson <> "" Then
-		Local $TagMatch = StringRegExp($sJson, '"tag_name"\s*:\s*"([^"]+)"', 1)
-		If Not @error And IsArray($TagMatch) Then $CachedReleaseTag = $TagMatch[0]
-
-		Local $UrlMatch = StringRegExp($sJson, '"browser_download_url"\s*:\s*"([^"]*Chrome(?:%2B%2B|\+\+)[^"]*x86_x64_arm64\.7z)"', 1)
-		If Not @error And IsArray($UrlMatch) Then $CachedArchiveUrl = StringReplace($UrlMatch[0], '\/', '/')
+		Local $ApiTags = StringRegExp($sJson, '"tag_name"\s*:\s*"([^"]+)"', 3)
+		$CachedReleaseTag = GetLatestChromePlusStableTag($ApiTags)
 		$InstallLog &= "API parsed tag: " & $CachedReleaseTag & @CRLF
-		$InstallLog &= "API parsed archive URL: " & $CachedArchiveUrl & @CRLF
+	EndIf
+
+	If $CachedReleaseTag = "" Then
+		Local $JsDelivrBinary = InetRead($ChromePlusJsDelivrVersionsUrl, 1)
+		Local $JsDelivrError = @error
+		Local $JsDelivrJson = BinaryToString($JsDelivrBinary, 4)
+		$InstallLog &= "jsDelivr versions InetRead @error: " & $JsDelivrError & ", bytes: " & BinaryLen($JsDelivrBinary) & ", text length: " & StringLen($JsDelivrJson) & @CRLF
+		If $JsDelivrJson <> "" Then
+			Local $VersionsMatch = StringRegExp($JsDelivrJson, '"versions"\s*:\s*\[([^\]]*)\]', 1)
+			If Not @error And IsArray($VersionsMatch) Then
+				Local $JsDelivrTags = StringRegExp($VersionsMatch[0], '"(v?\d+\.\d+\.\d+)"', 3)
+				$CachedReleaseTag = GetLatestChromePlusStableTag($JsDelivrTags)
+			EndIf
+			$InstallLog &= "jsDelivr parsed tag: " & $CachedReleaseTag & @CRLF
+		EndIf
 	EndIf
 
 	If $CachedReleaseTag = "" Then
@@ -3699,20 +3766,19 @@ Func GetChromePlusReleaseInfo(ByRef $ReleaseTag, ByRef $ArchiveUrl, ByRef $Insta
 		Local $LatestPage = BinaryToString($LatestPageBinary, 4)
 		$InstallLog &= "Fallback InetRead @error: " & $InetReadError & ", bytes: " & BinaryLen($LatestPageBinary) & ", text length: " & StringLen($LatestPage) & @CRLF
 		If $LatestPage <> "" Then
-			Local $TagMatch = StringRegExp($LatestPage, '/' & $ChromePlusRepo & '/releases/tag/([^"?/#<>]+)', 1)
-			If Not @error And IsArray($TagMatch) Then $CachedReleaseTag = $TagMatch[0]
+			Local $PageTags = StringRegExp($LatestPage, '/' & $ChromePlusRepo & '/releases/tag/([^"?/#<>]+)', 3)
+			$CachedReleaseTag = GetLatestChromePlusStableTag($PageTags)
 			$InstallLog &= "Fallback parsed tag: " & $CachedReleaseTag & @CRLF
 		EndIf
-	EndIf
 
-	If $CachedReleaseTag = "" Then
 		Local $GitCodeDiagnostic = ""
 		Local $GitCodeJson = HttpGetTextDiagnostic($ChromePlusGitCodeTagsApiUrl, $ChromePlusApiUserAgent, "application/json", $GitCodeDiagnostic, $ChromePlusGitCodeTagsUrl)
 		$InstallLog &= "GitCode tags fallback page: " & $ChromePlusGitCodeTagsUrl & @CRLF
 		$InstallLog &= $GitCodeDiagnostic & @CRLF
 		If $GitCodeJson <> "" Then
-			Local $GitCodeTagMatch = StringRegExp($GitCodeJson, '"content"\s*:\s*\[\s*\{\s*"name"\s*:\s*"([^"]+)"', 1)
-			If Not @error And IsArray($GitCodeTagMatch) Then $CachedReleaseTag = $GitCodeTagMatch[0]
+			Local $GitCodeTags = StringRegExp($GitCodeJson, '"name"\s*:\s*"([^"]+)"', 3)
+			Local $GitCodeTag = GetLatestChromePlusStableTag($GitCodeTags)
+			If $GitCodeTag <> "" And ($CachedReleaseTag = "" Or VersionCompare(NormalizeChromePlusVersionText($GitCodeTag), NormalizeChromePlusVersionText($CachedReleaseTag)) > 0) Then $CachedReleaseTag = $GitCodeTag
 			$InstallLog &= "GitCode parsed tag: " & $CachedReleaseTag & @CRLF
 		EndIf
 	EndIf
@@ -3726,6 +3792,23 @@ Func GetChromePlusReleaseInfo(ByRef $ReleaseTag, ByRef $ArchiveUrl, ByRef $Insta
 	SetChromePlusReleaseInfo($CachedReleaseTag, $CachedArchiveUrl)
 	Return True
 EndFunc   ;==>GetChromePlusReleaseInfo
+
+Func GetLatestChromePlusStableTag($Tags)
+	If Not IsArray($Tags) Then Return ""
+
+	Local $LatestTag = "", $LatestVersion = ""
+	For $i = 0 To UBound($Tags) - 1
+		Local $Tag = StringStripWS($Tags[$i], 3)
+		If Not StringRegExp($Tag, "(?i)^v?\d+\.\d+\.\d+$") Then ContinueLoop
+
+		Local $Version = NormalizeChromePlusVersionText($Tag)
+		If $LatestVersion = "" Or VersionCompare($Version, $LatestVersion) > 0 Then
+			$LatestTag = $Tag
+			$LatestVersion = $Version
+		EndIf
+	Next
+	Return $LatestTag
+EndFunc   ;==>GetLatestChromePlusStableTag
 
 Func SetChromePlusReleaseInfo($ReleaseTag, $ArchiveUrl)
 	$ChromePlusReleaseInfoLoaded = True
@@ -3770,6 +3853,8 @@ Func BuildChromePlusManagedConfig()
 			"keep_last_tab=1" & @CRLF & _
 			"wheel_tab=0" & @CRLF & _
 			"wheel_tab_when_press_rbutton=0" & @CRLF & _
+			"hover_tab=0" & @CRLF & _
+			"hover_tab_delay=400" & @CRLF & _
 			"open_url_new_tab=0" & @CRLF & _
 			"open_bookmark_new_tab=0" & @CRLF & _
 			"new_tab_disable=1" & @CRLF & _

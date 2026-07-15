@@ -14,6 +14,8 @@ Features:
 
 ### Latest updates
 
+2026.07.15 Added Chrome++ 1.18.0 hover-to-activate tab and activation-delay settings
+
 2026.07.10 Nightly builds now provide separate RunFirefox and RunChrome downloads
 
 2026.07.10 Added Vivaldi to the settings screen with official-site Windows x64 Stable download and extraction; Vivaldi does not enable the Chrome++ patch

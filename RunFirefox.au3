@@ -3734,9 +3734,13 @@ Func GetChromePlusReleaseInfo(ByRef $ReleaseTag, ByRef $ArchiveUrl, ByRef $Insta
 		Return True
 	EndIf
 
-	Local $HttpDiagnostic = ""
-	Local $sJson = HttpGetTextDiagnostic($ChromePlusReleasesApiUrl, $ChromePlusApiUserAgent, "application/vnd.github+json", $HttpDiagnostic)
-	$InstallLog &= $HttpDiagnostic & @CRLF
+	Local $HttpDiagnostic = "", $sJson = ""
+	Local $ChromePlusApiUrls = _UpgradeBuildGithubDirectUrls($ChromePlusReleasesApiUrl, $GithubDirectMirror)
+	For $i = 0 To UBound($ChromePlusApiUrls) - 1
+		$sJson = HttpGetTextDiagnostic($ChromePlusApiUrls[$i], $ChromePlusApiUserAgent, "application/vnd.github+json", $HttpDiagnostic)
+		$InstallLog &= $HttpDiagnostic & @CRLF
+		If $sJson <> "" Then ExitLoop
+	Next
 	If $sJson <> "" Then
 		Local $ApiTags = StringRegExp($sJson, '"tag_name"\s*:\s*"([^"]+)"', 3)
 		$CachedReleaseTag = GetLatestChromePlusStableTag($ApiTags)

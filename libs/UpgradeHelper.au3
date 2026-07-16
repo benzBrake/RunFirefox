@@ -2,8 +2,8 @@
 
 Global Const $UPGRADE_DEFAULT_GITHUB_JSDELIVR_MIRROR_CHINA = "https://cdn.jsdmirror.com/gh"
 Global Const $UPGRADE_DEFAULT_GITHUB_JSDELIVR_MIRROR_GLOBAL = "https://gocre.jsdelivr.net/gh"
-Global Const $UPGRADE_DEFAULT_GITHUB_DIRECT_MIRROR = "https://gh-proxy.org/"
-Global Const $UPGRADE_FALLBACK_GITHUB_DIRECT_MIRRORS = "https://gh.llkk.cc/|https://ghproxy.net/"
+Global Const $UPGRADE_DEFAULT_GITHUB_DIRECT_MIRROR = "https://box.w0x7ce.eu/proxy/"
+Global Const $UPGRADE_FALLBACK_GITHUB_DIRECT_MIRRORS = "https://gh-proxy.org/|https://gh.llkk.cc/|https://ghproxy.net/"
 
 Func _UpgradeIsChineseLanguage($sLanguage = "")
     If StringRegExp($sLanguage, "(?i)^zh") Then Return True
@@ -51,16 +51,10 @@ Func _UpgradeAddUrl(ByRef $aUrls, ByRef $iCount, $sUrl)
     $iCount = $iCount + 1
 EndFunc
 
-Func _UpgradeBuildGithubReleaseDownloadUrls($sGithubUrl, $sDirectMirror, $sJsDelivrMirror = "")
+Func _UpgradeBuildGithubDirectUrls($sGithubUrl, $sDirectMirror)
     Local $aUrls[1], $iCount = 0
     $sDirectMirror = _UpgradeNormalizeMirrorAddress($sDirectMirror)
-    $sJsDelivrMirror = _UpgradeNormalizeMirrorAddress($sJsDelivrMirror)
-    If _UpgradeIsJsDelivrGithubMirror($sDirectMirror) Then
-        $sJsDelivrMirror = $sDirectMirror
-        $sDirectMirror = ""
-    EndIf
-    ; jsDelivr-style /gh mirrors repository files; release assets need a direct GitHub URL mirror.
-    If $sDirectMirror <> "" Then _UpgradeAddUrl($aUrls, $iCount, $sDirectMirror & $sGithubUrl)
+    If $sDirectMirror <> "" And Not _UpgradeIsJsDelivrGithubMirror($sDirectMirror) Then _UpgradeAddUrl($aUrls, $iCount, $sDirectMirror & $sGithubUrl)
     Local $aFallbackMirrors = StringSplit($UPGRADE_FALLBACK_GITHUB_DIRECT_MIRRORS, "|", 2)
     For $i = 0 To UBound($aFallbackMirrors) - 1
         Local $sFallbackMirror = _UpgradeNormalizeMirrorAddress($aFallbackMirrors[$i])
@@ -69,6 +63,17 @@ Func _UpgradeBuildGithubReleaseDownloadUrls($sGithubUrl, $sDirectMirror, $sJsDel
     _UpgradeAddUrl($aUrls, $iCount, $sGithubUrl)
     ReDim $aUrls[$iCount]
     Return $aUrls
+EndFunc
+
+Func _UpgradeBuildGithubReleaseDownloadUrls($sGithubUrl, $sDirectMirror, $sJsDelivrMirror = "")
+    $sDirectMirror = _UpgradeNormalizeMirrorAddress($sDirectMirror)
+    $sJsDelivrMirror = _UpgradeNormalizeMirrorAddress($sJsDelivrMirror)
+    If _UpgradeIsJsDelivrGithubMirror($sDirectMirror) Then
+        $sJsDelivrMirror = $sDirectMirror
+        $sDirectMirror = ""
+    EndIf
+    ; jsDelivr-style /gh mirrors repository files; release assets need a direct GitHub URL mirror.
+    Return _UpgradeBuildGithubDirectUrls($sGithubUrl, $sDirectMirror)
 EndFunc
 
 Func RemoveHTMLTags($str)
@@ -122,7 +127,7 @@ Func GetLatestReleaseVersionByJsDelivr($sRepositoryName)
     Return "v" & $aMatches[0]
 EndFunc
 
-Func GetReleaseNotesByVersion($sRepositoryName, $version, $sMirrorAddress = "https://mirror.ghproxy.com/")
+Func GetReleaseNotesByVersion($sRepositoryName, $version, $sMirrorAddress = $UPGRADE_DEFAULT_GITHUB_DIRECT_MIRROR)
     If _UpgradeIsJsDelivrGithubMirror($sMirrorAddress) Then Return ''
 
     ;~ 构建指定版本的 GitHub releases 页面的 URL

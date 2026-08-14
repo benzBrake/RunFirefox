@@ -49,6 +49,47 @@ Func UpdatePolices($FirefoxDir, $key, $value)
     EndIf
 EndFunc
 
+Func UpdateFirefoxPreferencePolicy($FirefoxDir, $PreferenceName, $Value, $Status = "locked")
+    Local $policiesFolder = $FirefoxDir & "\distribution"
+    Local $policiesFile = $policiesFolder & "\policies.json"
+    Local $FileContent, $JSONObj
+
+    If Not FileExists($policiesFolder) Then DirCreate($policiesFolder)
+
+    If FileExists($policiesFile) Then
+        $FileContent = FileRead($policiesFile)
+        $JSONObj = Json_Decode($FileContent)
+    EndIf
+    If Not Json_IsObject($JSONObj) Then $JSONObj = CreateDefaultPolicesObj()
+
+    Local $PoliciesObj = GetItemFromJsonObj($JSONObj, "policies")
+    If Not Json_IsObject($PoliciesObj) Then
+        $PoliciesObj = Json_ObjCreate()
+        Json_ObjPut($JSONObj, "policies", $PoliciesObj)
+    EndIf
+
+    Local $PreferencesObj = GetItemFromJsonObj($PoliciesObj, "Preferences")
+    If Not Json_IsObject($PreferencesObj) Then
+        $PreferencesObj = Json_ObjCreate()
+        Json_ObjPut($PoliciesObj, "Preferences", $PreferencesObj)
+    EndIf
+
+    Local $PreferenceObj = Json_ObjCreate()
+    Json_ObjPut($PreferenceObj, "Value", $Value)
+    Json_ObjPut($PreferenceObj, "Status", $Status)
+    Json_ObjPut($PreferencesObj, $PreferenceName, $PreferenceObj)
+
+    $FileContent = Json_Encode_Pretty($JSONObj, $JSON_PRETTY_PRINT, @TAB, "," & @CRLF, "," & @CRLF, ": ")
+    $FileContent = StringReplace($FileContent, '"true"', 'true')
+    $FileContent = StringReplace($FileContent, '"false"', 'false')
+
+    Local $hFile = FileOpen($policiesFile, $FO_CREATEPATH + $FO_OVERWRITE)
+    If $hFile = -1 Then Return False
+    FileWrite($hFile, $FileContent)
+    FileClose($hFile)
+    Return True
+EndFunc   ;==>UpdateFirefoxPreferencePolicy
+
 ;~ 创建默认 Polices 对象
 Func CreateDefaultPolicesObj()
     $JSONObj = Json_ObjCreate()

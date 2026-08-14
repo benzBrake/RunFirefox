@@ -44,6 +44,8 @@
 #include <Misc.au3>
 #include "libs\_String.au3"
 #include "libs\AppUserModelId.au3"
+#include "libs\JumpList.au3"
+#include "libs\FirefoxPlaces.au3"
 #include "libs\Polices.au3"
 #include "libs\ScriptingDictionary.au3"
 #include "libs\JSON.au3"
@@ -103,6 +105,7 @@ Global Const $VivaldiDownloadPageUrl = "https://vivaldi.com/download/"
 Global $FirstRun = 0, $FirstLaunch = 0, $FirefoxExe, $FirefoxDir, $isZotero = false
 Global $TaskBarDir = @AppDataDir & "\Microsoft\Internet Explorer\Quick Launch\User Pinned\TaskBar"
 Global $AppPID, $TaskBarLastChange
+Global $JumpListLastRefresh = 0, $JumpListContentSignature = ""
 Global $AllowBrowserUpdate, $CheckAppUpdate, $AppUpdateLastCheck, $RunInBackground, $BrowserType, $FirefoxPath, $ProfileDir
 Global $BrowserUpdateCheckMode, $BrowserUpdateLastCheck
 Global $CustomPluginsDir, $CustomCacheDir, $CacheSize, $CacheSizeSmart, $CheckDefaultBrowser, $Params
@@ -297,6 +300,9 @@ If IsMozillaBrowser($BrowserType) Then
 
 	;~ 创建禁用自动更新策略
 	UpdatePolices($FirefoxDir, "DisableAppUpdate", $AllowBrowserUpdate == 0)
+
+	;~ RunFirefox owns the Jump List so every task can preserve the portable profile.
+	UpdateFirefoxPreferencePolicy($FirefoxDir, "browser.taskbar.lists.enabled", False)
 EndIf
 
 If IsAdmin() And $cmdline[0] = 1 And $cmdline[1] = "-SetDefaultGlobal" Then
@@ -310,13 +316,26 @@ If IsMozillaBrowser($BrowserType) And $CustomPluginsDir <> "" Then
 	EnvSet("MOZ_PLUGIN_PATH", $CustomPluginsDir) ; 设置环境变量
 EndIf
 
+;~ Convert Jump List commands to browser arguments before forwarding them.
+Local $CommandLineStart = 1
+If $cmdline[0] >= 2 And $cmdline[1] = "--jump-action" Then
+	Switch $cmdline[2]
+		Case "new-tab"
+			$Params &= " -new-tab about:blank"
+		Case "new-window"
+			$Params &= " -new-window about:blank"
+		Case "private-window"
+			$Params &= " -private-window"
+	EndSwitch
+	$CommandLineStart = 3
+ElseIf $cmdline[0] >= 2 And $cmdline[1] = "--jump-url" Then
+	$Params &= " " & QuoteCommandLineArgument($cmdline[2])
+	$CommandLineStart = 3
+EndIf
+
 ;~ 给带空格的外部参数加上引号。
-For $i = 1 To $cmdline[0]
-	If StringInStr($cmdline[$i], " ") Then
-		$Params &= ' "' & $cmdline[$i] & '"'
-	Else
-		$Params &= ' ' & $cmdline[$i]
-	EndIf
+For $i = $CommandLineStart To $cmdline[0]
+	$Params &= " " & QuoteCommandLineArgument($cmdline[$i])
 Next
 
 Local $BrowserIsRunning = AppIsRunning($FirefoxPath)
@@ -392,6 +411,7 @@ Global $AppUserModelId
 If FileExists($TaskBarDir) Then ; win 7+
 	$AppUserModelId = _WindowAppId($hWnd_browser)
 	CheckPinnedPrograms($FirefoxPath)
+	RefreshMozillaJumpList(True)
 EndIf
 
 ;~ Check myfirefox update
@@ -445,6 +465,7 @@ While 1
 	If $TaskBarLastChange Then
 		CheckPinnedPrograms($FirefoxPath)
 	EndIf
+	RefreshMozillaJumpListIfDue()
 
 	If $hEvent And Not _WinAPI_WaitForSingleObject($hEvent, 0) Then
 		; MsgBox(0, "", "Reg changed!")
@@ -457,6 +478,8 @@ While 1
 		Next
 	EndIf
 WEnd
+
+RefreshMozillaJumpList(True)
 
 If $ExAppAutoExit And $ExApp <> "" Then
 	$cmd = ''
@@ -961,6 +984,90 @@ Func UpdateProfileLocalePrefs($BrowserLocale, ByRef $prefs)
 	FileWrite($PrefsPath, $NewPrefs)
 	$prefs = $NewPrefs
 EndFunc   ;==>UpdateProfileLocalePrefs
+
+Func QuoteCommandLineArgument($Value)
+	Local $Text = String($Value)
+	Local $Quoted = '"', $BackslashCount = 0
+	Local $i, $Character
+	For $i = 1 To StringLen($Text)
+		$Character = StringMid($Text, $i, 1)
+		If $Character = "\" Then
+			$BackslashCount += 1
+		ElseIf $Character = '"' Then
+			$Quoted &= RepeatText("\", $BackslashCount * 2 + 1) & '"'
+			$BackslashCount = 0
+		Else
+			If $BackslashCount Then $Quoted &= RepeatText("\", $BackslashCount)
+			$BackslashCount = 0
+			$Quoted &= $Character
+		EndIf
+	Next
+	If $BackslashCount Then $Quoted &= RepeatText("\", $BackslashCount * 2)
+	Return $Quoted & '"'
+EndFunc   ;==>QuoteCommandLineArgument
+
+Func RepeatText($Value, $Count)
+	Local $Result = "", $i
+	For $i = 1 To $Count
+		$Result &= $Value
+	Next
+	Return $Result
+EndFunc   ;==>RepeatText
+
+Func RefreshMozillaJumpListIfDue()
+	If Not IsMozillaBrowser($BrowserType) Or Not $AppUserModelId Then Return False
+	If $JumpListLastRefresh And TimerDiff($JumpListLastRefresh) < 60000 Then Return False
+	Return RefreshMozillaJumpList()
+EndFunc   ;==>RefreshMozillaJumpListIfDue
+
+Func RefreshMozillaJumpList($Force = False)
+	If Not @Compiled Or Not IsMozillaBrowser($BrowserType) Or Not $AppUserModelId Then Return False
+	$JumpListLastRefresh = TimerInit()
+
+	Local $aTasks[3][4]
+	$aTasks[0][0] = _t("JumpListNewTab", "新建标签页")
+	$aTasks[0][1] = "--jump-action new-tab"
+	$aTasks[0][2] = $aTasks[0][0]
+	$aTasks[0][3] = 3
+	$aTasks[1][0] = _t("JumpListNewWindow", "新建窗口")
+	$aTasks[1][1] = "--jump-action new-window"
+	$aTasks[1][2] = $aTasks[1][0]
+	$aTasks[1][3] = 2
+	$aTasks[2][0] = _t("JumpListPrivateWindow", "新建隐私窗口")
+	$aTasks[2][1] = "--jump-action private-window"
+	$aTasks[2][2] = $aTasks[2][0]
+	$aTasks[2][3] = 4
+
+	Local $aDestinations[1][4], $DestinationCount = 0, $i
+	Local $aPlaceRows, $PlaceCount = _FirefoxPlacesGetFrequent($ProfileDir, 10, $aPlaceRows)
+	If $PlaceCount > 0 And IsArray($aPlaceRows) Then
+		ReDim $aDestinations[$PlaceCount][4]
+		Local $Title, $Url
+		For $i = 1 To $PlaceCount
+			$Url = $aPlaceRows[$i][1]
+			If $Url = "" Then ContinueLoop
+			$Title = StringStripWS(StringReplace(StringReplace($aPlaceRows[$i][0], @CR, " "), @LF, " "), 3)
+			If $Title = "" Then $Title = $Url
+			If StringLen($Title) > 260 Then $Title = StringLeft($Title, 257) & "..."
+
+			$aDestinations[$DestinationCount][0] = $Title
+			$aDestinations[$DestinationCount][1] = "--jump-url " & QuoteCommandLineArgument($Url)
+			$aDestinations[$DestinationCount][2] = $Url
+			$aDestinations[$DestinationCount][3] = 1
+			$DestinationCount += 1
+		Next
+	EndIf
+
+	Local $Signature = $AppUserModelId & "|" & $ProfileDir
+	For $i = 0 To $DestinationCount - 1
+		$Signature &= "|" & $aDestinations[$i][0] & "=" & $aDestinations[$i][1]
+	Next
+	If Not $Force And $Signature = $JumpListContentSignature Then Return True
+
+	Local $Built = _JumpListBuild($AppUserModelId, @ScriptFullPath, @ScriptDir, $FirefoxPath, $aTasks, 3, _t("JumpListFrequent", "常用"), $aDestinations, $DestinationCount)
+	If $Built Then $JumpListContentSignature = $Signature
+	Return $Built
+EndFunc   ;==>RefreshMozillaJumpList
 
 ; for win7+
 ; Group different app icons on Taskbar need the same AppUserModelIDs

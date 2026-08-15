@@ -62,13 +62,15 @@ Func UpdateFirefoxPreferencePolicy($FirefoxDir, $PreferenceName, $Value, $Status
     EndIf
     If Not Json_IsObject($JSONObj) Then $JSONObj = CreateDefaultPolicesObj()
 
-    Local $PoliciesObj = GetItemFromJsonObj($JSONObj, "policies")
+    Local $PoliciesObj
+    If Json_ObjExists($JSONObj, "policies") Then $PoliciesObj = Json_ObjGet($JSONObj, "policies")
     If Not Json_IsObject($PoliciesObj) Then
         $PoliciesObj = Json_ObjCreate()
         Json_ObjPut($JSONObj, "policies", $PoliciesObj)
     EndIf
 
-    Local $PreferencesObj = GetItemFromJsonObj($PoliciesObj, "Preferences")
+    Local $PreferencesObj
+    If Json_ObjExists($PoliciesObj, "Preferences") Then $PreferencesObj = Json_ObjGet($PoliciesObj, "Preferences")
     If Not Json_IsObject($PreferencesObj) Then
         $PreferencesObj = Json_ObjCreate()
         Json_ObjPut($PoliciesObj, "Preferences", $PreferencesObj)

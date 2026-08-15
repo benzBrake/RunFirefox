@@ -874,6 +874,8 @@ Func WaitAndDeleteMozillaLaunchOnLoginEntry($BrowserPath, $MaxChecks = 10, $Inte
 	For $i = 1 To $MaxChecks
 		Sleep($IntervalMs)
 		If DeleteMozillaLaunchOnLoginEntry($BrowserPath) Then $Deleted = True
+		; Floorp may create its private-browsing shortcut during first launch.
+		If DeleteMozillaPrivateBrowsingShortcut() Then $Deleted = True
 	Next
 
 	Return $Deleted
@@ -900,7 +902,13 @@ Func DeleteMozillaPrivateBrowsingShortcut()
 			$objShortcut = $ShellObj.CreateShortCut($file)
 			$path = $objShortcut.TargetPath
 			If NormalizePathForCompare($path) = NormalizePathForCompare($PrivateBrowsingPath) Then
-				If FileDelete($file) Then $Deleted = True
+				; Redirect the vendor shortcut through RunFirefox so the configured
+				; portable profile is always supplied to the browser.
+				$objShortcut.TargetPath = @ScriptFullPath
+				$objShortcut.Arguments = "-private-window"
+				$objShortcut.WorkingDirectory = @ScriptDir
+				$objShortcut.Save
+				$Deleted = True
 			EndIf
 		WEnd
 		$objShortcut = ""

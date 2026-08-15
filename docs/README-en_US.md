@@ -14,6 +14,8 @@ Features:
 
 ### Latest updates
 
+2026.08.15 Fixed the Firefox Jump List ownership policy not being persisted, preventing Firefox from replacing the portable taskbar menu with native tasks after profile cleanup
+
 2026.08.14 RunFirefox now owns the Firefox taskbar Jump List, so new tabs, windows, private windows, and frequent sites all open through the launcher with the configured portable profile
 
 2026.07.15 Added Chrome++ 1.18.0 hover-to-activate tab and activation-delay settings

@@ -104,7 +104,7 @@ Global Const $CentBrowserDownloadPageUrl = "https://www.centbrowser.com/"
 Global Const $VivaldiDownloadPageUrl = "https://vivaldi.com/download/"
 Global $FirstRun = 0, $FirstLaunch = 0, $FirefoxExe, $FirefoxDir, $isZotero = false
 Global $TaskBarDir = @AppDataDir & "\Microsoft\Internet Explorer\Quick Launch\User Pinned\TaskBar"
-Global $AppPID, $TaskBarLastChange
+Global $AppPID, $TaskBarLastChange, $FirefoxIconLastChange = 0, $FirefoxIconState = ""
 Global $JumpListLastRefresh = 0, $JumpListContentSignature = ""
 Global $AllowBrowserUpdate, $CheckAppUpdate, $AppUpdateLastCheck, $RunInBackground, $BrowserType, $FirefoxPath, $ProfileDir
 Global $BrowserUpdateCheckMode, $BrowserUpdateLastCheck
@@ -1085,15 +1085,26 @@ Func CheckPinnedPrograms($browser_path)
 		Return
 	EndIf
 	Local $ftime = FileGetTime($TaskBarDir, 0, 1)
-	If $ftime = $TaskBarLastChange Then
+	Local $prefsPath = $ProfileDir & "\prefs.js"
+	Local $prefsTime = 0
+	If FileExists($prefsPath) Then $prefsTime = FileGetTime($prefsPath, 0, 1)
+	If $ftime = $TaskBarLastChange And $prefsTime = $FirefoxIconLastChange Then
 		Return
 	EndIf
 
 	$TaskBarLastChange = $ftime
+	$FirefoxIconLastChange = $prefsTime
 	Local $search = FileFindFirstFile($TaskBarDir & "\*.lnk")
 	If $search = -1 Then Return
 	Local $file, $ShellObj, $objShortcut, $shortcut_appid, $shortcut_icon, $path
+	Local $desired_icon, $icon_state, $icon_known, $path_matches_browser, $path_matches_launcher
 	Local $oError = ObjEvent("AutoIt.Error", "ShortcutComError")
+	$desired_icon = GetFirefoxCustomIconLocation($browser_path, $icon_state, $icon_known)
+	If $icon_state <> "" And $icon_state <> $FirefoxIconState Then
+		$FirefoxIconState = $icon_state
+	ElseIf $FirefoxIconState = "" And $icon_state <> "" Then
+		$FirefoxIconState = $icon_state
+	EndIf
 	$ShellObj = ObjCreate("WScript.Shell")
 	If Not @error And IsObj($ShellObj) Then
 		While 1
@@ -1104,14 +1115,25 @@ Func CheckPinnedPrograms($browser_path)
 			If @error Or Not IsObj($objShortcut) Then ContinueLoop
 			$path = $objShortcut.TargetPath
 			If @error Or StringStripWS($path, 3) = "" Then ContinueLoop
-			If NormalizePathForCompare($path) = NormalizePathForCompare($browser_path) Or _
-					NormalizePathForCompare($path) = NormalizePathForCompare(@ScriptFullPath) Then
-				If NormalizePathForCompare($path) = NormalizePathForCompare($browser_path) Then
-					$shortcut_icon = $objShortcut.IconLocation
-					If @error Then $shortcut_icon = ""
+			$path_matches_browser = NormalizePathForCompare($path) = NormalizePathForCompare($browser_path)
+			$path_matches_launcher = NormalizePathForCompare($path) = NormalizePathForCompare(@ScriptFullPath)
+			If $path_matches_browser Or $path_matches_launcher Then
+				$shortcut_icon = $objShortcut.IconLocation
+				If @error Then $shortcut_icon = ""
+				If $path_matches_browser Then
 					$objShortcut.TargetPath = @ScriptFullPath
 					; Keep Firefox's resource index so Windows does not switch to RunFirefox.exe's icon.
-					If StringStripWS($shortcut_icon, 3) <> "" Then $objShortcut.IconLocation = $shortcut_icon
+					If $icon_known Then
+						$objShortcut.IconLocation = $desired_icon
+					ElseIf StringStripWS($shortcut_icon, 3) <> "" Then
+						$objShortcut.IconLocation = $shortcut_icon
+					EndIf
+					$objShortcut.Save
+					$TaskBarLastChange = FileGetTime($TaskBarDir, 0, 1)
+				ElseIf $icon_known And NormalizePathForCompare($shortcut_icon) <> NormalizePathForCompare($desired_icon) Then
+					; Firefox 154 updates owned links by AUMID. Keep the redirected pin in sync
+					; with browser.shell.customIcon.id even though its target is RunFirefox.
+					$objShortcut.IconLocation = $desired_icon
 					$objShortcut.Save
 					$TaskBarLastChange = FileGetTime($TaskBarDir, 0, 1)
 				EndIf
@@ -1158,6 +1180,49 @@ Func CheckPinnedPrograms($browser_path)
 	EndIf
 	FileClose($search)
 EndFunc   ;==>CheckPinnedPrograms
+
+Func GetFirefoxCustomIconLocation($browser_path, ByRef $icon_state, ByRef $icon_known)
+	$icon_state = ""
+	$icon_known = False
+	If Not IsMozillaBrowser($BrowserType) Then Return ""
+	Local $prefsPath = $ProfileDir & "\prefs.js"
+	If Not FileExists($prefsPath) Then Return ""
+	Local $prefs = FileRead($prefsPath)
+	If @error Then Return ""
+	Local $matches = StringRegExp($prefs, '(?i)user_pref\("browser\.shell\.customIcon\.id",\s*"([^"]*)"\)', 1)
+	If @error Or UBound($matches) = 0 Then
+		; A removed preference means Firefox has reverted to its default resource.
+		$icon_state = "default"
+		$icon_known = True
+		Return $browser_path & ",0"
+	EndIf
+
+	$icon_state = StringLower($matches[0])
+	$icon_known = True
+	Switch $icon_state
+		Case "retro2004"
+			Return $browser_path & ",-1100"
+		Case "retro2017"
+			Return $browser_path & ",-1101"
+		Case "minimal"
+			Local $systemTheme = RegRead("HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\Themes\Personalize", "SystemUsesLightTheme")
+			If $systemTheme = 1 Then Return $browser_path & ",-1103"
+			Return $browser_path & ",-1102"
+		Case "pride"
+			Return $browser_path & ",-1106"
+		Case "kit"
+			Return $browser_path & ",-1107"
+		Case "pixelated"
+			Return $browser_path & ",-1104"
+		Case "momo"
+			Return $browser_path & ",-1105"
+	Case "default"
+			Return $browser_path & ",0"
+	EndSwitch
+	$icon_state = ""
+	$icon_known = False
+	Return ""
+EndFunc   ;==>GetFirefoxCustomIconLocation
 
 Func ShortcutComError($oError)
 	Return

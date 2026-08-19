@@ -8,7 +8,7 @@
 #AutoIt3Wrapper_UseX64=y
 #AutoIt3Wrapper_Res_Comment=Firefox Portable
 #AutoIt3Wrapper_Res_Description=Firefox Portable
-#AutoIt3Wrapper_Res_Fileversion=2.8.13.0
+#AutoIt3Wrapper_Res_Fileversion=2.8.14.0
 #AutoIt3Wrapper_Res_LegalCopyright=Ryan <github-benzBrake@woai.ru>
 #AutoIt3Wrapper_Res_Language=2052
 #AutoIt3Wrapper_Res_requestedExecutionLevel=None
@@ -58,7 +58,7 @@ Opt("GUIOnEventMode", 1)
 Opt("WinTitleMatchMode", 4)
 
 Global Const $CustomArch = "RunFirefox"
-Global Const $AppVersion = "2.8.13"
+Global Const $AppVersion = "2.8.14"
 Global Const $FirefoxVersionUrl = "https://product-details.mozilla.org/1.0/firefox_versions.json"
 Global Const $ChromeUpdateUrl = "https://tools.google.com/service/update2"
 Global Const $ChromeUpdateUserAgent = "Google Update/1.3.32.7;winhttp;cup-ecdsa"
@@ -1081,7 +1081,7 @@ EndFunc   ;==>RefreshMozillaJumpList
 ; Group different app icons on Taskbar need the same AppUserModelIDs
 ; http://msdn.microsoft.com/en-us/library/dd378459%28VS.85%29.aspx
 Func CheckPinnedPrograms($browser_path)
-	If Not FileExists($TaskBarDir) Then
+	If Not FileExists($TaskBarDir) Or StringStripWS($browser_path, 3) = "" Then
 		Return
 	EndIf
 	Local $ftime = FileGetTime($TaskBarDir, 0, 1)
@@ -1092,17 +1092,26 @@ Func CheckPinnedPrograms($browser_path)
 	$TaskBarLastChange = $ftime
 	Local $search = FileFindFirstFile($TaskBarDir & "\*.lnk")
 	If $search = -1 Then Return
-	Local $file, $ShellObj, $objShortcut, $shortcut_appid
+	Local $file, $ShellObj, $objShortcut, $shortcut_appid, $shortcut_icon, $path
+	Local $oError = ObjEvent("AutoIt.Error", "ShortcutComError")
 	$ShellObj = ObjCreate("WScript.Shell")
-	If Not @error Then
+	If Not @error And IsObj($ShellObj) Then
 		While 1
 			$file = $TaskBarDir & "\" & FileFindNextFile($search)
 			If @error Then ExitLoop
+			If Not FileExists($file) Then ContinueLoop
 			$objShortcut = $ShellObj.CreateShortCut($file)
+			If @error Or Not IsObj($objShortcut) Then ContinueLoop
 			$path = $objShortcut.TargetPath
-			If $path == $browser_path Or $path == @ScriptFullPath Then
-				If $path == $browser_path Then
+			If @error Or StringStripWS($path, 3) = "" Then ContinueLoop
+			If NormalizePathForCompare($path) = NormalizePathForCompare($browser_path) Or _
+					NormalizePathForCompare($path) = NormalizePathForCompare(@ScriptFullPath) Then
+				If NormalizePathForCompare($path) = NormalizePathForCompare($browser_path) Then
+					$shortcut_icon = $objShortcut.IconLocation
+					If @error Then $shortcut_icon = ""
 					$objShortcut.TargetPath = @ScriptFullPath
+					; Keep Firefox's resource index so Windows does not switch to RunFirefox.exe's icon.
+					If StringStripWS($shortcut_icon, 3) <> "" Then $objShortcut.IconLocation = $shortcut_icon
 					$objShortcut.Save
 					$TaskBarLastChange = FileGetTime($TaskBarDir, 0, 1)
 				EndIf
@@ -1135,7 +1144,9 @@ Func CheckPinnedPrograms($browser_path)
 						_WindowAppId($hWnd_browser, $AppUserModelId)
 					EndIf
 				EndIf
-				If $shortcut_appid <> $AppUserModelId Then
+				; Firefox 154 uses the shortcut AppUserModelID to enumerate its taskbar
+				; identity. Preserve an existing vendor ID; only populate a missing one.
+				If Not $shortcut_appid And $AppUserModelId Then
 					_ShortcutAppId($file, $AppUserModelId)
 					$TaskBarLastChange = FileGetTime($TaskBarDir, 0, 1)
 				EndIf
@@ -1147,6 +1158,10 @@ Func CheckPinnedPrograms($browser_path)
 	EndIf
 	FileClose($search)
 EndFunc   ;==>CheckPinnedPrograms
+
+Func ShortcutComError($oError)
+	Return
+EndFunc   ;==>ShortcutComError
 
 Func AppIdFromRegistry()
 	Local $appid

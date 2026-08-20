@@ -14,6 +14,8 @@ Features:
 
 ### Latest updates
 
+2026.08.20 After installing the Chrome++ patch, RunFirefox now writes the profile and cache locations to `chrome++.ini` using portable paths relative to `chrome.exe`, avoiding command-line directory switches that bypass Chrome++ portable handling
+
 2026.08.19 Improved Firefox 154 taskbar icon compatibility by preserving and synchronizing Firefox shortcut IconLocation and AUMID during takeover, with safer handling of invalid shortcuts
 
 2026.08.15 Fixed the Firefox Jump List ownership policy not being persisted, preventing Firefox from replacing the portable taskbar menu with native tasks after profile cleanup

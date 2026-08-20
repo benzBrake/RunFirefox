@@ -17,6 +17,8 @@
 
 ### 最近更新
 
+2026.08.20 安装 Chrome++ 补丁后自动将配置文件与缓存路径写入 `chrome++.ini`，并使用相对 `chrome.exe` 的便携路径，避免命令行目录参数使 Chrome++ 便携功能失效
+
 2026.08.19 兼容 Firefox 154 的自定义任务栏图标：接管 pin 快捷方式时保留并同步 Firefox 的 IconLocation 与 AUMID，并增强无效快捷方式处理
 
 2026.08.15 修复 Firefox Jump List 接管策略未写入的问题，避免 Firefox 在清理配置文件后用原生任务覆盖便携版任务栏右键菜单

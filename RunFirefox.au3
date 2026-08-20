@@ -2508,16 +2508,30 @@ EndFunc   ;==>GetDefaultBrowserPath
 
 Func BuildBrowserLaunchParams($Value)
 	If IsChromeBrowser($Value) Then
-		Local $ChromeParams = '--user-data-dir="' & $ProfileDir & '"'
-		If $CustomCacheDir <> "" Then
-			$ChromeParams &= ' --disk-cache-dir="' & FullPath($CustomCacheDir) & '"'
+		Local $ChromeParams = ""
+		Local $UseChromePlusPortablePaths = False
+		If IsChromePlusSupportedBrowser($Value) And IsChromePlusPatchInstalled($FirefoxPath) Then
+			Local $ChromePlusConfigPath = GetChromePlusConfigPath($FirefoxPath)
+			If $ChromePlusConfigPath <> "" Then
+				If FileExists($ChromePlusConfigPath) Or WriteChromePlusManagedConfig($ChromePlusConfigPath) Then _
+					$UseChromePlusPortablePaths = WriteChromePlusPortablePaths($ChromePlusConfigPath)
+			EndIf
+		EndIf
+		If Not $UseChromePlusPortablePaths Then
+			$ChromeParams = '--user-data-dir="' & $ProfileDir & '"'
+			If $CustomCacheDir <> "" Then $ChromeParams &= ' --disk-cache-dir="' & FullPath($CustomCacheDir) & '"'
 		EndIf
 		If $CacheSize <> "" And $CacheSize > 0 Then
-			$ChromeParams &= " --disk-cache-size=" & ($CacheSize * 1024 * 1024)
+			If $ChromeParams <> "" Then $ChromeParams &= " "
+			$ChromeParams &= "--disk-cache-size=" & ($CacheSize * 1024 * 1024)
 		EndIf
 		Local $WhaleLocale = GetWhaleCommandLineLocale($Value)
-		If $WhaleLocale <> "" Then $ChromeParams &= " --lang=" & $WhaleLocale
-		Return $ChromeParams & " "
+		If $WhaleLocale <> "" Then
+			If $ChromeParams <> "" Then $ChromeParams &= " "
+			$ChromeParams &= "--lang=" & $WhaleLocale
+		EndIf
+		If $ChromeParams <> "" Then $ChromeParams &= " "
+		Return $ChromeParams
 	EndIf
 
 	Local $MozillaParams = '-profile "' & $ProfileDir & '" '
@@ -2919,6 +2933,7 @@ Func SaveChromePlusTabsSettings($BrowserPath)
 	Local $ConfigPath = GetChromePlusConfigPath($ResolvedBrowserPath)
 	If $ConfigPath = "" Then Return True
 	If Not FileExists($ConfigPath) And Not WriteChromePlusManagedConfig($ConfigPath) Then Return False
+	If Not WriteChromePlusPortablePaths($ConfigPath) Then Return False
 
 	If IniWrite($ConfigPath, "tabs", "double_click_close", GetCheckboxIniValue($hChromePlusDoubleClickClose)) = 0 Then Return False
 	If IniWrite($ConfigPath, "tabs", "right_click_close", GetCheckboxIniValue($hChromePlusRightClickClose)) = 0 Then Return False
@@ -4028,15 +4043,15 @@ Func WriteChromePlusManagedConfig($ConfigPath)
 	EndIf
 
 	FileDelete($ConfigPath)
-	Return FileWrite($ConfigPath, BuildChromePlusManagedConfig()) > 0
+	Return FileWrite($ConfigPath, BuildChromePlusManagedConfig($ConfigPath)) > 0
 EndFunc   ;==>WriteChromePlusManagedConfig
 
-Func BuildChromePlusManagedConfig()
+Func BuildChromePlusManagedConfig($ConfigPath)
 	Return "; Managed by RunFirefox for Chrome++" & @CRLF & _
 			"; Remove this header if you want to keep a fully custom chrome++.ini." & @CRLF & _
 			"[general]" & @CRLF & _
-			"data_dir=none" & @CRLF & _
-			"cache_dir=none" & @CRLF & _
+			"data_dir=" & GetChromePlusPortablePath($ProfileDir, $ConfigPath) & @CRLF & _
+			"cache_dir=" & GetChromePlusCachePath($ConfigPath) & @CRLF & _
 			"command_line=" & @CRLF & _
 			"launch_on_startup=" & @CRLF & _
 			"launch_on_exit=" & @CRLF & _
@@ -4061,6 +4076,48 @@ Func BuildChromePlusManagedConfig()
 			@CRLF & _
 			"[keymapping]" & @CRLF
 EndFunc   ;==>BuildChromePlusManagedConfig
+
+Func WriteChromePlusPortablePaths($ConfigPath)
+	If IniWrite($ConfigPath, "general", "data_dir", GetChromePlusPortablePath($ProfileDir, $ConfigPath)) = 0 Then Return False
+	If IniWrite($ConfigPath, "general", "cache_dir", GetChromePlusCachePath($ConfigPath)) = 0 Then Return False
+	Return True
+EndFunc   ;==>WriteChromePlusPortablePaths
+
+Func GetChromePlusCachePath($ConfigPath)
+	If $CustomCacheDir = "" Then Return "none"
+	Return GetChromePlusPortablePath($CustomCacheDir, $ConfigPath)
+EndFunc   ;==>GetChromePlusCachePath
+
+Func GetChromePlusPortablePath($Path, $ConfigPath)
+	Local $TargetPath = FullPath($Path)
+	Local $BrowserDir, $ConfigFile
+	SplitPath($ConfigPath, $BrowserDir, $ConfigFile)
+	$BrowserDir = FullPath($BrowserDir)
+	If StringRight($TargetPath, 1) = "\" Then $TargetPath = StringTrimRight($TargetPath, 1)
+	If StringRight($BrowserDir, 1) = "\" Then $BrowserDir = StringTrimRight($BrowserDir, 1)
+
+	Local $PortablePath = $TargetPath
+	If StringLower(StringLeft($TargetPath, 3)) = StringLower(StringLeft($BrowserDir, 3)) Then
+		Local $TargetParts = StringSplit($TargetPath, "\", 2)
+		Local $BaseParts = StringSplit($BrowserDir, "\", 2)
+		Local $i, $CommonCount = 0
+		While $CommonCount < UBound($TargetParts) And $CommonCount < UBound($BaseParts)
+			If StringLower($TargetParts[$CommonCount]) <> StringLower($BaseParts[$CommonCount]) Then ExitLoop
+			$CommonCount += 1
+		WEnd
+
+		$PortablePath = "%app%"
+		For $i = $CommonCount To UBound($BaseParts) - 1
+			$PortablePath &= "\.."
+		Next
+		For $i = $CommonCount To UBound($TargetParts) - 1
+			$PortablePath &= "\" & $TargetParts[$i]
+		Next
+	EndIf
+
+	If StringInStr($PortablePath, " ") Then Return '"' & $PortablePath & '"'
+	Return $PortablePath
+EndFunc   ;==>GetChromePlusPortablePath
 
 Func WriteChromePlusInstallLog($Content)
 	If Not FileExists($ChromePlusCacheRoot) Then DirCreate($ChromePlusCacheRoot)

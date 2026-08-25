@@ -1,4 +1,4 @@
-﻿#NoTrayIcon
+#NoTrayIcon
 #Region ;**** Directives created by AutoIt3Wrapper_GUI ****
 #AutoIt3Wrapper_Icon=icons\Firefox.ico
 #AutoIt3Wrapper_Outfile=RunFirefox.exe
@@ -339,7 +339,6 @@ For $i = $CommandLineStart To $cmdline[0]
 Next
 
 Local $BrowserIsRunning = AppIsRunning($FirefoxPath)
-If IsChromePlusSupportedBrowser($BrowserType) And Not $BrowserIsRunning Then MaybeInstallChromePlusPatch($FirefoxPath)
 If IsMozillaBrowser($BrowserType) Then
 	DeleteMozillaLaunchOnLoginEntry($FirefoxPath)
 	DeleteMozillaPrivateBrowsingShortcut()
@@ -3684,22 +3683,6 @@ Func ChromeComError($oError)
 	Return
 EndFunc   ;==>ChromeComError
 
-Func MaybeInstallChromePlusPatch($BrowserPath, $PreferredArch = "", $AfterDownload = False)
-	If Not FileExists($BrowserPath) Then Return False
-	If DetectBrowserTypeFromPath($BrowserPath) = $BrowserCent Then Return False
-	If IsChromePlusPatchInstalled($BrowserPath) Then Return True
-
-	Local $ConfirmText
-	If $AfterDownload Then
-		$ConfirmText = _t("InstallChromePlusPatchAfterDownloadConfirm", "浏览器已下载并解压完成。\n是否同时下载并安装 Chrome++ 补丁？")
-	Else
-		$ConfirmText = _t("InstallChromePlusPatchConfirm", "检测到当前浏览器目录未安装 Chrome++ 补丁。\n是否现在下载并安装？")
-	EndIf
-
-	If MsgBox(36 + 256, $CustomArch, $ConfirmText, 0, $hSettings) <> 6 Then Return False
-	Return InstallChromePlusPatchInteractive($BrowserPath, $PreferredArch)
-EndFunc   ;==>MaybeInstallChromePlusPatch
-
 Func IsChromePlusPatchInstalled($BrowserPath)
 	If Not FileExists($BrowserPath) Then Return False
 	If DetectBrowserTypeFromPath($BrowserPath) = $BrowserCent Then Return False
@@ -4304,7 +4287,11 @@ Func DownloadFirefox()
 	$FirefoxPath = RelativePath($DownloadedFirefoxPath)
 	GUICtrlSetData($hFirefoxPath, $FirefoxPath)
 	OnFirefoxPathChange()
-	If IsChromePlusSupportedBrowser($CurrentBrowserType) Then MaybeInstallChromePlusPatch($DownloadedFirefoxPath, $os, True)
+	If IsChromePlusSupportedBrowser($CurrentBrowserType) And Not IsChromePlusPatchInstalled($DownloadedFirefoxPath) Then
+		Local $InstallChromePlusConfirm = _t("InstallChromePlusPatchAfterDownloadConfirm", "浏览器已下载并解压完成。\n是否同时下载并安装 Chrome++ 补丁？")
+		If MsgBox(36 + 256, $CustomArch, $InstallChromePlusConfirm, 0, $hSettings) = 6 Then _
+			InstallChromePlusPatchInteractive($DownloadedFirefoxPath, $os)
+	EndIf
 	UpdateBrowserSpecificControls()
 	_GUICtrlStatusBar_SetText($hStatus, _t("BrowserDownloadSuccess", "浏览器已下载并解压完成。"))
 	Local $OpenDownloadedBrowserConfirm = _t("OpenDownloadedBrowserConfirm", "浏览器已下载并解压完成。\n是否马上打开浏览器？")

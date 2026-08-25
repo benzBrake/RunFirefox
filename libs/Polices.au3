@@ -5,7 +5,7 @@
 Func UpdatePolices($FirefoxDir, $key, $value)
     Local $policiesFolder = $FirefoxDir & "\distribution"
     Local $policiesFile = $policiesFolder & "\policies.json"
-    Local $FileContent, $JSONObj, $DisableObj
+    Local $FileContent, $JSONObj
 
     ;~ 如果文件夹不存在则创建
     If Not FileExists($policiesFolder) Then
@@ -94,8 +94,8 @@ EndFunc   ;==>UpdateFirefoxPreferencePolicy
 
 ;~ 创建默认 Polices 对象
 Func CreateDefaultPolicesObj()
-    $JSONObj = Json_ObjCreate()
-    $DisableObj = Json_ObjCreate()
+    Local $JSONObj = Json_ObjCreate()
+    Local $DisableObj = Json_ObjCreate()
     Json_ObjPut($DisableObj, "DisableAppUpdate", true)
     Json_ObjPut($DisableObj, "DontCheckDefaultBrowser", true)
     Json_ObjPut($JSONObj, "policies", $DisableObj)
@@ -114,14 +114,15 @@ EndFunc
 
 ;~ 修改属性值
 Func UpdateJsonObj($JSONObj, $key, $value)
-    $PolicesObj = GetItemFromJsonObj($JSONObj, "policies")
-    Json_ObjPut($PolicesObj, $key, $value)
+    Local $PoliciesObj = GetItemFromJsonObj($JSONObj, "policies")
+    If Not Json_ObjExists($JSONObj, "policies") Then Json_ObjPut($JSONObj, "policies", $PoliciesObj)
+    Json_ObjPut($PoliciesObj, $key, $value)
 EndFunc
 
 ;~ 删除属性
 Func DeleteJsonObj($JSONObj, $key)
-    $PolicesObj = GetItemFromJsonObj($JSONObj, "policies")
-    If Json_ObjExists($PolicesObj, $key) Then
-        Json_ObjDelete($PolicesObj, $key)
+    Local $PoliciesObj = GetItemFromJsonObj($JSONObj, "policies")
+    If Json_ObjExists($PoliciesObj, $key) Then
+        Json_ObjDelete($PoliciesObj, $key)
     EndIf
 EndFunc

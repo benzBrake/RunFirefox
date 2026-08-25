@@ -177,7 +177,8 @@ Func Json_IsNull(ByRef $Null)
 	Return IsKeyword($Null) Or (Not IsObj($Null) And VarGetType($Null) = "Object")
 EndFunc   ;==>Json_IsNull
 
-Func Json_Encode_Compact($Data, $Option = 0)
+Func Json_Encode_Compact($Data, $Option = 0, $Depth = 0)
+	If $Depth > 128 Then Return "null"
 	Local $Json = ""
 
 	Select
@@ -190,7 +191,7 @@ Func Json_Encode_Compact($Data, $Option = 0)
 		Case IsArray($Data) And UBound($Data, 0) = 1
 			$Json = "["
 			For $i = 0 To UBound($Data) - 1
-				$Json &= Json_Encode_Compact($Data[$i], $Option) & ","
+				$Json &= Json_Encode_Compact($Data[$i], $Option, $Depth + 1) & ","
 			Next
 			If StringRight($Json, 1) = "," Then $Json = StringTrimRight($Json, 1)
 			Return $Json & "]"
@@ -199,7 +200,7 @@ Func Json_Encode_Compact($Data, $Option = 0)
 			$Json = "{"
 			Local $Keys = $Data.Keys()
 			For $i = 0 To UBound($Keys) - 1
-				$Json &= '"' & Json_StringEncode($Keys[$i], $Option) & '":' & Json_Encode_Compact($Data.Item($Keys[$i]), $Option) & ","
+				$Json &= '"' & Json_StringEncode($Keys[$i], $Option) & '":' & Json_Encode_Compact($Data.Item($Keys[$i]), $Option, $Depth + 1) & ","
 			Next
 			If StringRight($Json, 1) = "," Then $Json = StringTrimRight($Json, 1)
 			Return $Json & "}"
@@ -218,7 +219,8 @@ Func Json_Encode_Compact($Data, $Option = 0)
 	EndSelect
 EndFunc   ;==>Json_Encode_Compact
 
-Func Json_Encode_Pretty($Data, $Option, $Indent, $ArraySep, $ObjectSep, $ColonSep, $ArrayCRLF = Default, $ObjectCRLF = Default, $NextIdent = "")
+Func Json_Encode_Pretty($Data, $Option, $Indent, $ArraySep, $ObjectSep, $ColonSep, $ArrayCRLF = Default, $ObjectCRLF = Default, $NextIdent = "", $Depth = 0)
+	If $Depth > 128 Then Return "null"
 	Local $ThisIdent = $NextIdent, $Json = "", $String = "", $Match = "", $Keys = ""
 	Local $Length = 0
 
@@ -243,7 +245,7 @@ Func Json_Encode_Pretty($Data, $Option, $Indent, $ArraySep, $ObjectSep, $ColonSe
 			$Length = UBound($Data) - 1
 			For $i = 0 To $Length
 				If $ArrayCRLF Then $Json &= $NextIdent
-				$Json &= Json_Encode_Pretty($Data[$i], $Option, $Indent, $ArraySep, $ObjectSep, $ColonSep, $ArrayCRLF, $ObjectCRLF, $NextIdent)
+				$Json &= Json_Encode_Pretty($Data[$i], $Option, $Indent, $ArraySep, $ObjectSep, $ColonSep, $ArrayCRLF, $ObjectCRLF, $NextIdent, $Depth + 1)
 				If $i < $Length Then $Json &= $ArraySep
 			Next
 
@@ -264,7 +266,7 @@ Func Json_Encode_Pretty($Data, $Option, $Indent, $ArraySep, $ObjectSep, $ColonSe
 			For $i = 0 To $Length
 				If $ObjectCRLF Then $Json &= $NextIdent
 				$Json &= Json_Encode_Pretty(String($Keys[$i]), $Option, $Indent, $ArraySep, $ObjectSep, $ColonSep) & $ColonSep _
-						 & Json_Encode_Pretty($Data.Item($Keys[$i]), $Option, $Indent, $ArraySep, $ObjectSep, $ColonSep, $ArrayCRLF, $ObjectCRLF, $NextIdent)
+						 & Json_Encode_Pretty($Data.Item($Keys[$i]), $Option, $Indent, $ArraySep, $ObjectSep, $ColonSep, $ArrayCRLF, $ObjectCRLF, $NextIdent, $Depth + 1)
 				If $i < $Length Then $Json &= $ObjectSep
 			Next
 
@@ -272,7 +274,7 @@ Func Json_Encode_Pretty($Data, $Option, $Indent, $ArraySep, $ObjectSep, $ColonSe
 			Return "{" & $Json & "}"
 
 		Case Else
-			Return Json_Encode_Compact($Data, $Option)
+			Return Json_Encode_Compact($Data, $Option, $Depth)
 
 	EndSelect
 EndFunc   ;==>Json_Encode_Pretty

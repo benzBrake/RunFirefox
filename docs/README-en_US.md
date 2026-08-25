@@ -14,6 +14,10 @@ Features:
 
 ### Latest updates
 
+2026.08.25 Hardened JSON encoding depth limits and Chrome++ patch handling, prompting for patch installation only after browser download and fixing related policy container handling
+
+2026.08.25 Added browser EXE/DLL icon extraction and ICO compression tools, and optimized the bundled browser icon resources
+
 2026.08.20 After installing the Chrome++ patch, RunFirefox now writes the profile and cache locations to `chrome++.ini` using portable paths relative to `chrome.exe`, avoiding command-line directory switches that bypass Chrome++ portable handling
 
 2026.08.19 Improved Firefox 154 taskbar icon compatibility by preserving and synchronizing Firefox shortcut IconLocation and AUMID during takeover, with safer handling of invalid shortcuts

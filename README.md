@@ -120,6 +120,27 @@
 3. 添加你想用于构建的图标，然后提交到 Github
 4. 打 tag 后，push 到 GitHub 后会自动构建
 
+### 从浏览器 EXE 提取图标
+
+将浏览器的 EXE 或 DLL 拖到 `scripts\extract-exe-icon.cmd` 上，即可在当前目录生成同名 ICO。工具直接复制程序中的原始多尺寸图标资源，不会缩放或重新编码图像帧。
+
+浏览器程序通常包含主程序、隐私模式、测试版和文件关联等多个图标组。可先列出所有图标组，再指定需要提取的组：
+
+```powershell
+pwsh -File .\scripts\extract-exe-icon.ps1 -ExePath "C:\Path\browser.exe" -List
+pwsh -File .\scripts\extract-exe-icon.ps1 -ExePath "C:\Path\browser.exe" -Group IDR_MAINFRAME -OutputPath .\icons\Browser.ico
+```
+
+未指定 `-Group` 时提取第一个图标组。目标文件已存在时需显式添加 `-Force` 才会覆盖。
+
+如果提取出的 ICO 因 256×256 未压缩 DIB 帧而过大，可将 ICO 拖到 `scripts\compress-ico.cmd` 上。工具仅把 256×256 DIB 转成更小的 PNG，小尺寸兼容帧保持不变，并在源文件旁生成 `原名.compressed.ico`，不会覆盖源文件。
+
+也可以通过命令行指定输出路径：
+
+```powershell
+pwsh -File .\scripts\compress-ico.ps1 -Paths .\icons\Whale.ico -OutputPath .\icons\Whale.compressed.ico
+```
+
 ### 如何下载
 
 右边 Latest，如果你视力不好，按 Ctrl + F 在此页面查找文本 Latest

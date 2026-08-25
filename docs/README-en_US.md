@@ -104,6 +104,27 @@ Features:
 
 2022.10.18 Attempted to add automatic extension path update functionality (to prevent extensions from becoming invalid after shifting)
 
+### Extracting an icon from a browser EXE
+
+Drop a browser EXE or DLL onto `scripts\extract-exe-icon.cmd` to create a same-named ICO in the current directory. The tool copies the original multi-size icon resources directly, without resizing or re-encoding the image frames.
+
+Browser executables often contain separate icon groups for the main program, private mode, preview channels, and file associations. List the available groups first, then select the one to extract:
+
+```powershell
+pwsh -File .\scripts\extract-exe-icon.ps1 -ExePath "C:\Path\browser.exe" -List
+pwsh -File .\scripts\extract-exe-icon.ps1 -ExePath "C:\Path\browser.exe" -Group IDR_MAINFRAME -OutputPath .\icons\Browser.ico
+```
+
+Without `-Group`, the first icon group is extracted. Add `-Force` explicitly to replace an existing output file.
+
+If an extracted ICO is large because it contains an uncompressed 256x256 DIB frame, drop it onto `scripts\compress-ico.cmd`. The tool converts only 256x256 DIB frames to smaller PNG frames, leaves the compatibility-sized frames unchanged, and writes `name.compressed.ico` beside the source without overwriting it.
+
+You can also specify the output path from the command line:
+
+```powershell
+pwsh -File .\scripts\compress-ico.ps1 -Paths .\icons\Whale.ico -OutputPath .\icons\Whale.compressed.ico
+```
+
 ### How to download
 
 Click on the "Latest" button on the right. If you have trouble finding it, press Ctrl+F and search for the text "Latest" on this page.

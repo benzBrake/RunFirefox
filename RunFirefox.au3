@@ -344,7 +344,7 @@ Next
 Local $BrowserIsRunning = AppIsRunning($FirefoxPath)
 If IsMozillaBrowser($BrowserType) Then
 	DeleteMozillaLaunchOnLoginEntry($FirefoxPath)
-	DeleteMozillaPrivateBrowsingShortcut()
+	SyncMozillaStartMenuShortcuts()
 	FileDelete($FirefoxDir & "\defaults\pref\runfirefox.js")
 	$BrowserIsRunning = ProfileInUse($ProfileDir)
 	If Not $BrowserIsRunning Then
@@ -876,50 +876,70 @@ Func WaitAndDeleteMozillaLaunchOnLoginEntry($BrowserPath, $MaxChecks = 10, $Inte
 	For $i = 1 To $MaxChecks
 		Sleep($IntervalMs)
 		If DeleteMozillaLaunchOnLoginEntry($BrowserPath) Then $Deleted = True
-		; Floorp may create its private-browsing shortcut during first launch.
-		If DeleteMozillaPrivateBrowsingShortcut() Then $Deleted = True
+		; Mozilla browsers may create start menu shortcuts during first launch.
+		If SyncMozillaStartMenuShortcuts() Then $Deleted = True
 	Next
 
 	Return $Deleted
 EndFunc   ;==>WaitAndDeleteMozillaLaunchOnLoginEntry
 
-Func DeleteMozillaPrivateBrowsingShortcut()
+Func SyncMozillaStartMenuShortcuts($ProgramsDir = Default)
 	If Not IsMozillaBrowser($BrowserType) Then Return False
 
-	Local $ProgramsDir = EnvGet("APPDATA") & "\Microsoft\Windows\Start Menu\Programs"
+	If IsKeyword($ProgramsDir) Then $ProgramsDir = EnvGet("APPDATA") & "\Microsoft\Windows\Start Menu\Programs"
 	Local $PrivateBrowsingPath = $FirefoxDir & "\private_browsing.exe"
-	If Not FileExists($ProgramsDir) Or Not FileExists($PrivateBrowsingPath) Then Return False
+	If Not FileExists($ProgramsDir) Or StringStripWS($FirefoxPath, 3) = "" Then Return False
 
 	Local $search = FileFindFirstFile($ProgramsDir & "\*.lnk")
 	If $search = -1 Then Return False
 
-	Local $Deleted = False
-	Local $file, $ShellObj, $objShortcut, $path
+	Local $Updated = False
+	Local $file, $ShellObj, $objShortcut, $path, $arguments, $icon, $shortcut_appid
+	Local $path_matches_browser, $path_matches_private
+	Local $oError = ObjEvent("AutoIt.Error", "ShortcutComError")
 	$ShellObj = ObjCreate("WScript.Shell")
-	If Not @error Then
+	If Not @error And IsObj($ShellObj) Then
 		While 1
 			$file = $ProgramsDir & "\" & FileFindNextFile($search)
 			If @error Then ExitLoop
+			If Not FileExists($file) Then ContinueLoop
 
 			$objShortcut = $ShellObj.CreateShortCut($file)
+			If @error Or Not IsObj($objShortcut) Then ContinueLoop
 			$path = $objShortcut.TargetPath
-			If NormalizePathForCompare($path) = NormalizePathForCompare($PrivateBrowsingPath) Then
-				; Redirect the vendor shortcut through RunFirefox so the configured
-				; portable profile is always supplied to the browser.
-				$objShortcut.TargetPath = @ScriptFullPath
+			If @error Or StringStripWS($path, 3) = "" Then ContinueLoop
+
+			$path_matches_browser = NormalizePathForCompare($path) = NormalizePathForCompare($FirefoxPath)
+			$path_matches_private = FileExists($PrivateBrowsingPath) And NormalizePathForCompare($path) = NormalizePathForCompare($PrivateBrowsingPath)
+			If Not $path_matches_browser And Not $path_matches_private Then ContinueLoop
+
+			$arguments = $objShortcut.Arguments
+			If @error Then $arguments = ""
+			$icon = $objShortcut.IconLocation
+			If @error Then $icon = ""
+			$shortcut_appid = _ShortcutAppId($file)
+
+			; Route vendor shortcuts through RunFirefox while preserving their identity.
+			$objShortcut.TargetPath = @ScriptFullPath
+			If $path_matches_private Then
 				$objShortcut.Arguments = "-private-window"
-				$objShortcut.WorkingDirectory = @ScriptDir
-				$objShortcut.Save
-				$Deleted = True
+			Else
+				$objShortcut.Arguments = $arguments
 			EndIf
+			$objShortcut.WorkingDirectory = @ScriptDir
+			If StringStripWS($icon, 3) <> "" Then $objShortcut.IconLocation = $icon
+			$objShortcut.Save
+			If @error Then ContinueLoop
+			If $shortcut_appid Then _ShortcutAppId($file, $shortcut_appid)
+			$Updated = True
 		WEnd
 		$objShortcut = ""
 		$ShellObj = ""
 	EndIf
 	FileClose($search)
 
-	Return $Deleted
-EndFunc   ;==>DeleteMozillaPrivateBrowsingShortcut
+	Return $Updated
+EndFunc   ;==>SyncMozillaStartMenuShortcuts
 
 Func CheckPrefs()
 	Local $var, $cfg
@@ -1153,7 +1173,7 @@ Func CheckPinnedPrograms($browser_path)
 								; helper.exe writes AppUserModelIDs to SOFTWARE\Mozilla\Firefox\TaskBarIDs
 								Local $pid = Run($FirefoxDir & "\uninstall\helper.exe /UpdateShortcutAppUserModelIds")
 								ProcessWaitClose($pid, 5)
-								DeleteMozillaPrivateBrowsingShortcut()
+								SyncMozillaStartMenuShortcuts()
 								$AppUserModelId = AppIdFromRegistry()
 							EndIf
 						EndIf

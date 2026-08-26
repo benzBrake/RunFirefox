@@ -14,6 +14,8 @@ Features:
 
 ### Latest updates
 
+2026.08.26 Added online download support for the LibreWolf Windows x64 portable ZIP and automatic handling of its nested directory layout
+
 2026.08.25 Hardened JSON encoding depth limits and Chrome++ patch handling, prompting for patch installation only after browser download and fixing related policy container handling
 
 2026.08.25 Added browser EXE/DLL icon extraction and ICO compression tools, and optimized the bundled browser icon resources

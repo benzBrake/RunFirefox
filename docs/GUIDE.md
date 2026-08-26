@@ -1,8 +1,7 @@
 # 便携版制作指南
 
-现在 `RunFirefox` 的设置界面已经可以直接下载并解压部分浏览器。  
-如果你要制作的是 **Firefox、Chrome、Zen、Floorp、Waterfox、Helium、Naver Whale、百分浏览器（Cent Browser）** 便携版，优先使用内置下载会更省事。
-像 **LibreWolf** 这类暂未内置下载的浏览器，再按下面的手动方式处理。
+现在 `RunFirefox` 的设置界面已经可以直接下载并解压支持的浏览器。
+如果你要制作的是 **Firefox、Chrome、Zen、Floorp、Waterfox、LibreWolf、Helium、Naver Whale、百分浏览器（Cent Browser）** 便携版，优先使用内置下载会更省事。
 
 ## 方式一：在设置里直接下载（适用于已支持的浏览器）
 
@@ -12,14 +11,10 @@
 4. 点击“下载浏览器”右侧的蓝色链接，等待下载和解压完成。
 5. 下载完成后按提示直接启动，或保存设置后再手动启动即可。
 
-## 方式二：手动制作（以 LibreWolf 为例）
+LibreWolf 会固定下载官网提供的 Windows x64 portable ZIP；即使压缩包是“版本目录\LibreWolf”双层结构，启动器也会自动提取其中的 `LibreWolf` 程序目录。
 
-1. 先[下载 RunLibreWolf](https://github.com/benzBrake/RunFirefox/releases) 并解压出 `RunLibreWolf.exe`（如果没有适配图标的，你可以随便选一个）。
-2. 下载浏览器安装包，不要使用在线安装包，在线安装包里没有浏览器本体。
-   - [Firefox](https://ftp.mozilla.org/pub/firefox/releases/)
-   - [Floorp](https://github.com/Floorp-Projects/Floorp/releases/)，**不要选择 `floorp-stub.installer.exe`**
-   - [LibreWolf](https://librewolf.net/installation/windows/)
-3. 解压浏览器安装包。**LibreWolf** 的安装包不能用 WinRAR 打开，需要用到 **UniExtract2**：[点此下载](https://github.com/Bioruebe/UniExtract2/releases/download/v2.0.0-rc.3/UniExtractRC3.zip)
-4. 使用 **UniExtract2** 提取安装包内容。
-5. 把解压出来的浏览器文件和 `RunLibreWolf.exe` 放到同一个文件夹下。
-6. 运行 `RunLibreWolf.exe` 并配置路径即可。
+## 方式二：手动制作（适用于未内置下载的浏览器）
+
+1. 下载对应的 RunFirefox 启动器并放入目标浏览器目录。
+2. 从浏览器官网下载完整安装包或便携压缩包，不要使用只负责联网下载的在线安装器。
+3. 解压浏览器文件后，在启动器设置中手动选择浏览器主程序。

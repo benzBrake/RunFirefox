@@ -87,6 +87,7 @@ Global Const $BrowserFirefox = "firefox"
 Global Const $BrowserZen = "zen"
 Global Const $BrowserFloorp = "floorp"
 Global Const $BrowserWaterfox = "waterfox"
+Global Const $BrowserLibreWolf = "librewolf"
 Global Const $BrowserChrome = "chrome"
 Global Const $BrowserHelium = "helium"
 Global Const $BrowserWhale = "whale"
@@ -97,6 +98,7 @@ Global Const $FloorpRepo = "Floorp-Projects/Floorp"
 Global Const $FloorpLatestReleaseUrl = "https://github.com/" & $FloorpRepo & "/releases/latest"
 Global Const $FloorpWindowsX64Asset = "floorp-windows-x86_64.installer.exe"
 Global Const $WaterfoxDownloadPageUrl = "https://www.waterfox.com/download/"
+Global Const $LibreWolfLatestReleaseApiUrl = "https://librewolf.dev/api/v1/repos/librewolf/bsys6/releases/latest"
 Global Const $HeliumRepo = "imputnet/helium-windows"
 Global Const $HeliumLatestReleaseUrl = "https://github.com/" & $HeliumRepo & "/releases/latest"
 Global Const $WhaleStandaloneX64Url = "https://installer-whale.pstatic.net/downloads/sa_installers/WhaleSetupX64.exe"
@@ -129,6 +131,7 @@ Global $FirefoxVersionsObj = 0
 Global $ZenReleaseUpdateXml = "", $ZenTwilightUpdateXml = ""
 Global $FloorpReleaseInfoLoaded = False, $FloorpReleaseTag = ""
 Global $WaterfoxReleaseInfoLoaded = False, $WaterfoxReleaseVersion = ""
+Global $LibreWolfReleaseInfoLoaded = False, $LibreWolfReleaseVersion = "", $LibreWolfDownloadUrl = ""
 Global $HeliumReleaseInfoLoaded = False, $HeliumReleaseTag = ""
 Global $CentReleaseInfoLoaded = False, $CentReleaseVersion = "", $CentDownloadUrl = ""
 Global $VivaldiReleaseInfoLoaded = False, $VivaldiReleaseVersion = "", $VivaldiDownloadUrl = ""
@@ -1960,7 +1963,7 @@ EndFunc   ;==>ApplyDetectedBrowserTypeFromPath
 Func ChangeBrowserType()
 	Local $NewBrowserType = GetSelectedBrowserType()
 	Local $CurrentPath = StringLower(GUICtrlRead($hFirefoxPath))
-	If $CurrentPath = ".\firefox\firefox.exe" Or $CurrentPath = ".\zenbrowser\zen.exe" Or $CurrentPath = ".\floorp\floorp.exe" Or $CurrentPath = ".\waterfox\waterfox.exe" Or $CurrentPath = ".\chrome\chrome.exe" Or $CurrentPath = ".\helium\chrome.exe" Or $CurrentPath = ".\whale\whale.exe" Or $CurrentPath = ".\centbrowser\chrome.exe" Or $CurrentPath = ".\vivaldi\vivaldi.exe" Then
+	If $CurrentPath = ".\firefox\firefox.exe" Or $CurrentPath = ".\zenbrowser\zen.exe" Or $CurrentPath = ".\floorp\floorp.exe" Or $CurrentPath = ".\waterfox\waterfox.exe" Or $CurrentPath = ".\librewolf\librewolf.exe" Or $CurrentPath = ".\chrome\chrome.exe" Or $CurrentPath = ".\helium\chrome.exe" Or $CurrentPath = ".\whale\whale.exe" Or $CurrentPath = ".\centbrowser\chrome.exe" Or $CurrentPath = ".\vivaldi\vivaldi.exe" Then
 		GUICtrlSetData($hFirefoxPath, GetDefaultBrowserPath($NewBrowserType))
 	EndIf
 	$BrowserType = $NewBrowserType
@@ -2039,6 +2042,7 @@ Func GetLatestBrowserVersionForSettings($CurrentBrowserType, $Channel)
 	If $CurrentBrowserType = $BrowserZen Then Return GetLatestZenVersion($Channel)
 	If $CurrentBrowserType = $BrowserFloorp Then Return GetLatestFloorpVersion()
 	If $CurrentBrowserType = $BrowserWaterfox Then Return GetLatestWaterfoxVersion()
+	If $CurrentBrowserType = $BrowserLibreWolf Then Return GetLatestLibreWolfVersion()
 	If $CurrentBrowserType = $BrowserHelium Then Return GetLatestHeliumVersion()
 	If $CurrentBrowserType = $BrowserCent Then Return GetLatestCentVersion()
 	If $CurrentBrowserType = $BrowserVivaldi Then Return GetLatestVivaldiVersion()
@@ -2198,6 +2202,7 @@ Func BeginBrowserVersionLoad($CurrentBrowserType = "", $Channel = "")
 		If NormalizeBrowserType($CurrentBrowserType) = $BrowserZen Then $Url = $ZenUpdateBaseUrl & "/" & GetZenUpdateChannel($Channel) & "/update.xml"
 		If NormalizeBrowserType($CurrentBrowserType) = $BrowserFloorp Then $Url = $FloorpLatestReleaseUrl
 		If NormalizeBrowserType($CurrentBrowserType) = $BrowserWaterfox Then $Url = $WaterfoxDownloadPageUrl
+		If NormalizeBrowserType($CurrentBrowserType) = $BrowserLibreWolf Then $Url = $LibreWolfLatestReleaseApiUrl
 		$BrowserVersionLoadKind = "inet"
 		$BrowserVersionLoadHandle = InetGet($Url, $BrowserVersionLoadFile, 1, 1)
 	EndIf
@@ -2278,6 +2283,8 @@ Func PollBrowserVersionLoad()
 				$Loaded = CacheFloorpReleaseInfo($Content)
 			ElseIf $LoadedBrowserType = $BrowserWaterfox Then
 				$Loaded = CacheWaterfoxReleaseInfo($Content)
+			ElseIf $LoadedBrowserType = $BrowserLibreWolf Then
+				$Loaded = CacheLibreWolfReleaseInfo($Content)
 			ElseIf $LoadedBrowserType = $BrowserHelium Then
 				$Loaded = CacheHeliumReleaseInfo($Content)
 			ElseIf $LoadedBrowserType = $BrowserCent Then
@@ -2289,6 +2296,7 @@ Func PollBrowserVersionLoad()
 			EndIf
 		EndIf
 	EndIf
+	If Not $Loaded And $LoadedBrowserType = $BrowserLibreWolf Then $Loaded = GetLibreWolfReleasePage()
 	FileDelete($LoadedFile)
 	$BrowserVersionLoadFile = ""
 	$BrowserVersionLoadBrowserType = ""
@@ -2340,6 +2348,7 @@ Func IsBrowserVersionCached($CurrentBrowserType, $Channel)
 	If NormalizeBrowserType($CurrentBrowserType) = $BrowserZen Then Return GetZenUpdateXmlCache($Channel) <> ""
 	If NormalizeBrowserType($CurrentBrowserType) = $BrowserFloorp Then Return $FloorpReleaseInfoLoaded
 	If NormalizeBrowserType($CurrentBrowserType) = $BrowserWaterfox Then Return $WaterfoxReleaseInfoLoaded
+	If NormalizeBrowserType($CurrentBrowserType) = $BrowserLibreWolf Then Return $LibreWolfReleaseInfoLoaded
 	Return IsObj($FirefoxVersionsObj)
 EndFunc   ;==>IsBrowserVersionCached
 
@@ -2368,6 +2377,7 @@ Func DetectBrowserTypeFromPath($BrowserPath)
 	If $BrowserExeLower = "zen.exe" Or StringInStr($Identity, "zen browser") Or StringInStr($Identity, "zenbrowser") Then Return $BrowserZen
 	If $BrowserExeLower = "floorp.exe" Or StringInStr($Identity, "floorp") Then Return $BrowserFloorp
 	If $BrowserExeLower = "waterfox.exe" Or StringInStr($Identity, "waterfox") Then Return $BrowserWaterfox
+	If $BrowserExeLower = "librewolf.exe" Or StringInStr($Identity, "librewolf") Then Return $BrowserLibreWolf
 	If IsChromiumBrowserIdentity($Identity, $BrowserExeLower) Then Return $BrowserChrome
 	If $BrowserExeLower = "firefox.exe" Or StringInStr($Identity, "firefox") Then Return $BrowserFirefox
 
@@ -2429,6 +2439,7 @@ Func NormalizeBrowserType($Value)
 	If $Value = $BrowserZen Or $Value = "zenbrowser" Then Return $BrowserZen
 	If $Value = $BrowserFloorp Then Return $BrowserFloorp
 	If $Value = $BrowserWaterfox Then Return $BrowserWaterfox
+	If $Value = $BrowserLibreWolf Then Return $BrowserLibreWolf
 	If $Value = $BrowserChrome Or $Value = "google chrome" Then Return $BrowserChrome
 	If $Value = $BrowserHelium Then Return $BrowserHelium
 	If $Value = $BrowserWhale Or $Value = "naver whale" Or $Value = "whalebrowser" Then Return $BrowserWhale
@@ -2446,6 +2457,7 @@ Func GetBrowserDisplayName($Value)
 	If NormalizeBrowserType($Value) = $BrowserZen Then Return "ZenBrowser"
 	If NormalizeBrowserType($Value) = $BrowserFloorp Then Return "Floorp"
 	If NormalizeBrowserType($Value) = $BrowserWaterfox Then Return "Waterfox"
+	If NormalizeBrowserType($Value) = $BrowserLibreWolf Then Return "LibreWolf"
 	Return "Firefox"
 EndFunc   ;==>GetBrowserDisplayName
 
@@ -2458,6 +2470,7 @@ Func GetBrowserTypeLabel($Value)
 	If NormalizeBrowserType($Value) = $BrowserZen Then Return _t("BrowserZen", "ZenBrowser")
 	If NormalizeBrowserType($Value) = $BrowserFloorp Then Return _t("BrowserFloorp", "Floorp")
 	If NormalizeBrowserType($Value) = $BrowserWaterfox Then Return _t("BrowserWaterfox", "Waterfox")
+	If NormalizeBrowserType($Value) = $BrowserLibreWolf Then Return _t("BrowserLibreWolf", "LibreWolf")
 	Return _t("BrowserFirefox", "Firefox 原版")
 EndFunc   ;==>GetBrowserTypeLabel
 
@@ -2470,11 +2483,12 @@ Func GetBrowserTypeByLabel($Label)
 	If $Label = _t("BrowserZen", "ZenBrowser") Or StringLower($Label) = "zenbrowser" Then Return $BrowserZen
 	If $Label = _t("BrowserFloorp", "Floorp") Or StringLower($Label) = "floorp" Then Return $BrowserFloorp
 	If $Label = _t("BrowserWaterfox", "Waterfox") Or StringLower($Label) = "waterfox" Then Return $BrowserWaterfox
+	If $Label = _t("BrowserLibreWolf", "LibreWolf") Or StringLower($Label) = "librewolf" Then Return $BrowserLibreWolf
 	Return $BrowserFirefox
 EndFunc   ;==>GetBrowserTypeByLabel
 
 Func GetBrowserTypeComboData()
-	Return _t("BrowserFirefox", "Firefox 原版") & "|" & _t("BrowserZen", "ZenBrowser") & "|" & _t("BrowserFloorp", "Floorp") & "|" & _t("BrowserWaterfox", "Waterfox") & "|" & _t("BrowserChrome", "Chrome") & "|" & _t("BrowserHelium", "Helium") & "|" & _t("BrowserWhale", "Naver Whale") & "|" & _t("BrowserCent", "百分浏览器") & "|" & _t("BrowserVivaldi", "Vivaldi")
+	Return _t("BrowserFirefox", "Firefox 原版") & "|" & _t("BrowserZen", "ZenBrowser") & "|" & _t("BrowserFloorp", "Floorp") & "|" & _t("BrowserWaterfox", "Waterfox") & "|" & _t("BrowserLibreWolf", "LibreWolf") & "|" & _t("BrowserChrome", "Chrome") & "|" & _t("BrowserHelium", "Helium") & "|" & _t("BrowserWhale", "Naver Whale") & "|" & _t("BrowserCent", "百分浏览器") & "|" & _t("BrowserVivaldi", "Vivaldi")
 EndFunc   ;==>GetBrowserTypeComboData
 
 Func GetBrowserExecutableName($Value)
@@ -2486,6 +2500,7 @@ Func GetBrowserExecutableName($Value)
 	If NormalizeBrowserType($Value) = $BrowserZen Then Return "zen.exe"
 	If NormalizeBrowserType($Value) = $BrowserFloorp Then Return "floorp.exe"
 	If NormalizeBrowserType($Value) = $BrowserWaterfox Then Return "waterfox.exe"
+	If NormalizeBrowserType($Value) = $BrowserLibreWolf Then Return "librewolf.exe"
 	Return "firefox.exe"
 EndFunc   ;==>GetBrowserExecutableName
 
@@ -2502,6 +2517,7 @@ Func GetDefaultBrowserPath($Value)
 	If NormalizeBrowserType($Value) = $BrowserZen Then Return ".\ZenBrowser\zen.exe"
 	If NormalizeBrowserType($Value) = $BrowserFloorp Then Return ".\Floorp\floorp.exe"
 	If NormalizeBrowserType($Value) = $BrowserWaterfox Then Return ".\Waterfox\waterfox.exe"
+	If NormalizeBrowserType($Value) = $BrowserLibreWolf Then Return ".\LibreWolf\librewolf.exe"
 	Return ".\Firefox\firefox.exe"
 EndFunc   ;==>GetDefaultBrowserPath
 
@@ -2990,6 +3006,8 @@ Func GetMozillaProfilesIniPath($BrowserTypeValue)
 			Return @AppDataDir & "\Floorp\profiles.ini"
 		Case $BrowserWaterfox
 			Return @AppDataDir & "\Waterfox\profiles.ini"
+		Case $BrowserLibreWolf
+			Return @AppDataDir & "\LibreWolf\profiles.ini"
 	EndSwitch
 	Return @AppDataDir & "\Mozilla\Firefox\profiles.ini"
 EndFunc   ;==>GetMozillaProfilesIniPath
@@ -3086,6 +3104,7 @@ Func UpdateBrowserChannelOptions($Value, $SelectedChannel)
 	If NormalizeBrowserType($Value) = $BrowserZen Then $Options = "release|twilight"
 	If NormalizeBrowserType($Value) = $BrowserFloorp Then $Options = "release"
 	If NormalizeBrowserType($Value) = $BrowserWaterfox Then $Options = "release"
+	If NormalizeBrowserType($Value) = $BrowserLibreWolf Then $Options = "release"
 	If NormalizeBrowserType($Value) = $BrowserHelium Then $Options = "release"
 	If NormalizeBrowserType($Value) = $BrowserWhale Then $Options = "release"
 	If NormalizeBrowserType($Value) = $BrowserCent Then $Options = "release"
@@ -3256,6 +3275,33 @@ Func GetLatestWaterfoxVersion()
 	If $WaterfoxReleaseVersion = "" Then Return ""
 	Return $WaterfoxReleaseVersion
 EndFunc   ;==>GetLatestWaterfoxVersion
+
+Func GetLibreWolfReleasePage()
+	If $LibreWolfReleaseInfoLoaded Then Return True
+	Local $Content = HttpGetText($LibreWolfLatestReleaseApiUrl, "Mozilla/5.0", "application/json")
+	If @error Or $Content = "" Then Return False
+	Return CacheLibreWolfReleaseInfo($Content)
+EndFunc   ;==>GetLibreWolfReleasePage
+
+Func CacheLibreWolfReleaseInfo($Content)
+	$LibreWolfReleaseInfoLoaded = False
+	$LibreWolfReleaseVersion = ""
+	$LibreWolfDownloadUrl = ""
+
+	; The official page also lists setup and ARM64 files; accept only the x86_64 portable ZIP.
+	Local $Match = StringRegExp($Content, "(?i)https://dl\.librewolf\.net/librewolf/([^/""<>\s]+)/librewolf-([^/""<>\s]+)-windows-x86_64-portable\.zip", 1)
+	If @error Or Not IsArray($Match) Then Return False
+
+	$LibreWolfReleaseVersion = $Match[1]
+	$LibreWolfDownloadUrl = "https://dl.librewolf.net/librewolf/" & $Match[0] & "/librewolf-" & $Match[1] & "-windows-x86_64-portable.zip"
+	$LibreWolfReleaseInfoLoaded = True
+	Return True
+EndFunc   ;==>CacheLibreWolfReleaseInfo
+
+Func GetLatestLibreWolfVersion()
+	If $LibreWolfReleaseVersion = "" Then Return ""
+	Return $LibreWolfReleaseVersion
+EndFunc   ;==>GetLatestLibreWolfVersion
 
 Func GetWaterfoxChannelLabel($Channel)
 	Local $Version = GetLatestWaterfoxVersion()
@@ -3469,6 +3515,15 @@ Func BuildWaterfoxDownloadUrl($Channel, $os)
 	If $Version = "" Then Return SetError(2, 0, "")
 	Return "https://cdn.waterfox.com/waterfox/releases/" & $Version & "/WINNT_x86_64/Waterfox%20Setup%20" & $Version & ".exe"
 EndFunc   ;==>BuildWaterfoxDownloadUrl
+
+Func BuildLibreWolfDownloadUrl($Channel, $os)
+	If $os <> "win64" Then Return SetError(1, 0, "")
+	If $LibreWolfDownloadUrl = "" Then
+		If Not GetLibreWolfReleasePage() Then Return SetError(1, 0, "")
+	EndIf
+	If $LibreWolfDownloadUrl = "" Or Not StringRegExp($LibreWolfDownloadUrl, "(?i)-windows-x86_64-portable\.zip$") Then Return SetError(2, 0, "")
+	Return $LibreWolfDownloadUrl
+EndFunc   ;==>BuildLibreWolfDownloadUrl
 
 Func BuildHeliumDownloadUrl($Channel, $os)
 	Local $Version = GetLatestHeliumVersion()
@@ -4226,6 +4281,7 @@ Func BuildBrowserDownloadUrl($Value, $Channel, $os)
 	If NormalizeBrowserType($Value) = $BrowserZen Then Return BuildZenDownloadUrl($Channel, $os)
 	If NormalizeBrowserType($Value) = $BrowserFloorp Then Return BuildFloorpDownloadUrl($Channel, $os)
 	If NormalizeBrowserType($Value) = $BrowserWaterfox Then Return BuildWaterfoxDownloadUrl($Channel, $os)
+	If NormalizeBrowserType($Value) = $BrowserLibreWolf Then Return BuildLibreWolfDownloadUrl($Channel, $os)
 	Return BuildFirefoxDownloadUrl($Channel, $os)
 EndFunc   ;==>BuildBrowserDownloadUrl
 

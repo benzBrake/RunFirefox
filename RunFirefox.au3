@@ -98,15 +98,25 @@ Global Const $ZenUpdateBaseUrl = "https://updates.zen-browser.app/updates/browse
 Global Const $FloorpRepo = "Floorp-Projects/Floorp"
 Global Const $FloorpLatestReleaseUrl = "https://github.com/" & $FloorpRepo & "/releases/latest"
 Global Const $FloorpWindowsX64Asset = "floorp-windows-x86_64.installer.exe"
+Global Const $WaterfoxRepo = "BrowserWorks/Waterfox"
+Global Const $WaterfoxLatestReleaseApiUrl = "https://api.github.com/repos/" & $WaterfoxRepo & "/releases/latest"
 Global Const $WaterfoxDownloadPageUrl = "https://www.waterfox.com/download/"
 Global Const $LibreWolfLatestReleaseApiUrl = "https://librewolf.dev/api/v1/repos/librewolf/bsys6/releases/latest"
+Global Const $LibreWolfDownloadPageUrl = "https://librewolf.net/installation/windows/"
 Global Const $TurboRepo = "tbrowser/Turbo-Browser"
 Global Const $TurboDownloadInfoUrl = "https://tbrowser.cn/update/update.js"
+Global Const $TurboLatestReleaseApiUrl = "https://api.github.com/repos/" & $TurboRepo & "/releases/latest"
 Global Const $HeliumRepo = "imputnet/helium-windows"
 Global Const $HeliumLatestReleaseUrl = "https://github.com/" & $HeliumRepo & "/releases/latest"
+Global Const $HeliumLatestReleaseApiUrl = "https://api.github.com/repos/" & $HeliumRepo & "/releases/latest"
 Global Const $WhaleStandaloneX64Url = "https://installer-whale.pstatic.net/downloads/sa_installers/WhaleSetupX64.exe"
 Global Const $CentBrowserDownloadPageUrl = "https://www.centbrowser.com/"
 Global Const $VivaldiDownloadPageUrl = "https://vivaldi.com/download/"
+Global Const $VivaldiUpdateX64Url = "https://update.vivaldi.com/update/1.0/public/appcast.x64.xml"
+Global Const $ChromeStableStandaloneX64Url = "https://dl.google.com/chrome/install/ChromeStandaloneSetup64.exe"
+Global Const $ChromeBetaStandaloneX64Url = "https://dl.google.com/chrome/install/beta/ChromeBetaStandaloneSetup64.exe"
+Global Const $ChromeDevStandaloneX64Url = "https://dl.google.com/chrome/install/dev/ChromeDevStandaloneSetup64.exe"
+Global Const $ChromeCanaryDownloadPageUrl = "https://www.google.com/chrome/canary/"
 Global $FirstRun = 0, $FirstLaunch = 0, $FirefoxExe, $FirefoxDir, $isZotero = false
 Global $TaskBarDir = @AppDataDir & "\Microsoft\Internet Explorer\Quick Launch\User Pinned\TaskBar"
 Global $AppPID, $TaskBarLastChange, $FirefoxIconLastChange = 0, $FirefoxIconState = ""
@@ -2109,10 +2119,22 @@ EndFunc   ;==>UpdateWaterfoxVersionHintState
 Func UpdateBrowserDownloadNowState()
 	If Not $hBrowserDownloadNow Or Not $hDownloadFirefox64 Or Not $hCurrentBrowserVersion Then Return
 
-	Local $LatestVersion = NormalizeDisplayedVersionForCompare(GUICtrlRead($hDownloadFirefox64))
+	Local $DisplayedLatestVersion = StringStripWS(GUICtrlRead($hDownloadFirefox64), 3)
+	Local $LatestVersion = NormalizeDisplayedVersionForCompare($DisplayedLatestVersion)
 	Local $CurrentVersion = NormalizeDisplayedVersionForCompare(GUICtrlRead($hCurrentBrowserVersion))
 	Local $CurrentBrowserType = NormalizeBrowserType(GetSelectedBrowserType())
-	If $CurrentBrowserType = $BrowserWhale Then
+	Local $Channel = GUICtrlRead($hChannel)
+	GUICtrlSetData($hBrowserDownloadNow, _t("DownloadNow", "立即下载"))
+	If IsDisplayedBrowserVersionUnavailable($DisplayedLatestVersion) Then
+		If Not HasBrowserDownloadFallback($CurrentBrowserType, $Channel) Then
+			If GetBrowserDownloadPageUrl($CurrentBrowserType, $Channel) = "" Then
+				GUICtrlSetState($hBrowserDownloadNow, $GUI_HIDE)
+				Return
+			EndIf
+			GUICtrlSetData($hBrowserDownloadNow, _t("OpenDownloadPage", "打开下载页"))
+		EndIf
+		GUICtrlSetState($hBrowserDownloadNow, $GUI_SHOW)
+	ElseIf $CurrentBrowserType = $BrowserWhale Then
 		GUICtrlSetState($hBrowserDownloadNow, $GUI_SHOW)
 	ElseIf $LatestVersion <> "" And ($CurrentVersion = "" Or $LatestVersion <> $CurrentVersion) Then
 		GUICtrlSetState($hBrowserDownloadNow, $GUI_SHOW)
@@ -2120,6 +2142,34 @@ Func UpdateBrowserDownloadNowState()
 		GUICtrlSetState($hBrowserDownloadNow, $GUI_HIDE)
 	EndIf
 EndFunc   ;==>UpdateBrowserDownloadNowState
+
+Func IsDisplayedBrowserVersionUnavailable($DisplayedVersion)
+	Return StringLower(StringStripWS($DisplayedVersion, 3)) = StringLower(_t("BrowserVersionUnavailable", "获取失败"))
+EndFunc   ;==>IsDisplayedBrowserVersionUnavailable
+
+Func HasBrowserDownloadFallback($CurrentBrowserType, $Channel)
+	$CurrentBrowserType = NormalizeBrowserType($CurrentBrowserType)
+	Switch $CurrentBrowserType
+		Case $BrowserFirefox, $BrowserZen, $BrowserFloorp, $BrowserWaterfox, $BrowserTurbo, $BrowserHelium, $BrowserWhale, $BrowserVivaldi
+			Return True
+		Case $BrowserChrome
+			Return NormalizeChromeChannel($Channel) <> "canary"
+	EndSwitch
+	Return False
+EndFunc   ;==>HasBrowserDownloadFallback
+
+Func GetBrowserDownloadPageUrl($CurrentBrowserType, $Channel)
+	$CurrentBrowserType = NormalizeBrowserType($CurrentBrowserType)
+	Switch $CurrentBrowserType
+		Case $BrowserLibreWolf
+			Return $LibreWolfDownloadPageUrl
+		Case $BrowserCent
+			Return $CentBrowserDownloadPageUrl
+		Case $BrowserChrome
+			If NormalizeChromeChannel($Channel) = "canary" Then Return $ChromeCanaryDownloadPageUrl
+	EndSwitch
+	Return ""
+EndFunc   ;==>GetBrowserDownloadPageUrl
 
 Func NormalizeDisplayedVersionForCompare($Version)
 	$Version = StringLower(StringStripWS($Version, 3))
@@ -3304,6 +3354,17 @@ Func GetWaterfoxReleasePage()
 	Return CacheWaterfoxReleaseInfo($Content)
 EndFunc   ;==>GetWaterfoxReleasePage
 
+Func GetWaterfoxReleaseFallback()
+	Local $Content = GetGithubLatestReleaseApi($WaterfoxLatestReleaseApiUrl)
+	If $Content = "" Then Return False
+
+	Local $Match = StringRegExp($Content, '(?i)"tag_name"\s*:\s*"v?([0-9][^"\s]+)"', 1)
+	If @error Or Not IsArray($Match) Then Return False
+	$WaterfoxReleaseVersion = $Match[0]
+	$WaterfoxReleaseInfoLoaded = True
+	Return True
+EndFunc   ;==>GetWaterfoxReleaseFallback
+
 Func CacheWaterfoxReleaseInfo($Content)
 	$WaterfoxReleaseInfoLoaded = False
 	$WaterfoxReleaseVersion = ""
@@ -3357,6 +3418,22 @@ Func GetTurboReleasePage()
 	Return CacheTurboReleaseInfo($Content)
 EndFunc   ;==>GetTurboReleasePage
 
+Func GetTurboReleaseFallback()
+	Local $Content = GetGithubLatestReleaseApi($TurboLatestReleaseApiUrl)
+	If $Content = "" Then Return False
+
+	Local $VersionMatch = StringRegExp($Content, '(?i)"tag_name"\s*:\s*"v?([0-9]+(?:\.[0-9]+)+)"', 1)
+	Local $AssetMatch = StringRegExp($Content, '(?i)"browser_download_url"\s*:\s*"(https://github\.com/' & $TurboRepo & '/releases/download/[^"/]+/(Turbo_([0-9]+(?:\.[0-9]+)+)_portable\.7z))"', 1)
+	If @error Or Not IsArray($VersionMatch) Or Not IsArray($AssetMatch) Or $AssetMatch[2] <> $VersionMatch[0] Then Return False
+
+	$TurboReleaseVersion = $VersionMatch[0]
+	$TurboAssetName = $AssetMatch[1]
+	$TurboDownloadUrl = ""
+	$TurboGithubDownloadUrl = $AssetMatch[0]
+	$TurboReleaseInfoLoaded = True
+	Return True
+EndFunc   ;==>GetTurboReleaseFallback
+
 Func CacheTurboReleaseInfo($Content)
 	$TurboReleaseInfoLoaded = False
 	$TurboReleaseVersion = ""
@@ -3390,10 +3467,8 @@ EndFunc   ;==>GetWaterfoxChannelLabel
 
 Func GetHeliumReleasePage()
 	If $HeliumReleaseInfoLoaded Then Return True
-
-	Local $Content = BinaryToString(InetRead($HeliumLatestReleaseUrl, 1), 4)
-	If @error Or $Content = "" Then Return SetError(1, 0, False)
-
+	Local $Content = GetGithubLatestReleaseApi($HeliumLatestReleaseApiUrl)
+	If $Content = "" Then Return SetError(1, 0, False)
 	Return CacheHeliumReleaseInfo($Content)
 EndFunc   ;==>GetHeliumReleasePage
 
@@ -3479,6 +3554,18 @@ Func GetVivaldiReleasePage()
 
 	Return CacheVivaldiReleaseInfo($Content)
 EndFunc   ;==>GetVivaldiReleasePage
+
+Func GetVivaldiReleaseFallback()
+	Local $Content = HttpGetText($VivaldiUpdateX64Url, "RunFirefox/" & $AppVersion, "application/xml")
+	If @error Or $Content = "" Then Return False
+
+	Local $Match = StringRegExp($Content, '(?is)<enclosure[^>]+url="(https://downloads\.vivaldi\.com/(?:stable|stable-auto)/Vivaldi\.([0-9][0-9.]*)\.x64\.exe)"', 1)
+	If @error Or Not IsArray($Match) Then Return False
+	$VivaldiDownloadUrl = DecodeXmlAttribute($Match[0])
+	$VivaldiReleaseVersion = $Match[1]
+	$VivaldiReleaseInfoLoaded = True
+	Return True
+EndFunc   ;==>GetVivaldiReleaseFallback
 
 Func CacheVivaldiReleaseInfo($Content)
 	$VivaldiReleaseInfoLoaded = False
@@ -3588,7 +3675,9 @@ EndFunc   ;==>BuildFloorpDownloadUrl
 Func BuildWaterfoxDownloadUrl($Channel, $os)
 	Local $Version = GetLatestWaterfoxVersion()
 	If $Version = "" Then
-		If Not GetWaterfoxReleasePage() Then Return SetError(1, 0, "")
+		If Not GetWaterfoxReleasePage() Then
+			If Not GetWaterfoxReleaseFallback() Then Return SetError(1, 0, "")
+		EndIf
 		$Version = GetLatestWaterfoxVersion()
 	EndIf
 	If $Version = "" Then Return SetError(2, 0, "")
@@ -3606,11 +3695,14 @@ EndFunc   ;==>BuildLibreWolfDownloadUrl
 
 Func BuildTurboDownloadUrl($Channel, $os)
 	If $os <> "win64" Then Return SetError(1, 0, "")
-	If $TurboDownloadUrl = "" Then
-		If Not GetTurboReleasePage() Then Return SetError(1, 0, "")
+	If $TurboDownloadUrl = "" And $TurboGithubDownloadUrl = "" Then
+		If Not GetTurboReleasePage() Then
+			If Not GetTurboReleaseFallback() Then Return SetError(1, 0, "")
+		EndIf
 	EndIf
-	If Not StringRegExp($TurboDownloadUrl, "(?i)^https://dl\.tbrowser\.cn/download/Turbo_[0-9.]+_portable\.7z$") Then Return SetError(2, 0, "")
-	Return $TurboDownloadUrl
+	If StringRegExp($TurboDownloadUrl, "(?i)^https://dl\.tbrowser\.cn/download/Turbo_[0-9.]+_portable\.7z$") Then Return $TurboDownloadUrl
+	If StringRegExp($TurboGithubDownloadUrl, "(?i)^https://github\.com/" & $TurboRepo & "/releases/download/[^/]+/Turbo_[0-9.]+_portable\.7z$") Then Return $TurboGithubDownloadUrl
+	Return SetError(2, 0, "")
 EndFunc   ;==>BuildTurboDownloadUrl
 
 Func BuildHeliumDownloadUrl($Channel, $os)
@@ -3635,7 +3727,9 @@ EndFunc   ;==>BuildCentDownloadUrl
 Func BuildVivaldiDownloadUrl($Channel, $os)
 	If $os <> "win64" Then Return SetError(1, 0, "")
 	If $VivaldiDownloadUrl = "" Then
-		If Not GetVivaldiReleasePage() Then Return SetError(1, 0, "")
+		If Not GetVivaldiReleasePage() Then
+			If Not GetVivaldiReleaseFallback() Then Return SetError(1, 0, "")
+		EndIf
 	EndIf
 	If $VivaldiDownloadUrl = "" Then Return SetError(2, 0, "")
 	Return $VivaldiDownloadUrl
@@ -3649,11 +3743,24 @@ EndFunc   ;==>BuildWhaleDownloadUrl
 Func BuildChromeDownloadUrl($Channel, $os)
 	Local $DownloadUrl = GetChromeDownloadUrlCache($Channel)
 	If $DownloadUrl <> "" Then Return $DownloadUrl
-	If Not LoadChromeUpdateInfo($Channel, $os) Then Return SetError(1, 0, "")
+	If Not LoadChromeUpdateInfo($Channel, $os) Then Return GetChromeStandaloneFallbackUrl($Channel, $os)
 	$DownloadUrl = GetChromeDownloadUrlCache($Channel)
-	If $DownloadUrl = "" Then Return SetError(2, 0, "")
+	If $DownloadUrl = "" Then Return GetChromeStandaloneFallbackUrl($Channel, $os)
 	Return $DownloadUrl
 EndFunc   ;==>BuildChromeDownloadUrl
+
+Func GetChromeStandaloneFallbackUrl($Channel, $os)
+	If $os <> "win64" Then Return SetError(1, 0, "")
+	Switch NormalizeChromeChannel($Channel)
+		Case "stable"
+			Return $ChromeStableStandaloneX64Url
+		Case "beta"
+			Return $ChromeBetaStandaloneX64Url
+		Case "dev"
+			Return $ChromeDevStandaloneX64Url
+	EndSwitch
+	Return SetError(2, 0, "")
+EndFunc   ;==>GetChromeStandaloneFallbackUrl
 
 Func LoadChromeUpdateInfo($Channel, $os)
 	$Channel = NormalizeChromeChannel($Channel)
@@ -4338,6 +4445,15 @@ Func HttpGetText($Url, $UserAgent = "", $Accept = "")
 	Return $oHTTP.ResponseText
 EndFunc   ;==>HttpGetText
 
+Func GetGithubLatestReleaseApi($ApiUrl)
+	Local $Urls = _UpgradeBuildGithubDirectUrls($ApiUrl, $GithubDirectMirror)
+	For $i = 0 To UBound($Urls) - 1
+		Local $Content = HttpGetText($Urls[$i], "RunFirefox/" & $AppVersion, "application/vnd.github+json")
+		If Not @error And StringRegExp($Content, '(?i)"tag_name"\s*:') Then Return $Content
+	Next
+	Return SetError(1, 0, "")
+EndFunc   ;==>GetGithubLatestReleaseApi
+
 Func SelectChromeDownloadBaseUrl(ByRef $Urls)
 	Local $i, $Url
 	For $i = 0 To UBound($Urls) - 1
@@ -4415,6 +4531,11 @@ Func DownloadFirefox()
 
 	Local $ChannelString = GUICtrlRead($hChannel)
 	Local $Channel = StringRegExpReplace($ChannelString, " *-.*", "")
+	If IsDisplayedBrowserVersionUnavailable(GUICtrlRead($hDownloadFirefox64)) And Not HasBrowserDownloadFallback($CurrentBrowserType, $Channel) Then
+		Local $DownloadPageUrl = GetBrowserDownloadPageUrl($CurrentBrowserType, $Channel)
+		If $DownloadPageUrl <> "" Then ShellExecute($DownloadPageUrl)
+		Return
+	EndIf
 
 	Local $FirefoxURLs = BuildBrowserDownloadUrls($CurrentBrowserType, $Channel, $os)
 	If @error Or Not IsArray($FirefoxURLs) Or UBound($FirefoxURLs) = 0 Then

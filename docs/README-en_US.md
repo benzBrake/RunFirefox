@@ -14,6 +14,8 @@ Features:
 
 ### Latest updates
 
+2026.08.27 After a version check failure, browsers with a verified fallback can still be downloaded while the others can open their official download page; added fallbacks for Waterfox, Turbo, Helium, Vivaldi, and Chrome Stable/Beta/Dev
+
 2026.08.27 Added Turbo Browser to the settings screen with online download and extraction of the official Windows x64 portable package and a matching launcher icon; Turbo does not enable the Chrome++ patch
 
 2026.08.26 RunFirefox now takes over regular-window shortcuts created by Firefox-based browsers in the current user's Start menu, preserving the portable configuration when they are launched

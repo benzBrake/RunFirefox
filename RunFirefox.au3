@@ -89,6 +89,7 @@ Global Const $BrowserFloorp = "floorp"
 Global Const $BrowserWaterfox = "waterfox"
 Global Const $BrowserLibreWolf = "librewolf"
 Global Const $BrowserChrome = "chrome"
+Global Const $BrowserTurbo = "turbo"
 Global Const $BrowserHelium = "helium"
 Global Const $BrowserWhale = "whale"
 Global Const $BrowserCent = "cent"
@@ -99,6 +100,8 @@ Global Const $FloorpLatestReleaseUrl = "https://github.com/" & $FloorpRepo & "/r
 Global Const $FloorpWindowsX64Asset = "floorp-windows-x86_64.installer.exe"
 Global Const $WaterfoxDownloadPageUrl = "https://www.waterfox.com/download/"
 Global Const $LibreWolfLatestReleaseApiUrl = "https://librewolf.dev/api/v1/repos/librewolf/bsys6/releases/latest"
+Global Const $TurboRepo = "tbrowser/Turbo-Browser"
+Global Const $TurboDownloadInfoUrl = "https://tbrowser.cn/update/update.js"
 Global Const $HeliumRepo = "imputnet/helium-windows"
 Global Const $HeliumLatestReleaseUrl = "https://github.com/" & $HeliumRepo & "/releases/latest"
 Global Const $WhaleStandaloneX64Url = "https://installer-whale.pstatic.net/downloads/sa_installers/WhaleSetupX64.exe"
@@ -132,6 +135,7 @@ Global $ZenReleaseUpdateXml = "", $ZenTwilightUpdateXml = ""
 Global $FloorpReleaseInfoLoaded = False, $FloorpReleaseTag = ""
 Global $WaterfoxReleaseInfoLoaded = False, $WaterfoxReleaseVersion = ""
 Global $LibreWolfReleaseInfoLoaded = False, $LibreWolfReleaseVersion = "", $LibreWolfDownloadUrl = ""
+Global $TurboReleaseInfoLoaded = False, $TurboReleaseVersion = "", $TurboAssetName = "", $TurboDownloadUrl = "", $TurboGithubDownloadUrl = ""
 Global $HeliumReleaseInfoLoaded = False, $HeliumReleaseTag = ""
 Global $CentReleaseInfoLoaded = False, $CentReleaseVersion = "", $CentDownloadUrl = ""
 Global $VivaldiReleaseInfoLoaded = False, $VivaldiReleaseVersion = "", $VivaldiDownloadUrl = ""
@@ -1983,7 +1987,7 @@ EndFunc   ;==>ApplyDetectedBrowserTypeFromPath
 Func ChangeBrowserType()
 	Local $NewBrowserType = GetSelectedBrowserType()
 	Local $CurrentPath = StringLower(GUICtrlRead($hFirefoxPath))
-	If $CurrentPath = ".\firefox\firefox.exe" Or $CurrentPath = ".\zenbrowser\zen.exe" Or $CurrentPath = ".\floorp\floorp.exe" Or $CurrentPath = ".\waterfox\waterfox.exe" Or $CurrentPath = ".\librewolf\librewolf.exe" Or $CurrentPath = ".\chrome\chrome.exe" Or $CurrentPath = ".\helium\chrome.exe" Or $CurrentPath = ".\whale\whale.exe" Or $CurrentPath = ".\centbrowser\chrome.exe" Or $CurrentPath = ".\vivaldi\vivaldi.exe" Then
+	If $CurrentPath = ".\firefox\firefox.exe" Or $CurrentPath = ".\zenbrowser\zen.exe" Or $CurrentPath = ".\floorp\floorp.exe" Or $CurrentPath = ".\waterfox\waterfox.exe" Or $CurrentPath = ".\librewolf\librewolf.exe" Or $CurrentPath = ".\chrome\chrome.exe" Or $CurrentPath = ".\turbo\turbo.exe" Or $CurrentPath = ".\helium\chrome.exe" Or $CurrentPath = ".\whale\whale.exe" Or $CurrentPath = ".\centbrowser\chrome.exe" Or $CurrentPath = ".\vivaldi\vivaldi.exe" Then
 		GUICtrlSetData($hFirefoxPath, GetDefaultBrowserPath($NewBrowserType))
 	EndIf
 	$BrowserType = $NewBrowserType
@@ -2063,6 +2067,7 @@ Func GetLatestBrowserVersionForSettings($CurrentBrowserType, $Channel)
 	If $CurrentBrowserType = $BrowserFloorp Then Return GetLatestFloorpVersion()
 	If $CurrentBrowserType = $BrowserWaterfox Then Return GetLatestWaterfoxVersion()
 	If $CurrentBrowserType = $BrowserLibreWolf Then Return GetLatestLibreWolfVersion()
+	If $CurrentBrowserType = $BrowserTurbo Then Return GetLatestTurboVersion()
 	If $CurrentBrowserType = $BrowserHelium Then Return GetLatestHeliumVersion()
 	If $CurrentBrowserType = $BrowserCent Then Return GetLatestCentVersion()
 	If $CurrentBrowserType = $BrowserVivaldi Then Return GetLatestVivaldiVersion()
@@ -2205,7 +2210,10 @@ Func BeginBrowserVersionLoad($CurrentBrowserType = "", $Channel = "")
 	$BrowserVersionLoadFile = @TempDir & "\RunFirefox_BrowserVersion_" & @AutoItPID & ".tmp"
 	FileDelete($BrowserVersionLoadFile)
 
-	If NormalizeBrowserType($CurrentBrowserType) = $BrowserHelium Then
+	If NormalizeBrowserType($CurrentBrowserType) = $BrowserTurbo Then
+		$BrowserVersionLoadKind = "inet"
+		$BrowserVersionLoadHandle = InetGet($TurboDownloadInfoUrl, $BrowserVersionLoadFile, 1, 1)
+	ElseIf NormalizeBrowserType($CurrentBrowserType) = $BrowserHelium Then
 		$BrowserVersionLoadKind = "inet"
 		$BrowserVersionLoadHandle = InetGet($HeliumLatestReleaseUrl, $BrowserVersionLoadFile, 1, 1)
 	ElseIf NormalizeBrowserType($CurrentBrowserType) = $BrowserCent Then
@@ -2305,6 +2313,8 @@ Func PollBrowserVersionLoad()
 				$Loaded = CacheWaterfoxReleaseInfo($Content)
 			ElseIf $LoadedBrowserType = $BrowserLibreWolf Then
 				$Loaded = CacheLibreWolfReleaseInfo($Content)
+			ElseIf $LoadedBrowserType = $BrowserTurbo Then
+				$Loaded = CacheTurboReleaseInfo($Content)
 			ElseIf $LoadedBrowserType = $BrowserHelium Then
 				$Loaded = CacheHeliumReleaseInfo($Content)
 			ElseIf $LoadedBrowserType = $BrowserCent Then
@@ -2317,6 +2327,7 @@ Func PollBrowserVersionLoad()
 		EndIf
 	EndIf
 	If Not $Loaded And $LoadedBrowserType = $BrowserLibreWolf Then $Loaded = GetLibreWolfReleasePage()
+	If Not $Loaded And $LoadedBrowserType = $BrowserTurbo Then $Loaded = GetTurboReleasePage()
 	FileDelete($LoadedFile)
 	$BrowserVersionLoadFile = ""
 	$BrowserVersionLoadBrowserType = ""
@@ -2361,6 +2372,7 @@ Func UpdateBrowserVersionLoadingLabel()
 EndFunc   ;==>UpdateBrowserVersionLoadingLabel
 
 Func IsBrowserVersionCached($CurrentBrowserType, $Channel)
+	If NormalizeBrowserType($CurrentBrowserType) = $BrowserTurbo Then Return $TurboReleaseInfoLoaded
 	If NormalizeBrowserType($CurrentBrowserType) = $BrowserHelium Then Return $HeliumReleaseInfoLoaded
 	If NormalizeBrowserType($CurrentBrowserType) = $BrowserCent Then Return $CentReleaseInfoLoaded
 	If NormalizeBrowserType($CurrentBrowserType) = $BrowserVivaldi Then Return $VivaldiReleaseInfoLoaded
@@ -2391,6 +2403,7 @@ Func DetectBrowserTypeFromPath($BrowserPath)
 	Local $Identity = GetExecutableIdentityText($FullBrowserPath)
 
 	If StringInStr($Identity, "helium") Or StringInStr($Identity, "the helium authors") Then Return $BrowserHelium
+	If $BrowserExeLower = "turbo.exe" Or StringInStr($Identity, "turbo browser") Then Return $BrowserTurbo
 	If $BrowserExeLower = "whale.exe" Or StringInStr($Identity, "naver whale") Or StringInStr($Identity, "whale browser") Then Return $BrowserWhale
 	If $BrowserExeLower = "chrome.exe" And (StringInStr($Identity, "cent browser") Or StringInStr($Identity, "centbrowser") Or StringInStr($FullBrowserPathLower, "\centbrowser\")) Then Return $BrowserCent
 	If $BrowserExeLower = "vivaldi.exe" Or StringInStr($Identity, "vivaldi") Then Return $BrowserVivaldi
@@ -2434,7 +2447,7 @@ EndFunc   ;==>IsChromiumBrowserIdentity
 
 Func IsChromeBrowser($Value)
 	Local $Normalized = NormalizeBrowserType($Value)
-	Return $Normalized = $BrowserChrome Or $Normalized = $BrowserHelium Or $Normalized = $BrowserWhale Or $Normalized = $BrowserCent Or $Normalized = $BrowserVivaldi
+	Return $Normalized = $BrowserChrome Or $Normalized = $BrowserTurbo Or $Normalized = $BrowserHelium Or $Normalized = $BrowserWhale Or $Normalized = $BrowserCent Or $Normalized = $BrowserVivaldi
 EndFunc   ;==>IsChromeBrowser
 
 Func IsGoogleChromeBrowser($Value)
@@ -2461,6 +2474,7 @@ Func NormalizeBrowserType($Value)
 	If $Value = $BrowserWaterfox Then Return $BrowserWaterfox
 	If $Value = $BrowserLibreWolf Then Return $BrowserLibreWolf
 	If $Value = $BrowserChrome Or $Value = "google chrome" Then Return $BrowserChrome
+	If $Value = $BrowserTurbo Or $Value = "turbo browser" Or $Value = "tbrowser" Or $Value = "涡轮浏览器" Or $Value = "渦輪瀏覽器" Then Return $BrowserTurbo
 	If $Value = $BrowserHelium Then Return $BrowserHelium
 	If $Value = $BrowserWhale Or $Value = "naver whale" Or $Value = "whalebrowser" Then Return $BrowserWhale
 	If $Value = $BrowserCent Or $Value = "cent browser" Or $Value = "centbrowser" Or $Value = "百分浏览器" Or $Value = "百分瀏覽器" Then Return $BrowserCent
@@ -2470,6 +2484,7 @@ EndFunc   ;==>NormalizeBrowserType
 
 Func GetBrowserDisplayName($Value)
 	If NormalizeBrowserType($Value) = $BrowserChrome Then Return "Chrome"
+	If NormalizeBrowserType($Value) = $BrowserTurbo Then Return "Turbo Browser"
 	If NormalizeBrowserType($Value) = $BrowserHelium Then Return "Helium"
 	If NormalizeBrowserType($Value) = $BrowserWhale Then Return "Naver Whale"
 	If NormalizeBrowserType($Value) = $BrowserCent Then Return "Cent Browser"
@@ -2483,6 +2498,7 @@ EndFunc   ;==>GetBrowserDisplayName
 
 Func GetBrowserTypeLabel($Value)
 	If NormalizeBrowserType($Value) = $BrowserChrome Then Return _t("BrowserChrome", "Chrome")
+	If NormalizeBrowserType($Value) = $BrowserTurbo Then Return _t("BrowserTurbo", "涡轮浏览器")
 	If NormalizeBrowserType($Value) = $BrowserHelium Then Return _t("BrowserHelium", "Helium")
 	If NormalizeBrowserType($Value) = $BrowserWhale Then Return _t("BrowserWhale", "Naver Whale")
 	If NormalizeBrowserType($Value) = $BrowserCent Then Return _t("BrowserCent", "百分浏览器")
@@ -2496,6 +2512,7 @@ EndFunc   ;==>GetBrowserTypeLabel
 
 Func GetBrowserTypeByLabel($Label)
 	If $Label = _t("BrowserChrome", "Chrome") Or StringLower($Label) = "chrome" Or StringLower($Label) = "google chrome" Then Return $BrowserChrome
+	If $Label = _t("BrowserTurbo", "涡轮浏览器") Or StringLower($Label) = "turbo" Or StringLower($Label) = "turbo browser" Or StringLower($Label) = "tbrowser" Or $Label = "涡轮浏览器" Or $Label = "渦輪瀏覽器" Then Return $BrowserTurbo
 	If $Label = _t("BrowserHelium", "Helium") Or StringLower($Label) = "helium" Then Return $BrowserHelium
 	If $Label = _t("BrowserWhale", "Naver Whale") Or StringLower($Label) = "whale" Or StringLower($Label) = "naver whale" Then Return $BrowserWhale
 	If $Label = _t("BrowserCent", "百分浏览器") Or StringLower($Label) = "cent" Or StringLower($Label) = "cent browser" Or $Label = "百分浏览器" Or $Label = "百分瀏覽器" Then Return $BrowserCent
@@ -2508,11 +2525,12 @@ Func GetBrowserTypeByLabel($Label)
 EndFunc   ;==>GetBrowserTypeByLabel
 
 Func GetBrowserTypeComboData()
-	Return _t("BrowserFirefox", "Firefox 原版") & "|" & _t("BrowserZen", "ZenBrowser") & "|" & _t("BrowserFloorp", "Floorp") & "|" & _t("BrowserWaterfox", "Waterfox") & "|" & _t("BrowserLibreWolf", "LibreWolf") & "|" & _t("BrowserChrome", "Chrome") & "|" & _t("BrowserHelium", "Helium") & "|" & _t("BrowserWhale", "Naver Whale") & "|" & _t("BrowserCent", "百分浏览器") & "|" & _t("BrowserVivaldi", "Vivaldi")
+	Return _t("BrowserFirefox", "Firefox 原版") & "|" & _t("BrowserZen", "ZenBrowser") & "|" & _t("BrowserFloorp", "Floorp") & "|" & _t("BrowserWaterfox", "Waterfox") & "|" & _t("BrowserLibreWolf", "LibreWolf") & "|" & _t("BrowserChrome", "Chrome") & "|" & _t("BrowserTurbo", "涡轮浏览器") & "|" & _t("BrowserHelium", "Helium") & "|" & _t("BrowserWhale", "Naver Whale") & "|" & _t("BrowserCent", "百分浏览器") & "|" & _t("BrowserVivaldi", "Vivaldi")
 EndFunc   ;==>GetBrowserTypeComboData
 
 Func GetBrowserExecutableName($Value)
 	If NormalizeBrowserType($Value) = $BrowserChrome Then Return "chrome.exe"
+	If NormalizeBrowserType($Value) = $BrowserTurbo Then Return "turbo.exe"
 	If NormalizeBrowserType($Value) = $BrowserHelium Then Return "chrome.exe"
 	If NormalizeBrowserType($Value) = $BrowserWhale Then Return "whale.exe"
 	If NormalizeBrowserType($Value) = $BrowserCent Then Return "chrome.exe"
@@ -2530,6 +2548,7 @@ EndFunc   ;==>GetBrowserExecutableCandidates
 
 Func GetDefaultBrowserPath($Value)
 	If NormalizeBrowserType($Value) = $BrowserChrome Then Return ".\Chrome\chrome.exe"
+	If NormalizeBrowserType($Value) = $BrowserTurbo Then Return ".\Turbo\turbo.exe"
 	If NormalizeBrowserType($Value) = $BrowserHelium Then Return ".\Helium\chrome.exe"
 	If NormalizeBrowserType($Value) = $BrowserWhale Then Return ".\Whale\whale.exe"
 	If NormalizeBrowserType($Value) = $BrowserCent Then Return ".\CentBrowser\chrome.exe"
@@ -3065,6 +3084,13 @@ EndFunc   ;==>ResolveProfilesIniProfilePath
 
 Func GetSystemChromiumUserDataDir($BrowserTypeValue, $Channel = "")
 	Local $Normalized = NormalizeBrowserType($BrowserTypeValue)
+	If $Normalized = $BrowserTurbo Then
+		If FileExists(@LocalAppDataDir & "\Turbo\User Data\Local State") Then Return @LocalAppDataDir & "\Turbo\User Data"
+		If FileExists(@LocalAppDataDir & "\TurboBrowser\User Data\Local State") Then Return @LocalAppDataDir & "\TurboBrowser\User Data"
+		If FileExists(@LocalAppDataDir & "\Turbo Browser\User Data\Local State") Then Return @LocalAppDataDir & "\Turbo Browser\User Data"
+		If FileExists(@AppDataDir & "\Turbo\User Data\Local State") Then Return @AppDataDir & "\Turbo\User Data"
+		Return ""
+	EndIf
 	If $Normalized = $BrowserHelium Then
 		If FileExists(@LocalAppDataDir & "\Helium\User Data\Local State") Then Return @LocalAppDataDir & "\Helium\User Data"
 		If FileExists(@LocalAppDataDir & "\The Helium Authors\Helium\User Data\Local State") Then Return @LocalAppDataDir & "\The Helium Authors\Helium\User Data"
@@ -3125,6 +3151,7 @@ Func UpdateBrowserChannelOptions($Value, $SelectedChannel)
 	If NormalizeBrowserType($Value) = $BrowserFloorp Then $Options = "release"
 	If NormalizeBrowserType($Value) = $BrowserWaterfox Then $Options = "release"
 	If NormalizeBrowserType($Value) = $BrowserLibreWolf Then $Options = "release"
+	If NormalizeBrowserType($Value) = $BrowserTurbo Then $Options = "release"
 	If NormalizeBrowserType($Value) = $BrowserHelium Then $Options = "release"
 	If NormalizeBrowserType($Value) = $BrowserWhale Then $Options = "release"
 	If NormalizeBrowserType($Value) = $BrowserCent Then $Options = "release"
@@ -3322,6 +3349,38 @@ Func GetLatestLibreWolfVersion()
 	If $LibreWolfReleaseVersion = "" Then Return ""
 	Return $LibreWolfReleaseVersion
 EndFunc   ;==>GetLatestLibreWolfVersion
+
+Func GetTurboReleasePage()
+	If $TurboReleaseInfoLoaded Then Return True
+	Local $Content = BinaryToString(InetRead($TurboDownloadInfoUrl, 1), 4)
+	If @error Or $Content = "" Then Return False
+	Return CacheTurboReleaseInfo($Content)
+EndFunc   ;==>GetTurboReleasePage
+
+Func CacheTurboReleaseInfo($Content)
+	$TurboReleaseInfoLoaded = False
+	$TurboReleaseVersion = ""
+	$TurboAssetName = ""
+	$TurboDownloadUrl = ""
+	$TurboGithubDownloadUrl = ""
+
+	Local $VersionMatch = StringRegExp($Content, "(?i)\bver\s*:\s*['""']([0-9]+(?:\.[0-9]+)+)['""']", 1)
+	If @error Or Not IsArray($VersionMatch) Then Return False
+	Local $PortableMatch = StringRegExp($Content, "(?i)\bportable_url\s*:\s*['""'](https://dl\.tbrowser\.cn/download/(Turbo_([0-9]+(?:\.[0-9]+)+)_portable\.7z))['""']", 1)
+	If @error Or Not IsArray($PortableMatch) Or $PortableMatch[2] <> $VersionMatch[0] Then Return False
+
+	$TurboReleaseVersion = $VersionMatch[0]
+	$TurboDownloadUrl = $PortableMatch[0]
+	$TurboAssetName = $PortableMatch[1]
+	$TurboGithubDownloadUrl = "https://github.com/" & $TurboRepo & "/releases/download/" & $TurboReleaseVersion & "/" & $TurboAssetName
+	$TurboReleaseInfoLoaded = True
+	Return True
+EndFunc   ;==>CacheTurboReleaseInfo
+
+Func GetLatestTurboVersion()
+	If $TurboReleaseVersion = "" Then Return ""
+	Return $TurboReleaseVersion
+EndFunc   ;==>GetLatestTurboVersion
 
 Func GetWaterfoxChannelLabel($Channel)
 	Local $Version = GetLatestWaterfoxVersion()
@@ -3544,6 +3603,15 @@ Func BuildLibreWolfDownloadUrl($Channel, $os)
 	If $LibreWolfDownloadUrl = "" Or Not StringRegExp($LibreWolfDownloadUrl, "(?i)-windows-x86_64-portable\.zip$") Then Return SetError(2, 0, "")
 	Return $LibreWolfDownloadUrl
 EndFunc   ;==>BuildLibreWolfDownloadUrl
+
+Func BuildTurboDownloadUrl($Channel, $os)
+	If $os <> "win64" Then Return SetError(1, 0, "")
+	If $TurboDownloadUrl = "" Then
+		If Not GetTurboReleasePage() Then Return SetError(1, 0, "")
+	EndIf
+	If Not StringRegExp($TurboDownloadUrl, "(?i)^https://dl\.tbrowser\.cn/download/Turbo_[0-9.]+_portable\.7z$") Then Return SetError(2, 0, "")
+	Return $TurboDownloadUrl
+EndFunc   ;==>BuildTurboDownloadUrl
 
 Func BuildHeliumDownloadUrl($Channel, $os)
 	Local $Version = GetLatestHeliumVersion()
@@ -4293,6 +4361,7 @@ Func DecodeXmlAttribute($Value)
 EndFunc   ;==>DecodeXmlAttribute
 
 Func BuildBrowserDownloadUrl($Value, $Channel, $os)
+	If NormalizeBrowserType($Value) = $BrowserTurbo Then Return BuildTurboDownloadUrl($Channel, $os)
 	If NormalizeBrowserType($Value) = $BrowserHelium Then Return BuildHeliumDownloadUrl($Channel, $os)
 	If NormalizeBrowserType($Value) = $BrowserWhale Then Return BuildWhaleDownloadUrl($Channel, $os)
 	If NormalizeBrowserType($Value) = $BrowserCent Then Return BuildCentDownloadUrl($Channel, $os)
@@ -4308,6 +4377,17 @@ EndFunc   ;==>BuildBrowserDownloadUrl
 Func BuildBrowserDownloadUrls($Value, $Channel, $os)
 	Local $DownloadUrl = BuildBrowserDownloadUrl($Value, $Channel, $os)
 	If @error Or $DownloadUrl = "" Then Return SetError(1, 0, 0)
+
+	If NormalizeBrowserType($Value) = $BrowserTurbo Then
+		Local $TurboUrls[1], $TurboUrlCount = 0
+		_UpgradeAddUrl($TurboUrls, $TurboUrlCount, $DownloadUrl)
+		Local $GithubUrls = _UpgradeBuildGithubReleaseDownloadUrls($TurboGithubDownloadUrl, $GithubDirectMirror, $GithubJsDelivrMirror)
+		For $i = 0 To UBound($GithubUrls) - 1
+			_UpgradeAddUrl($TurboUrls, $TurboUrlCount, $GithubUrls[$i])
+		Next
+		ReDim $TurboUrls[$TurboUrlCount]
+		Return $TurboUrls
+	EndIf
 
 	If NormalizeBrowserType($Value) = $BrowserZen Or NormalizeBrowserType($Value) = $BrowserFloorp Or NormalizeBrowserType($Value) = $BrowserHelium Then Return _UpgradeBuildGithubReleaseDownloadUrls($DownloadUrl, $GithubDirectMirror, $GithubJsDelivrMirror)
 

@@ -1,7 +1,7 @@
 # 便携版制作指南
 
 现在 `RunFirefox` 的设置界面已经可以直接下载并解压支持的浏览器。
-如果你要制作的是 **Firefox、Chrome、Zen、Floorp、Waterfox、LibreWolf、Helium、Naver Whale、百分浏览器（Cent Browser）** 便携版，优先使用内置下载会更省事。
+如果你要制作的是 **Firefox、Chrome、涡轮浏览器（Turbo Browser）、Zen、Floorp、Waterfox、LibreWolf、Helium、Naver Whale、百分浏览器（Cent Browser）** 便携版，优先使用内置下载会更省事。
 
 ## 方式一：在设置里直接下载（适用于已支持的浏览器）
 
@@ -12,6 +12,8 @@
 5. 下载完成后按提示直接启动，或保存设置后再手动启动即可。
 
 LibreWolf 会固定下载官网提供的 Windows x64 portable ZIP；即使压缩包是“版本目录\LibreWolf”双层结构，启动器也会自动提取其中的 `LibreWolf` 程序目录。
+
+涡轮浏览器会优先从国内官网下载 Windows x64 绿色版 7z，下载失败时再尝试 GitHub 镜像和官方 Release 地址；涡轮浏览器不启用 Chrome++ 补丁。
 
 ## 方式二：手动制作（适用于未内置下载的浏览器）
 

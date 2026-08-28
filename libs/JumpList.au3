@@ -63,7 +63,8 @@ Global Const $JL_TAG_PROPERTY_KEY = "struct;ulong Data1;ushort Data2;ushort Data
 Global Const $JL_TAG_PROP_VARIANT = "ushort vt;ushort reserved1;ushort reserved2;ushort reserved3;ptr value;ptr value2"
 Global Const $JL_VT_LPWSTR = 31
 
-; $aTasks and $aDestinations use columns: title, arguments, description, icon index.
+; $aTasks uses columns: title, arguments, description, icon index, optional icon path.
+; $aDestinations uses columns: title, arguments, description, icon index.
 Func _JumpListBuild($sAppId, $sLauncherPath, $sWorkingDirectory, $sIconPath, ByRef $aTasks, $iTaskCount, $sCategoryTitle, ByRef $aDestinations, $iDestinationCount)
 	If $sAppId = "" Or Not FileExists($sLauncherPath) Then Return SetError(1, 0, False)
 
@@ -92,7 +93,11 @@ Func _JumpListBuild($sAppId, $sLauncherPath, $sWorkingDirectory, $sIconPath, ByR
 
 	Local $i
 	For $i = 0 To $iTaskCount - 1
-		Local $oTask = _JumpListCreateLink($sLauncherPath, $aTasks[$i][1], $sWorkingDirectory, $aTasks[$i][0], $aTasks[$i][2], $sIconPath, $aTasks[$i][3])
+		Local $sTaskIconPath = $sIconPath
+		If UBound($aTasks, 2) > 4 Then
+			If $aTasks[$i][4] <> "" Then $sTaskIconPath = $aTasks[$i][4]
+		EndIf
+		Local $oTask = _JumpListCreateLink($sLauncherPath, $aTasks[$i][1], $sWorkingDirectory, $aTasks[$i][0], $aTasks[$i][2], $sTaskIconPath, $aTasks[$i][3])
 		If IsObj($oTask) Then _JumpListAddObject($oTasks, $oTask)
 	Next
 

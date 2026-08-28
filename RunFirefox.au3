@@ -1074,7 +1074,7 @@ Func RefreshMozillaJumpList($Force = False)
 	If Not @Compiled Or Not IsMozillaBrowser($BrowserType) Or Not $AppUserModelId Then Return False
 	$JumpListLastRefresh = TimerInit()
 
-	Local $aTasks[3][4]
+	Local $aTasks[4][5]
 	$aTasks[0][0] = _t("JumpListNewTab", "新建标签页")
 	$aTasks[0][1] = "--jump-action new-tab"
 	$aTasks[0][2] = $aTasks[0][0]
@@ -1087,6 +1087,11 @@ Func RefreshMozillaJumpList($Force = False)
 	$aTasks[2][1] = "--jump-action private-window"
 	$aTasks[2][2] = $aTasks[2][0]
 	$aTasks[2][3] = 4
+	$aTasks[3][0] = _t("JumpListLauncherSettings", "启动器设置")
+	$aTasks[3][1] = "-set"
+	$aTasks[3][2] = $aTasks[3][0]
+	$aTasks[3][3] = -27
+	$aTasks[3][4] = @SystemDir & "\imageres.dll"
 
 	Local $aDestinations[1][4], $DestinationCount = 0, $i
 	Local $aPlaceRows, $PlaceCount = _FirefoxPlacesGetFrequent($ProfileDir, 10, $aPlaceRows)
@@ -1114,7 +1119,7 @@ Func RefreshMozillaJumpList($Force = False)
 	Next
 	If Not $Force And $Signature = $JumpListContentSignature Then Return True
 
-	Local $Built = _JumpListBuild($AppUserModelId, @ScriptFullPath, @ScriptDir, $FirefoxPath, $aTasks, 3, _t("JumpListFrequent", "常用"), $aDestinations, $DestinationCount)
+	Local $Built = _JumpListBuild($AppUserModelId, @ScriptFullPath, @ScriptDir, $FirefoxPath, $aTasks, 4, _t("JumpListFrequent", "常用"), $aDestinations, $DestinationCount)
 	If $Built Then $JumpListContentSignature = $Signature
 	Return $Built
 EndFunc   ;==>RefreshMozillaJumpList

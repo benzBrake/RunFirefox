@@ -2091,8 +2091,20 @@ Func UpdateCurrentBrowserVersionLabel()
 	Local $BrowserPath = GetCurrentSettingsBrowserPath()
 	Local $CurrentVersion = ""
 	If FileExists($BrowserPath) Then
-		If NormalizeBrowserType(GetSelectedBrowserType()) = $BrowserZen Then
+		If NormalizeBrowserType(GetSelectedBrowserType()) = $BrowserFloorp Then
+			; Floorp's executable version is the bundled Gecko version (for example 153.0).
+			; The Floorp version is stored in application.ini as "FloorpVersion@GeckoVersion".
+			$CurrentVersion = GetFloorpInstalledVersion($BrowserPath)
+			If $CurrentVersion = "" Then $CurrentVersion = ReadExecutableVersionField($BrowserPath, "FileVersion")
+			If $CurrentVersion = "" Then $CurrentVersion = ReadExecutableVersionField($BrowserPath, "ProductVersion")
+		ElseIf NormalizeBrowserType(GetSelectedBrowserType()) = $BrowserZen Then
 			$CurrentVersion = ReadExecutableVersionField($BrowserPath, "ProductVersion")
+			If $CurrentVersion = "" Then $CurrentVersion = ReadExecutableVersionField($BrowserPath, "FileVersion")
+		ElseIf NormalizeBrowserType(GetSelectedBrowserType()) = $BrowserLibreWolf Then
+			; LibreWolf keeps its packaging revision in ProductVersion (for example 154.0-2),
+			; while FileVersion only contains the underlying Firefox milestone (154.0).
+			$CurrentVersion = ReadExecutableVersionField($BrowserPath, "ProductVersion")
+			If $CurrentVersion = "" Then $CurrentVersion = GetApplicationIniVersion($BrowserPath)
 			If $CurrentVersion = "" Then $CurrentVersion = ReadExecutableVersionField($BrowserPath, "FileVersion")
 		ElseIf NormalizeBrowserType(GetSelectedBrowserType()) = $BrowserWaterfox Then
 			$CurrentVersion = "-"
@@ -2484,6 +2496,40 @@ Func ReadExecutableVersionField($ExePath, $FieldName)
 	If @error Then Return ""
 	Return $Value
 EndFunc   ;==>ReadExecutableVersionField
+
+Func GetFloorpInstalledVersion($BrowserPath)
+	Local $BrowserDir = ""
+	Local $BrowserExe = ""
+	SplitPath(FullPath($BrowserPath), $BrowserDir, $BrowserExe)
+	If $BrowserDir = "" Then Return ""
+
+	; Portable and installed Floorp builds keep application.ini beside floorp.exe.
+	; Accept the browser subdirectory as a fallback for packages with an extra wrapper.
+	Local $ApplicationIni = $BrowserDir & Chr(92) & "application.ini"
+	If Not FileExists($ApplicationIni) Then $ApplicationIni = $BrowserDir & Chr(92) & "browser" & Chr(92) & "application.ini"
+	If Not FileExists($ApplicationIni) Then Return ""
+
+	Local $Version = StringStripWS(IniRead($ApplicationIni, "App", "Version", ""), 3)
+	If $Version = "" Then Return ""
+
+	; Current Floorp releases use values such as 12.16.4@153.0. Do not expose
+	; the Gecko build number as part of the browser version shown to the user.
+	Local $Match = StringRegExp($Version, "^([0-9]+(?:[.][0-9]+){1,3})(?:@.*)?$", 1)
+	If @error Or Not IsArray($Match) Then Return ""
+	Return $Match[0]
+EndFunc   ;==>GetFloorpInstalledVersion
+
+Func GetApplicationIniVersion($BrowserPath)
+	Local $BrowserDir = ""
+	Local $BrowserExe = ""
+	SplitPath(FullPath($BrowserPath), $BrowserDir, $BrowserExe)
+	If $BrowserDir = "" Then Return ""
+
+	Local $ApplicationIni = $BrowserDir & Chr(92) & "application.ini"
+	If Not FileExists($ApplicationIni) Then $ApplicationIni = $BrowserDir & Chr(92) & "browser" & Chr(92) & "application.ini"
+	If Not FileExists($ApplicationIni) Then Return ""
+	Return StringStripWS(IniRead($ApplicationIni, "App", "Version", ""), 3)
+EndFunc   ;==>GetApplicationIniVersion
 
 Func IsChromiumBrowserIdentity($Identity, $BrowserExeLower)
 	If $BrowserExeLower = "chrome.exe" Or $BrowserExeLower = "chromium.exe" Then Return True

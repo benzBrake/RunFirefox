@@ -17,6 +17,8 @@
 
 ### 最近更新
 
+2026.08.28 检测到涡轮浏览器或百分浏览器时自动关闭并禁用 RunFirefox BossKey，避免与浏览器自带 BossKey 冲突
+
 2026.08.28 支持在设置界面下载并解压 Brave Windows x64 便携版，使用 GitHub 镜像回退，并新增 Brave 启动器图标
 
 

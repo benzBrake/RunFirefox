@@ -564,7 +564,7 @@ Func GethWndbyPID($pid, $class = "")
 EndFunc   ;==>GethWndbyPID
 
 Func RegisterBossKeyHotKey()
-	If Not $BossKeyEnabled Or $BossKey = "" Then Return
+	If Not IsBossKeySupportedBrowser($BrowserType) Or Not $BossKeyEnabled Or $BossKey = "" Then Return
 	HotKeySet($BossKey, "ToggleBrowserBossKey")
 EndFunc   ;==>RegisterBossKeyHotKey
 
@@ -1878,6 +1878,15 @@ EndFunc   ;==>CleanupBossKeyHotkeyCapture
 
 Func RefreshBossKeyControlsState()
 	If Not $hBossKeyEnabled Then Return
+	If Not IsBossKeySupportedBrowser(GetSelectedBrowserType()) Then
+		GUICtrlSetState($hBossKeyEnabled, $GUI_UNCHECKED)
+		GUICtrlSetState($hBossKeyEnabled, $GUI_DISABLE)
+		GUICtrlSetState($hBossKey, $GUI_DISABLE)
+		GUICtrlSetState($hBossKeyHideToTray, $GUI_DISABLE)
+		Return
+	EndIf
+
+	GUICtrlSetState($hBossKeyEnabled, $GUI_ENABLE)
 	Local $State = $GUI_DISABLE
 	If GUICtrlRead($hBossKeyEnabled) = $GUI_CHECKED Then $State = $GUI_ENABLE
 	GUICtrlSetState($hBossKey, $State)
@@ -2602,6 +2611,11 @@ Func IsChromePlusSupportedBrowser($Value)
 	Return $Normalized = $BrowserChrome Or $Normalized = $BrowserHelium Or $Normalized = $BrowserWhale
 EndFunc   ;==>IsChromePlusSupportedBrowser
 
+Func IsBossKeySupportedBrowser($Value)
+	Local $Normalized = NormalizeBrowserType($Value)
+	Return $Normalized <> $BrowserTurbo And $Normalized <> $BrowserCent
+EndFunc   ;==>IsBossKeySupportedBrowser
+
 Func IsFloorpBrowser($Value)
 	Return NormalizeBrowserType($Value) = $BrowserFloorp
 EndFunc   ;==>IsFloorpBrowser
@@ -2786,6 +2800,7 @@ Func UpdateBrowserSpecificControls()
 	RefreshCopyProfileState()
 
 	RefreshChromePlusTabState()
+	RefreshBossKeyControlsState()
 EndFunc   ;==>UpdateBrowserSpecificControls
 
 Func GetCurrentSettingsBrowserPath()
@@ -5211,7 +5226,7 @@ Func SettingsApply()
 	Else
 		$RunInBackground = 0
 	EndIf
-	If GUICtrlRead($hBossKeyEnabled) = $GUI_CHECKED Then
+	If IsBossKeySupportedBrowser($BrowserType) And GUICtrlRead($hBossKeyEnabled) = $GUI_CHECKED Then
 		$BossKeyEnabled = 1
 	Else
 		$BossKeyEnabled = 0

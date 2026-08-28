@@ -14,6 +14,8 @@ Features:
 
 ### Latest updates
 
+2026.08.28 RunFirefox now disables its Bosskey when Turbo Browser or Cent Browser is detected, avoiding conflicts with the browsers' built-in Bosskey
+
 2026.08.28 Added Brave Windows x64 portable download and extraction with GitHub mirror fallback, plus a matching Brave launcher icon
 
 

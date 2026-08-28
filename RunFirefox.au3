@@ -2785,7 +2785,9 @@ Func UpdateBrowserSpecificControls()
 	If Not $hBrowserType Then Return
 	Local $IsChrome = IsChromeBrowser(GetSelectedBrowserType())
 	Local $MozillaState = $GUI_ENABLE
+	Local $ChromiumState = $GUI_DISABLE
 	If $IsChrome Then $MozillaState = $GUI_DISABLE
+	If $IsChrome Then $ChromiumState = $GUI_ENABLE
 
 	GUICtrlSetState($hChannel, $GUI_ENABLE)
 	GUICtrlSetState($hAllowBrowserUpdate, $MozillaState)
@@ -2793,6 +2795,9 @@ Func UpdateBrowserSpecificControls()
 	GUICtrlSetState($hCustomPluginsDir, $MozillaState)
 	GUICtrlSetState($hGetPluginsDir, $MozillaState)
 	GUICtrlSetState($hCacheSizeSmart, $MozillaState)
+	GUICtrlSetState($hChromiumGoogleApiImport, $ChromiumState)
+	GUICtrlSetState($hChromiumGoogleApiSuppress, $ChromiumState)
+	GUICtrlSetState($hChromiumGoogleApiClear, $ChromiumState)
 
 	If $IsChrome Then
 		UpdateFirefoxDownloadLabels(False)

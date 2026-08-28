@@ -17,6 +17,9 @@
 
 ### 最近更新
 
+2026.08.28 支持在设置界面下载并解压 Brave Windows x64 便携版，使用 GitHub 镜像回退，并新增 Brave 启动器图标
+
+
 2026.08.27 浏览器版本检查失败时，对有备用下载源的浏览器仍显示“立即下载”，其余浏览器可打开官方下载页面；新增 Waterfox、Turbo、Helium、Vivaldi 及 Chrome Stable/Beta/Dev 下载 fallback
 
 2026.08.27 支持在设置界面选择涡轮浏览器（Turbo Browser），在线下载、解压官方 Windows x64 绿色版，并新增对应启动器图标；涡轮浏览器不启用 Chrome++ 补丁

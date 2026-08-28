@@ -14,6 +14,9 @@ Features:
 
 ### Latest updates
 
+2026.08.28 Added Brave Windows x64 portable download and extraction with GitHub mirror fallback, plus a matching Brave launcher icon
+
+
 2026.08.27 After a version check failure, browsers with a verified fallback can still be downloaded while the others can open their official download page; added fallbacks for Waterfox, Turbo, Helium, Vivaldi, and Chrome Stable/Beta/Dev
 
 2026.08.27 Added Turbo Browser to the settings screen with online download and extraction of the official Windows x64 portable package and a matching launcher icon; Turbo does not enable the Chrome++ patch

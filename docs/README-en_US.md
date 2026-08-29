@@ -11,6 +11,7 @@ Features:
 2. Ability to create a portable version of Firefox that can be set as the default browser (just like the installed version, set in the browser settings).
 3. Support for running external programs when the browser starts or exits.
 4. Support for launching the browser by clicking on the taskbar icon (right-click and select "Pin to taskbar" after opening the browser).
+5. Jump Lists for Firefox and Chromium-based browsers include frequent sites, browser launch tasks, and a Launcher settings entry.
 
 **[View the full changelog](CHANGELOG-en_US.md)**
 

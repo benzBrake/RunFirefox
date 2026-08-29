@@ -46,6 +46,7 @@
 #include "libs\AppUserModelId.au3"
 #include "libs\JumpList.au3"
 #include "libs\FirefoxPlaces.au3"
+#include "libs\ChromiumHistory.au3"
 #include "libs\Polices.au3"
 #include "libs\ScriptingDictionary.au3"
 #include "libs\JSON.au3"
@@ -351,11 +352,23 @@ Local $CommandLineStart = 1
 If $cmdline[0] >= 2 And $cmdline[1] = "--jump-action" Then
 	Switch $cmdline[2]
 		Case "new-tab"
-			$Params &= " -new-tab about:blank"
+			If IsChromeBrowser($BrowserType) Then
+				$Params &= " about:blank"
+			Else
+				$Params &= " -new-tab about:blank"
+			EndIf
 		Case "new-window"
-			$Params &= " -new-window about:blank"
+			If IsChromeBrowser($BrowserType) Then
+				$Params &= " --new-window about:blank"
+			Else
+				$Params &= " -new-window about:blank"
+			EndIf
 		Case "private-window"
-			$Params &= " -private-window"
+			If IsChromeBrowser($BrowserType) Then
+				$Params &= " --incognito"
+			Else
+				$Params &= " -private-window"
+			EndIf
 	EndSwitch
 	$CommandLineStart = 3
 ElseIf $cmdline[0] >= 2 And $cmdline[1] = "--jump-url" Then
@@ -440,7 +453,7 @@ Global $AppUserModelId
 If FileExists($TaskBarDir) Then ; win 7+
 	$AppUserModelId = _WindowAppId($hWnd_browser)
 	CheckPinnedPrograms($FirefoxPath)
-	RefreshMozillaJumpList(True)
+	RefreshBrowserJumpList(True)
 EndIf
 
 ;~ Check myfirefox update
@@ -494,7 +507,7 @@ While 1
 	If $TaskBarLastChange Then
 		CheckPinnedPrograms($FirefoxPath)
 	EndIf
-	RefreshMozillaJumpListIfDue()
+	RefreshBrowserJumpListIfDue()
 
 	If $hEvent And Not _WinAPI_WaitForSingleObject($hEvent, 0) Then
 		; MsgBox(0, "", "Reg changed!")
@@ -508,7 +521,7 @@ While 1
 	EndIf
 WEnd
 
-RefreshMozillaJumpList(True)
+RefreshBrowserJumpList(True)
 
 If $ExAppAutoExit And $ExApp <> "" Then
 	$cmd = ''
@@ -1071,14 +1084,14 @@ Func RepeatText($Value, $Count)
 	Return $Result
 EndFunc   ;==>RepeatText
 
-Func RefreshMozillaJumpListIfDue()
-	If Not IsMozillaBrowser($BrowserType) Or Not $AppUserModelId Then Return False
+Func RefreshBrowserJumpListIfDue()
+	If (Not IsMozillaBrowser($BrowserType) And Not IsChromeBrowser($BrowserType)) Or Not $AppUserModelId Then Return False
 	If $JumpListLastRefresh And TimerDiff($JumpListLastRefresh) < 60000 Then Return False
-	Return RefreshMozillaJumpList()
-EndFunc   ;==>RefreshMozillaJumpListIfDue
+	Return RefreshBrowserJumpList()
+EndFunc   ;==>RefreshBrowserJumpListIfDue
 
-Func RefreshMozillaJumpList($Force = False)
-	If Not @Compiled Or Not IsMozillaBrowser($BrowserType) Or Not $AppUserModelId Then Return False
+Func RefreshBrowserJumpList($Force = False)
+	If Not @Compiled Or (Not IsMozillaBrowser($BrowserType) And Not IsChromeBrowser($BrowserType)) Or Not $AppUserModelId Then Return False
 	$JumpListLastRefresh = TimerInit()
 
 	Local $aTasks[4][5]
@@ -1099,9 +1112,19 @@ Func RefreshMozillaJumpList($Force = False)
 	$aTasks[3][2] = $aTasks[3][0]
 	$aTasks[3][3] = -27
 	$aTasks[3][4] = @SystemDir & "\imageres.dll"
+	If IsChromeBrowser($BrowserType) Then
+		$aTasks[0][3] = 0
+		$aTasks[1][3] = 0
+		$aTasks[2][3] = 0
+	EndIf
 
 	Local $aDestinations[1][4], $DestinationCount = 0, $i
-	Local $aPlaceRows, $PlaceCount = _FirefoxPlacesGetFrequent($ProfileDir, 10, $aPlaceRows)
+	Local $aPlaceRows, $PlaceCount = 0
+	If IsChromeBrowser($BrowserType) Then
+		$PlaceCount = _ChromiumHistoryGetFrequent($ProfileDir, 10, $aPlaceRows)
+	Else
+		$PlaceCount = _FirefoxPlacesGetFrequent($ProfileDir, 10, $aPlaceRows)
+	EndIf
 	If $PlaceCount > 0 And IsArray($aPlaceRows) Then
 		ReDim $aDestinations[$PlaceCount][4]
 		Local $Title, $Url
@@ -1129,7 +1152,7 @@ Func RefreshMozillaJumpList($Force = False)
 	Local $Built = _JumpListBuild($AppUserModelId, @ScriptFullPath, @ScriptDir, $FirefoxPath, $aTasks, 4, _t("JumpListFrequent", "常用"), $aDestinations, $DestinationCount)
 	If $Built Then $JumpListContentSignature = $Signature
 	Return $Built
-EndFunc   ;==>RefreshMozillaJumpList
+EndFunc   ;==>RefreshBrowserJumpList
 
 ; for win7+
 ; Group different app icons on Taskbar need the same AppUserModelIDs

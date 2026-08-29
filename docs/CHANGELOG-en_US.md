@@ -2,6 +2,7 @@
 
 ## [2.8.16] - 2026-08-29
 
+- 2026.08.29 Added a custom CDP debugging port toggle and port setting for Chromium-based browsers, with conflict detection against CDP arguments in custom command-line parameters
 - 2026.08.29 Added Launcher settings to the end of the Firefox-based browser Jump List for direct access to the RunFirefox settings window
 - 2026.08.28 RunFirefox now disables its Bosskey when Turbo Browser or Cent Browser is detected, avoiding conflicts with the browsers' built-in Bosskey
 - 2026.08.28 Added Brave Windows x64 portable download and extraction with GitHub mirror fallback, plus a matching Brave launcher icon

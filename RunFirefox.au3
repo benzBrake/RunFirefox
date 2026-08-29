@@ -128,6 +128,7 @@ Global $JumpListLastRefresh = 0, $JumpListContentSignature = ""
 Global $AllowBrowserUpdate, $CheckAppUpdate, $AppUpdateLastCheck, $RunInBackground, $BrowserType, $FirefoxPath, $ProfileDir
 Global $BrowserUpdateCheckMode, $BrowserUpdateLastCheck
 Global $CustomPluginsDir, $CustomCacheDir, $CacheSize, $CacheSizeSmart, $CheckDefaultBrowser, $Params
+Global $ChromiumDebugPortEnabled, $ChromiumDebugPort
 Global $ExApp, $ExAppAutoExit, $ExApp2
 Global $BossKeyEnabled, $BossKey, $BossKeyHideToTray, $BossKeyBrowserHidden = 0, $BossKeyTrayVisible = 0
 Global $GithubDirectMirror, $GithubJsDelivrMirror
@@ -143,6 +144,7 @@ Global $hChromePlusWheelTab, $hChromePlusWheelTabWhenPressRButton, $hChromePlusO
 Global $hChromePlusHoverTab, $hChromePlusHoverTabDelay, $hChromePlusHoverTabDelayLabel
 Global $hChromePlusNewTabDisable, $hChromePlusNewTabDisableName, $hChromePlusNewTabDisableNameLabel
 Global $hChromiumGoogleApiImport, $hChromiumGoogleApiSuppress, $hChromiumGoogleApiClear
+Global $hChromiumDebugPortEnabled, $hChromiumDebugPort, $hChromiumDebugPortLabel
 Global $LANG_DATA
 Global $FirefoxVersionsObj = 0
 Global $ZenReleaseUpdateXml = "", $ZenTwilightUpdateXml = ""
@@ -211,6 +213,8 @@ If Not FileExists($inifile) Then
 	IniWrite($inifile, "Settings", "CacheSizeSmart", 1)
 	IniWrite($inifile, "Settings", "CheckDefaultBrowser", 1)
 	IniWrite($inifile, "Settings", "Params", "")
+	IniWrite($inifile, "Settings", "ChromiumDebugPortEnabled", 0)
+	IniWrite($inifile, "Settings", "ChromiumDebugPort", 9222)
 	IniWrite($inifile, "Settings", "ExApp", "")
 	IniWrite($inifile, "Settings", "ExAppAutoExit", 1)
 	IniWrite($inifile, "Settings", "ExApp2", "")
@@ -242,6 +246,9 @@ $CacheSize = IniRead($inifile, "Settings", "CacheSize", "")
 $CacheSizeSmart = IniRead($inifile, "Settings", "CacheSizeSmart", 1) * 1
 $CheckDefaultBrowser = IniRead($inifile, "Settings", "CheckDefaultBrowser", 1) * 1
 $Params = IniRead($inifile, "Settings", "Params", "")
+$ChromiumDebugPortEnabled = IniRead($inifile, "Settings", "ChromiumDebugPortEnabled", 0) * 1
+$ChromiumDebugPort = IniRead($inifile, "Settings", "ChromiumDebugPort", 9222) * 1
+If $ChromiumDebugPort < 1 Or $ChromiumDebugPort > 65535 Then $ChromiumDebugPort = 9222
 $ExApp = IniRead($inifile, "Settings", "ExApp", "")
 $ExAppAutoExit = IniRead($inifile, "Settings", "ExAppAutoExit", 1) * 1
 $ExApp2 = IniRead($inifile, "Settings", "ExApp2", "")
@@ -1716,7 +1723,7 @@ Func Settings()
 	$hCacheSizeSmart = GUICtrlCreateCheckbox(_t("CacheSizeControl", " 自动控制缓存大小"), 250, 163, -1, 20)
 	If $CacheSizeSmart Then GUICtrlSetState(-1, $GUI_CHECKED)
 
-	GUICtrlCreateGroup(_t("ChromiumSettings", "Chromium设置"), 10, 210, 480, 55)
+	GUICtrlCreateGroup(_t("ChromiumSettings", "Chromium设置"), 10, 210, 480, 125)
 	$hChromiumGoogleApiImport = GUICtrlCreateButton(_t("ImportGoogleApi", "导入GoogleAPI"), 20, 233, 140, 22)
 	GUICtrlSetOnEvent(-1, "ImportChromiumGoogleApi")
 	GUICtrlSetTip(-1, _t("ImportGoogleApiTooltip", "导入GoogleAPI密钥后，Chromium 才能登录 Google 账号"))
@@ -1726,9 +1733,17 @@ Func Settings()
 	$hChromiumGoogleApiClear = GUICtrlCreateButton(_t("ClearGoogleApi", "清除GoogleAPI"), 340, 233, 140, 22)
 	GUICtrlSetOnEvent(-1, "ClearChromiumGoogleApi")
 	GUICtrlSetTip(-1, _t("ClearGoogleApiTooltip", "缺少GoogleAPI密钥会导致 Chromium 不能登录 Google 账号"))
+	$hChromiumDebugPortEnabled = GUICtrlCreateCheckbox(_t("EnableChromiumDebugPort", " 启用自定义 CDP 调试端口"), 20, 268, 230, 20)
+	GUICtrlSetOnEvent(-1, "RefreshChromiumDebugPortState")
+	If $ChromiumDebugPortEnabled Then GUICtrlSetState(-1, $GUI_CHECKED)
+	$hChromiumDebugPortLabel = GUICtrlCreateLabel(_t("ChromiumDebugPort", "端口"), 275, 273, 45, 20)
+	$hChromiumDebugPort = GUICtrlCreateInput($ChromiumDebugPort, 325, 268, 80, 20, BitOR($ES_NUMBER, $ES_AUTOHSCROLL))
+	GUICtrlSetTip(-1, _t("ChromiumDebugPortTooltip", "CDP 远程调试端口，范围为 1-65535。"))
+	GUICtrlCreateLabel(_t("ChromiumDebugPortConflictHelp", "启用后会自动添加 CDP 参数，请勿在下方命令行参数中重复设置调试端口或调试管道。"), 20, 298, 460, 28)
+	GUICtrlSetColor(-1, 0x666666)
 
-	GUICtrlCreateLabel(_t("CommandLineArguments", "命令行参数"), 20, 325, -1, 20)
-	$hParams = GUICtrlCreateEdit("", 20, 345, 460, 70, BitOR($ES_WANTRETURN, $WS_VSCROLL, $ES_AUTOVSCROLL))
+	GUICtrlCreateLabel(_t("CommandLineArguments", "命令行参数"), 20, 345, -1, 20)
+	$hParams = GUICtrlCreateEdit("", 20, 365, 460, 50, BitOR($ES_WANTRETURN, $WS_VSCROLL, $ES_AUTOVSCROLL))
 	If $Params <> "" Then
 		GUICtrlSetData(-1, StringReplace($Params, " -", @CRLF & "-"))
 	EndIf
@@ -1897,6 +1912,20 @@ Func RefreshBossKeyControlsState()
 	GUICtrlSetState($hBossKey, $State)
 	GUICtrlSetState($hBossKeyHideToTray, $State)
 EndFunc   ;==>RefreshBossKeyControlsState
+
+Func RefreshChromiumDebugPortState()
+	If Not $hChromiumDebugPortEnabled Then Return
+	Local $Enabled = IsChromeBrowser(GetSelectedBrowserType())
+	If $Enabled Then
+		GUICtrlSetState($hChromiumDebugPortEnabled, $GUI_ENABLE)
+	Else
+		GUICtrlSetState($hChromiumDebugPortEnabled, $GUI_DISABLE)
+	EndIf
+	Local $PortState = $GUI_DISABLE
+	If $Enabled And GUICtrlRead($hChromiumDebugPortEnabled) = $GUI_CHECKED Then $PortState = $GUI_ENABLE
+	GUICtrlSetState($hChromiumDebugPortLabel, $PortState)
+	GUICtrlSetState($hChromiumDebugPort, $PortState)
+EndFunc   ;==>RefreshChromiumDebugPortState
 
 Func BossKeyHotkeyInputProc($hWnd, $iMsg, $wParam, $lParam)
 	Switch $iMsg
@@ -2752,6 +2781,10 @@ Func BuildBrowserLaunchParams($Value)
 			If $ChromeParams <> "" Then $ChromeParams &= " "
 			$ChromeParams &= "--lang=" & $WhaleLocale
 		EndIf
+		If $ChromiumDebugPortEnabled And $ChromiumDebugPort >= 1 And $ChromiumDebugPort <= 65535 Then
+			If $ChromeParams <> "" Then $ChromeParams &= " "
+			$ChromeParams &= "--remote-debugging-port=" & $ChromiumDebugPort
+		EndIf
 		If $ChromeParams <> "" Then $ChromeParams &= " "
 		Return $ChromeParams
 	EndIf
@@ -2762,6 +2795,10 @@ Func BuildBrowserLaunchParams($Value)
 	EndIf
 	Return $MozillaParams
 EndFunc   ;==>BuildBrowserLaunchParams
+
+Func HasCustomCdpParameter($Value)
+	Return StringRegExp($Value, "(?i)(^|\s)--remote-debugging-(?:port(?:=|\s|$)|pipe(?:\s|$))")
+EndFunc   ;==>HasCustomCdpParameter
 
 Func GetWhaleCommandLineLocale($Value)
 	If NormalizeBrowserType($Value) <> $BrowserWhale Then Return ""
@@ -2803,6 +2840,7 @@ Func UpdateBrowserSpecificControls()
 	GUICtrlSetState($hChromiumGoogleApiImport, $ChromiumState)
 	GUICtrlSetState($hChromiumGoogleApiSuppress, $ChromiumState)
 	GUICtrlSetState($hChromiumGoogleApiClear, $ChromiumState)
+	RefreshChromiumDebugPortState()
 
 	If $IsChrome Then
 		UpdateFirefoxDownloadLabels(False)
@@ -5225,6 +5263,30 @@ Func SettingsApply()
 	$var = GUICtrlRead($hParams)
 	$var = StringStripWS($var, 3)
 	$Params = StringReplace($var, @CRLF, " ") ; 换行符换成空格
+	If GUICtrlRead($hChromiumDebugPortEnabled) = $GUI_CHECKED Then
+		$ChromiumDebugPortEnabled = 1
+	Else
+		$ChromiumDebugPortEnabled = 0
+	EndIf
+	Local $DebugPortInput = StringStripWS(GUICtrlRead($hChromiumDebugPort), 3)
+	Local $DebugPortValid = StringRegExp($DebugPortInput, "^\d+$") And Number($DebugPortInput) >= 1 And Number($DebugPortInput) <= 65535
+	If IsChromeBrowser($BrowserType) And $ChromiumDebugPortEnabled Then
+		If Not $DebugPortValid Then
+			MsgBox(16, "RunFirefox", _t("ChromiumDebugPortInvalid", "CDP 调试端口必须是 1-65535 之间的整数。"), 0, $hSettings)
+			GUICtrlSetState($hChromiumDebugPort, $GUI_FOCUS)
+			Return SetError(1)
+		EndIf
+		If HasCustomCdpParameter($Params) Then
+			MsgBox(16, "RunFirefox", _t("ChromiumDebugPortConflict", "自定义 CDP 调试端口设置与命令行参数中的远程调试参数冲突。请关闭此设置，或删除命令行参数中的 --remote-debugging-port / --remote-debugging-pipe。"), 0, $hSettings)
+			GUICtrlSetState($hParams, $GUI_FOCUS)
+			Return SetError(1)
+		EndIf
+	EndIf
+	If $DebugPortValid Then
+		$ChromiumDebugPort = Number($DebugPortInput)
+	Else
+		$ChromiumDebugPort = 9222
+	EndIf
 	If GUICtrlRead($hCheckAppUpdate) = $GUI_CHECKED Then
 		$CheckAppUpdate = 1
 	Else
@@ -5276,6 +5338,8 @@ Func SettingsApply()
 	IniWrite($inifile, "Settings", "CacheSize", $CacheSize)
 	IniWrite($inifile, "Settings", "CacheSizeSmart", $CacheSizeSmart)
 	IniWrite($inifile, "Settings", "Params", $Params)
+	IniWrite($inifile, "Settings", "ChromiumDebugPortEnabled", $ChromiumDebugPortEnabled)
+	IniWrite($inifile, "Settings", "ChromiumDebugPort", $ChromiumDebugPort)
 	IniWrite($inifile, "Settings", "BossKeyEnabled", $BossKeyEnabled)
 	IniWrite($inifile, "Settings", "BossKey", $BossKey)
 	IniWrite($inifile, "Settings", "BossKeyHideToTray", $BossKeyHideToTray)

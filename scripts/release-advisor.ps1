@@ -30,7 +30,7 @@ function Test-IgnoredFile {
     )
 
     $normalized = $Path -replace '\\', '/'
-    return $normalized -match '^(README\.md|docs/README-en_US\.md|AGENTS(?:\.local)?\.md|\.github/|scripts/|\.gitignore$)'
+    return $normalized -match '^(README\.md|docs/README-en_US\.md|CHANGELOG\.md|docs/CHANGELOG-en_US\.md|AGENTS(?:\.local)?\.md|\.github/|scripts/|\.gitignore$)'
 }
 
 function Get-BumpWeight {

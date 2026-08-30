@@ -4386,12 +4386,12 @@ Func DownloadChromePlusArchiveWithProgress($ArchiveUrl, $ArchivePath, ByRef $Ins
 			If $TotalBytes > 0 Then
 				$Percent = Int($DownloadedBytes * 100 / $TotalBytes)
 				If $Percent > 100 Then $Percent = 100
-				$DetailText = _t("FirefoxDownloadProgressKnown", "已下载 {Downloaded} / {Total}")
+				$DetailText = _t("BrowserDownloadProgressKnown", "已下载 {Downloaded} / {Total}")
 				$DetailText = StringReplace($DetailText, "{Downloaded}", FormatBytes($DownloadedBytes))
 				$DetailText = StringReplace($DetailText, "{Total}", FormatBytes($TotalBytes))
 			Else
 				$Percent = Mod(Int($DownloadedBytes / 65536), 100)
-				$DetailText = _t("FirefoxDownloadProgressUnknown", "已下载 %s", FormatBytes($DownloadedBytes))
+				$DetailText = _t("BrowserDownloadProgressUnknown", "已下载 %s", FormatBytes($DownloadedBytes))
 			EndIf
 			UpdateDownloadProgress(_t("DownloadingChromePlusPatch", "正在下载 Chrome++ 补丁 ..."), $DetailText, $Percent)
 			PumpDownloadProgressEvents()
@@ -4824,7 +4824,7 @@ Func DownloadBrowser()
 EndFunc   ;==>DownloadBrowser
 
 Func DownloadAndExtractBrowser($aDownloadUrls, $TargetDir, $os, $Channel, $CurrentBrowserType)
-	Local $TempDir = @TempDir & "\RunFirefox_FirefoxDownload"
+	Local $TempDir = @TempDir & "\RunFirefox_BrowserDownload"
 	If Not IsArray($aDownloadUrls) Or UBound($aDownloadUrls) = 0 Then Return SetError(1, 0, _t("CannotStartBrowserDownload", "无法开始下载浏览器。"))
 	Local $DownloadUrl
 	$DownloadUrl = $aDownloadUrls[0]
@@ -4858,12 +4858,12 @@ Func DownloadAndExtractBrowser($aDownloadUrls, $TargetDir, $os, $Channel, $Curre
 			If $TotalBytes > 0 Then
 				$Percent = Int($DownloadedBytes * 100 / $TotalBytes)
 				If $Percent > 100 Then $Percent = 100
-				$DetailText = _t("FirefoxDownloadProgressKnown", "已下载 {Downloaded} / {Total}")
+				$DetailText = _t("BrowserDownloadProgressKnown", "已下载 {Downloaded} / {Total}")
 				$DetailText = StringReplace($DetailText, "{Downloaded}", FormatBytes($DownloadedBytes))
 				$DetailText = StringReplace($DetailText, "{Total}", FormatBytes($TotalBytes))
 			Else
 				$Percent = Mod(Int($DownloadedBytes / 65536), 100)
-				$DetailText = _t("FirefoxDownloadProgressUnknown", "已下载 %s", FormatBytes($DownloadedBytes))
+				$DetailText = _t("BrowserDownloadProgressUnknown", "已下载 %s", FormatBytes($DownloadedBytes))
 			EndIf
 			UpdateDownloadProgress(_t("DownloadingBrowser", "正在下载浏览器 ..."), $DetailText, $Percent)
 			PumpDownloadProgressEvents()
@@ -4894,7 +4894,7 @@ Func DownloadAndExtractBrowser($aDownloadUrls, $TargetDir, $os, $Channel, $Curre
 	$SevenZipExe = PrepareSevenZipTool($TempDir)
 	If @error Then
 		CloseDownloadProgress()
-		Return SetError(6, 0, _t("FailToExtractBrowserInstaller", "解压浏览器安装包失败。") & @CRLF & @CRLF & _t("FirefoxExtractLogKept", "诊断文件已保留在：\n%s", $TempDir))
+		Return SetError(6, 0, _t("FailToExtractBrowserInstaller", "解压浏览器安装包失败。") & @CRLF & @CRLF & _t("BrowserExtractLogKept", "诊断文件已保留在：\n%s", $TempDir))
 	EndIf
 	If Not FileExists($ExtractDir) Then DirCreate($ExtractDir)
 	$ret = RunWait(@ComSpec & ' /c ""' & $SevenZipExe & '" x -y -bd -bb1 -o"' & $ExtractDir & '" "' & $Installer & '" > "' & $ExtractLog & '" 2>&1"', $TempDir, @SW_HIDE)
@@ -4910,7 +4910,7 @@ Func DownloadAndExtractBrowser($aDownloadUrls, $TargetDir, $os, $Channel, $Curre
 	EndIf
 
 	If Not $CopiedBrowserFiles Or Not FileExists($TargetBrowserPath) Then
-		Return SetError(6, 0, _t("FailToExtractBrowserInstaller", "解压浏览器安装包失败。") & @CRLF & @CRLF & _t("FirefoxExtractLogKept", "诊断文件已保留在：\n%s", $TempDir))
+		Return SetError(6, 0, _t("FailToExtractBrowserInstaller", "解压浏览器安装包失败。") & @CRLF & @CRLF & _t("BrowserExtractLogKept", "诊断文件已保留在：\n%s", $TempDir))
 	EndIf
 
 	FileDelete($Installer)

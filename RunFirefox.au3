@@ -1637,7 +1637,7 @@ Func Settings()
 	$DefaultProfDir = GetSystemProfileSourceDir($BrowserType, "release")
 
 	Opt("ExpandEnvStrings", 0)
-	$hSettings = GUICreate(_t("AppTitle", "{AppName} - 打造自己的 Firefox 便携版"), 500, 540)
+	$hSettings = GUICreate(_t("AppTitle", "{AppName} - 打造自己的便携浏览器"), 500, 540)
 	GUISetOnEvent($GUI_EVENT_CLOSE, "ExitApp")
 	GUICtrlCreateLabel(_t("AppCopyright", "{AppName} by Ryan <github-benzBrake@woai.ru>"), 5, 10, 490, -1, $SS_CENTER)
 	GUICtrlSetCursor(-1, 0)
@@ -1655,12 +1655,12 @@ Func Settings()
 	GUICtrlCreateTabItem(_t("General", "常规"))
 
 	GUICtrlCreateGroup(_t("BrowserFiles", "浏览器程序文件"), 10, 80, 480, 180)
-	GUICtrlCreateLabel(_t("FirefoxPath", "浏览器路径"), 20, 108, 120, 20)
+	GUICtrlCreateLabel(_t("BrowserPath", "浏览器路径"), 20, 108, 120, 20)
 	$idBrowserPath = GUICtrlCreateEdit($BrowserPath, 140, 103, 270, 20, $ES_AUTOHSCROLL)
 	GUICtrlSetTip(-1, _t("BrowserExecutablePath", "浏览器主程序路径"))
 	GUICtrlSetOnEvent(-1, "OnBrowserPathChange")
 	GUICtrlCreateButton(_t("Browse", "浏览"), 420, 102, 60, 22)
-	GUICtrlSetTip(-1, _t("ChoosePortableBrowser", "选择便携版浏览器\n主程序（firefox.exe）"))
+	GUICtrlSetTip(-1, _t("ChoosePortableBrowser", "选择便携版浏览器主程序"))
 	GUICtrlSetOnEvent(-1, "SelectBrowserExecutable")
 
 	GUICtrlCreateLabel(_t("BrowserType", "浏览器"), 20, 138, 55, 20)
@@ -1783,7 +1783,7 @@ Func Settings()
 	If $Params <> "" Then
 		GUICtrlSetData(-1, StringReplace($Params, " -", @CRLF & "-"))
 	EndIf
-	GUICtrlSetTip(-1, _t("CommandLineArgumentsTooltip", "Firefox 命令行参数，每行写一个参数。\n支持%TEMP%等环境变量，\n另外，%APP%代表 RunFirefox 所在目录"))
+	GUICtrlSetTip(-1, _t("CommandLineArgumentsTooltip", "浏览器命令行参数，每行写一个参数。\n支持 %TEMP% 等环境变量，\n另外，%APP% 代表 RunFirefox 所在目录"))
 
 	; Chrome++
 	GUICtrlCreateTabItem(_t("ChromePlusTab", "Chrome++"))
@@ -5391,7 +5391,7 @@ Func ApplySettings()
 
 	; Browser path
 	If Not FileExists($BrowserPath) Then
-		MsgBox(16, "RunFirefox", _t("FirefoxPathErrorMessage", "Firefox 路径错误，请重新设置。\n\n%s", $BrowserPath), 0, $hSettings)
+		MsgBox(16, "RunFirefox", _t("BrowserPathErrorMessage", "浏览器路径错误，请重新设置。\n\n%s", $BrowserPath), 0, $hSettings)
 		GUICtrlSetState($idBrowserPath, $GUI_FOCUS)
 		Return SetError(1)
 	EndIf
@@ -5491,7 +5491,7 @@ EndFunc   ;==>SelectBrowserExecutable
 
 ;~ 指定配置文件夹
 Func GetProfileDir()
-	Local $dir = FileSelectFolder(_t("SpecifyProfileDirectory", "指定 Firefox 配置文件夹"), "", 1 + 4, @ScriptDir, $hSettings)
+	Local $dir = FileSelectFolder(_t("SpecifyProfileDirectory", "指定浏览器配置文件夹"), "", 1 + 4, @ScriptDir, $hSettings)
 	FileChangeDir(@ScriptDir)
 	If $dir = "" Then Return
 	$ProfileDir = RelativePath($dir)
@@ -5500,7 +5500,7 @@ EndFunc   ;==>GetProfileDir
 
 ;~ 指定插件目录
 Func GetPluginsDir()
-	Local $dir = FileSelectFolder(_t("SpecifyPluginsDirectory", "指定 Firefox 插件目录"), "", 1 + 4, @ScriptDir, $hSettings)
+	Local $dir = FileSelectFolder(_t("SpecifyPluginsDirectory", "指定浏览器插件目录"), "", 1 + 4, @ScriptDir, $hSettings)
 	FileChangeDir(@ScriptDir)
 	If $dir = "" Then Return
 	$CustomPluginsDir = RelativePath($dir)
@@ -5509,7 +5509,7 @@ EndFunc   ;==>GetPluginsDir
 
 ;~ 指定缓存位置
 Func GetCacheDir()
-	Local $dir = FileSelectFolder(_t("SpecifyCacheDirectory", "指定 Firefox 缓存文件夹"), "", 1 + 4, @ScriptDir, $hSettings)
+	Local $dir = FileSelectFolder(_t("SpecifyCacheDirectory", "指定浏览器缓存文件夹"), "", 1 + 4, @ScriptDir, $hSettings)
 	FileChangeDir(@ScriptDir)
 	If $dir = "" Then Return
 	$CustomCacheDir = RelativePath($dir)

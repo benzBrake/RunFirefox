@@ -25,7 +25,7 @@ EndFunc   ;==>NormalizePathForCompare
 ; #FUNCTION# ;===============================================================================
 ; Name...........: SplitPath
 ; Description ...: 路径分割
-; Syntax.........: SplitPath($path, ByRef $dir, ByRef $file, [...$spliter])
+; Syntax.........: SplitPath($path, ByRef $dir, ByRef $file, [...$separator])
 ;                  $path - 路径
 ;                  $dir - 目录
 ;                  $file - 文件名
@@ -34,8 +34,8 @@ EndFunc   ;==>NormalizePathForCompare
 ; Author ........: 甲壳虫
 ; Mode ..........: Ryan
 ;============================================================================================
-Func SplitPath($path, ByRef $dir, ByRef $file, $spliter = "\")
-	Local $pos = StringInStr($path, $spliter, 0, -1)
+Func SplitPath($path, ByRef $dir, ByRef $file, $separator = "\")
+	Local $pos = StringInStr($path, $separator, 0, -1)
 	If $pos = 0 Then
 		$dir = "."
 		$file = $path

@@ -47,7 +47,7 @@
 #include "libs\JumpList.au3"
 #include "libs\FirefoxPlaces.au3"
 #include "libs\ChromiumHistory.au3"
-#include "libs\Polices.au3"
+#include "libs\Policies.au3"
 #include "libs\ScriptingDictionary.au3"
 #include "libs\JSON.au3"
 #include "libs\UpgradeHelper.au3"
@@ -193,8 +193,8 @@ Else ; 64-bit Autoit
 EndIf
 
 FileChangeDir(@ScriptDir)
-$ScriptNameWithOutSuffix = StringRegExpReplace(@ScriptName, "\.[^.]*$", "")
-$inifile = @ScriptDir & "\" & $ScriptNameWithOutSuffix & ".ini"
+$ScriptNameWithoutSuffix = StringRegExpReplace(@ScriptName, "\.[^.]*$", "")
+$inifile = @ScriptDir & "\" & $ScriptNameWithoutSuffix & ".ini"
 If Not FileExists($inifile) Then
 	$FirstRun = 1
 	$FirstLaunch = 1
@@ -312,7 +312,7 @@ EnvSet("APP", @ScriptDir)
 
 ;~ 第一个启动参数为“-set”，或第一次运行，Firefox、配置文件夹、插件目录不存在，则显示设置窗口
 If ($cmdline[0] = 1 And $cmdline[1] = "-set") Or $FirstRun Or Not FileExists($FirefoxPath) Or Not FileExists($ProfileDir) Then
-	CreateSettingsShortcut(@ScriptDir & "\" & $ScriptNameWithOutSuffix & ".vbs")
+	CreateSettingsShortcut(@ScriptDir & "\" & $ScriptNameWithoutSuffix & ".vbs")
 	Settings()
 EndIf
 
@@ -327,10 +327,10 @@ EndIf
 
 If IsMozillaBrowser($BrowserType) Then
 	;~ 创建禁止检查默认浏览器策略，使用 RunFirefox 后检测默认浏览器结果不准确
-	UpdatePolices($FirefoxDir, "DontCheckDefaultBrowser", true)
+	UpdatePolicies($FirefoxDir, "DontCheckDefaultBrowser", true)
 
 	;~ 创建禁用自动更新策略
-	UpdatePolices($FirefoxDir, "DisableAppUpdate", $AllowBrowserUpdate == 0)
+	UpdatePolicies($FirefoxDir, "DisableAppUpdate", $AllowBrowserUpdate == 0)
 
 	;~ RunFirefox owns the Jump List so every task can preserve the portable profile.
 	UpdateFirefoxPreferencePolicy($FirefoxDir, "browser.taskbar.lists.enabled", False)
@@ -381,7 +381,7 @@ For $i = $CommandLineStart To $cmdline[0]
 	$Params &= " " & QuoteCommandLineArgument($cmdline[$i])
 Next
 
-Local $BrowserIsRunning = AppIsRunning($FirefoxPath)
+Local $BrowserIsRunning = FindRunningAppPid($FirefoxPath)
 If IsMozillaBrowser($BrowserType) Then
 	DeleteMozillaLaunchOnLoginEntry($FirefoxPath)
 	SyncMozillaStartMenuShortcuts()
@@ -397,7 +397,7 @@ EndIf
 
 ;~ Fix Addons not Found
 If IsMozillaBrowser($BrowserType) And ($LastPlatformDir <> $FirefoxDir Or $LastProfileDir <> $ProfileDir) Then
-	UpdateAddonStarup()
+	UpdateAddonStartup()
 	UpdateExtensionsJson()
 EndIf
 
@@ -407,13 +407,13 @@ $AppPID = Run('"' & $FirefoxPath & '" ' & $BaseParams & $Params , $FirefoxDir)
 If IsMozillaBrowser($BrowserType) Then WaitAndDeleteMozillaLaunchOnLoginEntry($FirefoxPath)
 
 FileChangeDir(@ScriptDir)
-CreateSettingsShortcut(@ScriptDir & "\" & $ScriptNameWithOutSuffix & ".vbs")
+CreateSettingsShortcut(@ScriptDir & "\" & $ScriptNameWithoutSuffix & ".vbs")
 
 If $BrowserIsRunning Then
 	$exe = StringRegExpReplace(@AutoItExe, ".*\\", "")
 	$list = ProcessList($exe)
 	For $i = 1 To $list[0][0]
-		If $list[$i][1] <> @AutoItPID And GetProcPath($list[$i][1]) = @AutoItExe Then
+		If $list[$i][1] <> @AutoItPID And GetProcessPath($list[$i][1]) = @AutoItExe Then
 			Exit ;exit if another instance of myfirefox is running
 		EndIf
 	Next
@@ -447,7 +447,7 @@ EndIf
 
 Local $BrowserWindowClass = GetBrowserWindowClass($BrowserType)
 WinWait("[REGEXPCLASS:(?i)" & $BrowserWindowClass & "]", "", GetBrowserWindowWait($BrowserType))
-$hWnd_browser = GethWndbyPID($AppPID, $BrowserWindowClass)
+$hWnd_browser = FindVisibleWindowByPid($AppPID, $BrowserWindowClass)
 
 Global $AppUserModelId
 If FileExists($TaskBarDir) Then ; win 7+
@@ -484,24 +484,24 @@ ReduceMemory()
 AdlibRegister("ReduceMemory", 300000)
 
 ; wait for firefox exit
-$AppIsRunning = 0
+$BrowserIsRunning = 0
 While 1
 	Sleep(500)
 
 	If $hWnd_browser Then
-		$AppIsRunning = WinExists($hWnd_browser)
+		$BrowserIsRunning = WinExists($hWnd_browser)
 	Else ; ProcessExists() is resource consuming than WinExists()
-		$AppIsRunning = ProcessExists($AppPID)
+		$BrowserIsRunning = ProcessExists($AppPID)
 	EndIf
 
-	If Not $AppIsRunning Then
+	If Not $BrowserIsRunning Then
 		; check other browser instance
-		$AppPID = AppIsRunning($FirefoxPath)
+		$AppPID = FindRunningAppPid($FirefoxPath)
 		If Not $AppPID Then
 			ExitLoop
 		EndIf
-		$AppIsRunning = 1
-		$hWnd_browser = GethWndbyPID($AppPID, $BrowserWindowClass)
+		$BrowserIsRunning = 1
+		$hWnd_browser = FindVisibleWindowByPid($AppPID, $BrowserWindowClass)
 	EndIf
 
 	If $TaskBarLastChange Then
@@ -560,28 +560,28 @@ Exit
 
 ;~ =================================== 以上为自动执行部分 ===============================
 
-Func AppIsRunning($AppPath)
+Func FindRunningAppPid($AppPath)
 	Local $exe = StringRegExpReplace($AppPath, '.*\\', '')
 	Local $list = ProcessList($exe)
 	For $i = 1 To $list[0][0]
-		If StringInStr(GetProcPath($list[$i][1]), $AppPath) Then
+		If StringInStr(GetProcessPath($list[$i][1]), $AppPath) Then
 			Return $list[$i][1]
 		EndIf
 	Next
 	Return 0
-EndFunc   ;==>AppIsRunning
+EndFunc   ;==>FindRunningAppPid
 
 
-Func GethWndbyPID($pid, $class = "")
-	$list = WinList("[REGEXPCLASS:(?i)" & $class & "]")
+Func FindVisibleWindowByPid($ProcessId, $WindowClass = "")
+	$list = WinList("[REGEXPCLASS:(?i)" & $WindowClass & "]")
 	For $i = 1 To $list[0][0]
 		If Not BitAND(WinGetState($list[$i][1]), 2) Then ContinueLoop ; ignore hidden windows
-		If $pid = WinGetProcess($list[$i][1]) Then
+		If $ProcessId = WinGetProcess($list[$i][1]) Then
 			;ConsoleWrite("--> " & $list[$i][1] & "-" & $list[$i][0] & @CRLF)
 			Return $list[$i][1]
 		EndIf
 	Next
-EndFunc   ;==>GethWndbyPID
+EndFunc   ;==>FindVisibleWindowByPid
 
 Func RegisterBossKeyHotKey()
 	If Not IsBossKeySupportedBrowser($BrowserType) Or Not $BossKeyEnabled Or $BossKey = "" Then Return
@@ -632,7 +632,7 @@ Func IsOwnedBrowserWindow($hWnd)
 	Local $pid = WinGetProcess($hWnd)
 	If $pid = $AppPID Then Return True
 
-	Local $ProcPath = GetProcPath($pid)
+	Local $ProcPath = GetProcessPath($pid)
 	If $ProcPath = "" Then Return False
 	Return NormalizePathForCompare($ProcPath) = NormalizePathForCompare($FirefoxPath)
 EndFunc   ;==>IsOwnedBrowserWindow
@@ -1525,14 +1525,14 @@ Func FindChromeProgID($BrowserPath)
 	Return ""
 EndFunc   ;==>FindChromeProgID
 
-Func UpdateAddonStarup()
-	Local $addonStarup, $addonStarupLz4
+Func UpdateAddonStartup()
+	Local $AddonStartupJsonPath, $AddonStartupLz4Path
 
-	$addonStarupLz4 = $ProfileDir & "\" & "addonStartup.json.lz4"
-	$addonStarup = $ProfileDir & "\" & "addonStartup.json"
+	$AddonStartupLz4Path = $ProfileDir & "\addonStartup.json.lz4"
+	$AddonStartupJsonPath = $ProfileDir & "\addonStartup.json"
 
-	If FileExists($addonStarupLz4) Then
-		Local $fileOpen = FileOpen($addonStarupLz4, $FO_BINARY)
+	If FileExists($AddonStartupLz4Path) Then
+		Local $fileOpen = FileOpen($AddonStartupLz4Path, $FO_BINARY)
 		If $fileOpen <> -1 Then
 			Local $packedContent = FileRead($fileOpen)
 			FileClose($fileOpen)
@@ -1545,7 +1545,7 @@ Func UpdateAddonStarup()
 				$packedContent = _MozLz4_Compress(StringToBinary($jsonContent, 4))
 				Local $packedContentError = @error
 				If $packedContentError = 0 Then
-					$fileOpen = FileOpen($addonStarupLz4, $FO_BINARY + $FO_OVERWRITE)
+					$fileOpen = FileOpen($AddonStartupLz4Path, $FO_BINARY + $FO_OVERWRITE)
 					If $fileOpen <> -1 Then
 						FileWrite($fileOpen, $packedContent)
 						FileClose($fileOpen)
@@ -1555,10 +1555,10 @@ Func UpdateAddonStarup()
 		EndIf
 	EndIf
 
-	If FileExists($addonStarup) Then
-		FileDelete($addonStarup)
+	If FileExists($AddonStartupJsonPath) Then
+		FileDelete($AddonStartupJsonPath)
 	EndIf
-EndFunc   ;==>UpdateAddonStarup
+EndFunc   ;==>UpdateAddonStartup
 
 ; 替换 jar 文件路径
 Func ReplaceJarPath($content)
@@ -1864,7 +1864,7 @@ Func Settings()
 	GUICtrlCreateButton(_t("Apply", "应用"), 420, 489, 70, 22)
 	GUICtrlSetTip(-1, _t("ApplyTooltip", "保存设置"))
 	GUICtrlSetOnEvent(-1, "SettingsApply")
-	$hStatus = _GUICtrlStatusBar_Create($hSettings, -1, _t("DoublieClickToOpenSettingsWindow", '双击软件目录下的 "%s.vbs" 文件可调出此窗口', $ScriptNameWithOutSuffix))
+	$hStatus = _GUICtrlStatusBar_Create($hSettings, -1, _t("DoublieClickToOpenSettingsWindow", '双击软件目录下的 "%s.vbs" 文件可调出此窗口', $ScriptNameWithoutSuffix))
 	Opt("ExpandEnvStrings", 1)
 
 	ApplyDetectedBrowserTypeFromPath()
@@ -5527,18 +5527,18 @@ EndFunc   ;==>ReduceMemory
 
 ; #FUNCTION# ;===============================================================================
 ; 参考 http://www.autoitscript.com/forum/topic/63947-read-full-exe-path-of-a-known-windowprogram/
-; Name...........: GetProcPath
+; Name...........: GetProcessPath
 ; Description ...: 取得进程路径
-; Syntax.........: GetProcPath($Process_PID)
-; Parameters ....: $Process_PID - 进程的 pid
+; Syntax.........: GetProcessPath($ProcessId)
+; Parameters ....: $ProcessId - 进程 PID
 ; Return values .: Success - 完整路径
 ;                  Failure - set @error
 ;============================================================================================
-Func GetProcPath($pid = @AutoItPID)
-	If @OSArch <> "X86" And Not @AutoItX64 And Not _WinAPI_IsWow64Process($pid) Then ; much slow than dllcall method
+Func GetProcessPath($ProcessId = @AutoItPID)
+	If @OSArch <> "X86" And Not @AutoItX64 And Not _WinAPI_IsWow64Process($ProcessId) Then ; much slow than dllcall method
 		Local $colItems = ""
 		Local $objWMIService = ObjGet("winmgmts:\\localhost\root\CIMV2")
-		$colItems = $objWMIService.ExecQuery("SELECT * FROM Win32_Process WHERE ProcessId = " & $pid, "WQL", _
+		$colItems = $objWMIService.ExecQuery("SELECT * FROM Win32_Process WHERE ProcessId = " & $ProcessId, "WQL", _
 				0x10 + 0x20)
 		If IsObj($colItems) Then
 			For $objItem In $colItems
@@ -5547,13 +5547,13 @@ Func GetProcPath($pid = @AutoItPID)
 		EndIf
 		Return ""
 	Else
-		Local $hProcess = DllCall('kernel32.dll', 'ptr', 'OpenProcess', 'dword', BitOR(0x0400, 0x0010), 'int', 0, 'dword', $pid)
+		Local $hProcess = DllCall('kernel32.dll', 'ptr', 'OpenProcess', 'dword', BitOR(0x0400, 0x0010), 'int', 0, 'dword', $ProcessId)
 		If (@error) Or (Not $hProcess[0]) Then Return SetError(1, 0, '')
 		Local $ret = DllCall(@SystemDir & '\psapi.dll', 'int', 'GetModuleFileNameExW', 'ptr', $hProcess[0], 'ptr', 0, 'wstr', '', 'int', 1024)
 		If (@error) Or (Not $ret[0]) Then Return SetError(1, 0, '')
 		Return $ret[3]
 	EndIf
-EndFunc   ;==>GetProcPath
+EndFunc   ;==>GetProcessPath
 
 ; #FUNCTION# ====================================================================================================================
 ; Name...........: _GUICtrlComboBox_SelectString

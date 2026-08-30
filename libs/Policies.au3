@@ -2,7 +2,7 @@
 #include <Array.au3>
 #include <FileConstants.au3>
 
-Func UpdatePolices($FirefoxDir, $key, $value)
+Func UpdatePolicies($FirefoxDir, $key, $value)
     Local $policiesFolder = $FirefoxDir & "\distribution"
     Local $policiesFile = $policiesFolder & "\policies.json"
     Local $FileContent, $JSONObj
@@ -14,14 +14,14 @@ Func UpdatePolices($FirefoxDir, $key, $value)
 
     If Not FileExists($policiesFile) Then
         ;~ 如果文件不存在，创建默认策略对象
-        $JSONObj = CreateDefaultPolicesObj()
+        $JSONObj = CreateDefaultPoliciesObj()
     Else
         ;~ 如果文件存在，读取文件内容
         $FileContent = FileRead($policiesFile)
         $JSONObj = Json_Decode($FileContent)
         If Not Json_IsObject($JSONObj) Then
             ;~ 文件内容不是对象，创建默认策略对象
-            $JSONObj = CreateDefaultPolicesObj()
+            $JSONObj = CreateDefaultPoliciesObj()
         EndIf
     EndIf
 
@@ -60,7 +60,7 @@ Func UpdateFirefoxPreferencePolicy($FirefoxDir, $PreferenceName, $Value, $Status
         $FileContent = FileRead($policiesFile)
         $JSONObj = Json_Decode($FileContent)
     EndIf
-    If Not Json_IsObject($JSONObj) Then $JSONObj = CreateDefaultPolicesObj()
+    If Not Json_IsObject($JSONObj) Then $JSONObj = CreateDefaultPoliciesObj()
 
     Local $PoliciesObj
     If Json_ObjExists($JSONObj, "policies") Then $PoliciesObj = Json_ObjGet($JSONObj, "policies")
@@ -92,8 +92,8 @@ Func UpdateFirefoxPreferencePolicy($FirefoxDir, $PreferenceName, $Value, $Status
     Return True
 EndFunc   ;==>UpdateFirefoxPreferencePolicy
 
-;~ 创建默认 Polices 对象
-Func CreateDefaultPolicesObj()
+;~ 创建默认 Policies 对象
+Func CreateDefaultPoliciesObj()
     Local $JSONObj = Json_ObjCreate()
     Local $DisableObj = Json_ObjCreate()
     Json_ObjPut($DisableObj, "DisableAppUpdate", true)

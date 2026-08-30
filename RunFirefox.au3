@@ -124,7 +124,7 @@ Global Const $ChromeDevStandaloneX64Url = "https://dl.google.com/chrome/install/
 Global Const $ChromeCanaryDownloadPageUrl = "https://www.google.com/chrome/canary/"
 Global $FirstRun = 0, $FirstLaunch = 0, $FirefoxExe, $FirefoxDir, $isZotero = false
 Global $TaskBarDir = @AppDataDir & "\Microsoft\Internet Explorer\Quick Launch\User Pinned\TaskBar"
-Global $AppPID, $TaskBarLastChange, $FirefoxIconLastChange = 0, $FirefoxIconState = ""
+Global $AppPID, $TaskBarLastChange, $BrowserIconLastChange = 0, $BrowserIconState = ""
 Global $JumpListLastRefresh = 0, $JumpListContentSignature = ""
 Global $AllowBrowserUpdate, $CheckAppUpdate, $AppUpdateLastCheck, $RunInBackground, $BrowserType, $FirefoxPath, $ProfileDir
 Global $BrowserUpdateCheckMode, $BrowserUpdateLastCheck
@@ -1162,25 +1162,26 @@ Func CheckPinnedPrograms($browser_path)
 		Return
 	EndIf
 	Local $ftime = FileGetTime($TaskBarDir, 0, 1)
-	Local $prefsPath = $ProfileDir & "\prefs.js"
-	Local $prefsTime = 0
-	If FileExists($prefsPath) Then $prefsTime = FileGetTime($prefsPath, 0, 1)
-	If $ftime = $TaskBarLastChange And $prefsTime = $FirefoxIconLastChange Then
+	Local $iconSourcePath = ""
+	Local $iconSourceTime = 0
+	If IsMozillaBrowser($BrowserType) Then $iconSourcePath = $ProfileDir & "\prefs.js"
+	If FileExists($iconSourcePath) Then $iconSourceTime = FileGetTime($iconSourcePath, 0, 1)
+	If $ftime = $TaskBarLastChange And $iconSourceTime = $BrowserIconLastChange Then
 		Return
 	EndIf
 
 	$TaskBarLastChange = $ftime
-	$FirefoxIconLastChange = $prefsTime
+	$BrowserIconLastChange = $iconSourceTime
 	Local $search = FileFindFirstFile($TaskBarDir & "\*.lnk")
 	If $search = -1 Then Return
 	Local $file, $ShellObj, $objShortcut, $shortcut_appid, $shortcut_icon, $path
 	Local $desired_icon, $icon_state, $icon_known, $path_matches_browser, $path_matches_launcher
 	Local $oError = ObjEvent("AutoIt.Error", "ShortcutComError")
-	$desired_icon = GetFirefoxCustomIconLocation($browser_path, $icon_state, $icon_known)
-	If $icon_state <> "" And $icon_state <> $FirefoxIconState Then
-		$FirefoxIconState = $icon_state
-	ElseIf $FirefoxIconState = "" And $icon_state <> "" Then
-		$FirefoxIconState = $icon_state
+	$desired_icon = GetBrowserTaskbarIconLocation($browser_path, $icon_state, $icon_known)
+	If $icon_state <> "" And $icon_state <> $BrowserIconState Then
+		$BrowserIconState = $icon_state
+	ElseIf $BrowserIconState = "" And $icon_state <> "" Then
+		$BrowserIconState = $icon_state
 	EndIf
 	$ShellObj = ObjCreate("WScript.Shell")
 	If Not @error And IsObj($ShellObj) Then
@@ -1199,7 +1200,7 @@ Func CheckPinnedPrograms($browser_path)
 				If @error Then $shortcut_icon = ""
 				If $path_matches_browser Then
 					$objShortcut.TargetPath = @ScriptFullPath
-					; Keep Firefox's resource index so Windows does not switch to RunFirefox.exe's icon.
+					; Keep the browser's icon resource so Windows does not switch to RunFirefox.exe's icon.
 					If $icon_known Then
 						$objShortcut.IconLocation = $desired_icon
 					ElseIf StringStripWS($shortcut_icon, 3) <> "" Then
@@ -1208,8 +1209,8 @@ Func CheckPinnedPrograms($browser_path)
 					$objShortcut.Save
 					$TaskBarLastChange = FileGetTime($TaskBarDir, 0, 1)
 				ElseIf $icon_known And NormalizePathForCompare($shortcut_icon) <> NormalizePathForCompare($desired_icon) Then
-					; Firefox 154 updates owned links by AUMID. Keep the redirected pin in sync
-					; with browser.shell.customIcon.id even though its target is RunFirefox.
+					; Keep the redirected pin in sync with the browser icon even though its
+					; target is RunFirefox.
 					$objShortcut.IconLocation = $desired_icon
 					$objShortcut.Save
 					$TaskBarLastChange = FileGetTime($TaskBarDir, 0, 1)
@@ -1258,9 +1259,15 @@ Func CheckPinnedPrograms($browser_path)
 	FileClose($search)
 EndFunc   ;==>CheckPinnedPrograms
 
-Func GetFirefoxCustomIconLocation($browser_path, ByRef $icon_state, ByRef $icon_known)
+Func GetBrowserTaskbarIconLocation($browser_path, ByRef $icon_state, ByRef $icon_known)
 	$icon_state = ""
 	$icon_known = False
+	If IsChromeBrowser($BrowserType) Then
+		If Not FileExists($browser_path) Then Return ""
+		$icon_state = NormalizePathForCompare($browser_path) & "|0"
+		$icon_known = True
+		Return $browser_path & ",0"
+	EndIf
 	If Not IsMozillaBrowser($BrowserType) Then Return ""
 	Local $prefsPath = $ProfileDir & "\prefs.js"
 	If Not FileExists($prefsPath) Then Return ""
@@ -1293,13 +1300,13 @@ Func GetFirefoxCustomIconLocation($browser_path, ByRef $icon_state, ByRef $icon_
 			Return $browser_path & ",-1104"
 		Case "momo"
 			Return $browser_path & ",-1105"
-	Case "default"
+		Case "default"
 			Return $browser_path & ",0"
 	EndSwitch
 	$icon_state = ""
 	$icon_known = False
 	Return ""
-EndFunc   ;==>GetFirefoxCustomIconLocation
+EndFunc   ;==>GetBrowserTaskbarIconLocation
 
 Func ShortcutComError($oError)
 	Return

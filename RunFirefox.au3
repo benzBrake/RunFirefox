@@ -58,7 +58,7 @@
 Opt("GUIOnEventMode", 1)
 Opt("WinTitleMatchMode", 4)
 
-Global Const $CustomArch = "RunFirefox"
+Global Const $AppName = "RunFirefox"
 Global Const $AppVersion = "2.8.16"
 Global Const $FirefoxVersionUrl = "https://product-details.mozilla.org/1.0/firefox_versions.json"
 Global Const $ChromeUpdateUrl = "https://tools.google.com/service/update2"
@@ -122,30 +122,30 @@ Global Const $ChromeStableStandaloneX64Url = "https://dl.google.com/chrome/insta
 Global Const $ChromeBetaStandaloneX64Url = "https://dl.google.com/chrome/install/beta/ChromeBetaStandaloneSetup64.exe"
 Global Const $ChromeDevStandaloneX64Url = "https://dl.google.com/chrome/install/dev/ChromeDevStandaloneSetup64.exe"
 Global Const $ChromeCanaryDownloadPageUrl = "https://www.google.com/chrome/canary/"
-Global $FirstRun = 0, $FirstLaunch = 0, $FirefoxExe, $FirefoxDir, $isZotero = false
+Global $FirstRun = 0, $FirstLaunch = 0, $BrowserExecutableName, $BrowserDirectory, $isZotero = false
 Global $TaskBarDir = @AppDataDir & "\Microsoft\Internet Explorer\Quick Launch\User Pinned\TaskBar"
 Global $AppPID, $TaskBarLastChange, $BrowserIconLastChange = 0, $BrowserIconState = ""
 Global $JumpListLastRefresh = 0, $JumpListContentSignature = ""
-Global $AllowBrowserUpdate, $CheckAppUpdate, $AppUpdateLastCheck, $RunInBackground, $BrowserType, $FirefoxPath, $ProfileDir
+Global $AllowBrowserUpdate, $AppUpdateCheckEnabled, $AppUpdateLastCheck, $BackgroundModeEnabled, $BrowserType, $BrowserPath, $ProfileDir
 Global $BrowserUpdateCheckMode, $BrowserUpdateLastCheck
-Global $CustomPluginsDir, $CustomCacheDir, $CacheSize, $CacheSizeSmart, $CheckDefaultBrowser, $Params
+Global $CustomPluginsDir, $CustomCacheDir, $CacheSize, $CacheSizeSmart, $DefaultBrowserCheckEnabled, $Params
 Global $ChromiumDebugPortEnabled, $ChromiumDebugPort
-Global $ExApp, $ExAppAutoExit, $ExApp2
+Global $BrowserStartApps, $CloseStartAppsAfterBrowserExit, $BrowserExitApps
 Global $BossKeyEnabled, $BossKey, $BossKeyHideToTray, $BossKeyBrowserHidden = 0, $BossKeyTrayVisible = 0
 Global $GithubDirectMirror, $GithubJsDelivrMirror
 
-Global $DefaultProfDir, $hSettings, $hFirefoxPath, $hProfileDir, $hlanguage
-Global $hCopyProfile, $hCustomPluginsDir, $hGetPluginsDir
-Global $hCustomCacheDir, $hGetCacheDir, $hCacheSize, $hCacheSizeSmart
-Global $hParams, $hStatus, $SettingsOK
-Global $hAllowBrowserUpdate, $hCheckAppUpdate, $hRunInBackground, $hBrowserType, $hChannel, $hDownloadFirefox64, $FirefoxURL
-Global $hBrowserBitness, $hBrowserUpdateCheckMode, $hCurrentBrowserVersion, $hWaterfoxVersionHint, $hBrowserDownloadNow
-Global $hChromePlusHint, $hChromePlusDownloadPatch, $hChromePlusConfigPath, $hChromePlusCurrentVersion, $hChromePlusLatestVersion, $hChromePlusDoubleClickClose, $hChromePlusRightClickClose, $hChromePlusKeepLastTab
-Global $hChromePlusWheelTab, $hChromePlusWheelTabWhenPressRButton, $hChromePlusOpenUrlNewTab, $hChromePlusOpenBookmarkNewTab
-Global $hChromePlusHoverTab, $hChromePlusHoverTabDelay, $hChromePlusHoverTabDelayLabel
-Global $hChromePlusNewTabDisable, $hChromePlusNewTabDisableName, $hChromePlusNewTabDisableNameLabel
-Global $hChromiumGoogleApiImport, $hChromiumGoogleApiSuppress, $hChromiumGoogleApiClear
-Global $hChromiumDebugPortEnabled, $hChromiumDebugPort, $hChromiumDebugPortLabel
+Global $DefaultProfDir, $hSettings, $idBrowserPath, $idProfileDir, $idLanguage
+Global $idCopyProfile, $idCustomPluginsDir, $idGetPluginsDir
+Global $idCustomCacheDir, $idGetCacheDir, $idCacheSize, $idCacheSizeSmart
+Global $idParams, $hStatus, $SettingsConfirmed
+Global $idAllowBrowserUpdate, $idAppUpdateCheckEnabled, $idBackgroundModeEnabled, $idBrowserType, $idChannel, $idBrowserDownloadLink, $BrowserDownloadUrl
+Global $idBrowserBitness, $idBrowserUpdateCheckMode, $idCurrentBrowserVersion, $idWaterfoxVersionHint, $idBrowserDownloadNow
+Global $idChromePlusHint, $idChromePlusDownloadPatch, $idChromePlusConfigPath, $idChromePlusCurrentVersion, $idChromePlusLatestVersion, $idChromePlusDoubleClickClose, $idChromePlusRightClickClose, $idChromePlusKeepLastTab
+Global $idChromePlusWheelTab, $idChromePlusWheelTabWhenPressRButton, $idChromePlusOpenUrlNewTab, $idChromePlusOpenBookmarkNewTab
+Global $idChromePlusHoverTab, $idChromePlusHoverTabDelay, $idChromePlusHoverTabDelayLabel
+Global $idChromePlusNewTabDisable, $idChromePlusNewTabDisableName, $idChromePlusNewTabDisableNameLabel
+Global $idChromiumGoogleApiImport, $idChromiumGoogleApiSuppress, $idChromiumGoogleApiClear
+Global $idChromiumDebugPortEnabled, $idChromiumDebugPort, $idChromiumDebugPortLabel
 Global $LANG_DATA
 Global $FirefoxVersionsObj = 0
 Global $ZenReleaseUpdateXml = "", $ZenTwilightUpdateXml = ""
@@ -163,12 +163,12 @@ Global $ChromeStableVersion = "", $ChromeStableDownloadUrl = "", $ChromeBetaVers
 Global $BrowserVersionLoadHandle = 0, $BrowserVersionLoadFile = "", $BrowserVersionLoadBrowserType = "", $BrowserVersionLoadChannel = "", $BrowserVersionLoadKind = "", $BrowserVersionLoadAnim = 0
 Global $ChromePlusVersionLoadHandle = 0, $ChromePlusVersionLoadFile = "", $ChromePlusVersionLoadAnim = 0
 Global $AppUpdateCheckHandle = 0, $AppUpdateCheckFile = ""
-Global $hDownloadProgress, $hDownloadProgressStatus, $hDownloadProgressDetail, $hDownloadProgressBar, $hDownloadProgressCancel
+Global $hDownloadProgress, $idDownloadProgressStatus, $idDownloadProgressDetail, $idDownloadProgressBar, $idDownloadProgressCancel
 Global $DownloadProgressCancelled = 0, $DownloadProgressCanCancel = 0
 Global $DownloadProgressPreviousGuiMode = -1
-Global $hExApp, $hExAppAutoExit, $hExApp2
-Global $hBossKeyEnabled, $hBossKey, $hBossKeyHideToTray, $BossKeyCaptureValue = "", $BossKeyHotkeyProc = 0, $BossKeyInputWndProc = 0, $BossKeyKeys = 0
-Global $aExApp, $aExApp2, $aExAppPID[2]
+Global $idBrowserStartApps, $idCloseStartAppsAfterBrowserExit, $idBrowserExitApps
+Global $idBossKeyEnabled, $idBossKey, $idBossKeyHideToTray, $BossKeyCaptureValue = "", $BossKeyHotkeyProc = 0, $BossKeyInputWndProc = 0, $BossKeyKeys = 0
+Global $aBrowserStartApps, $aBrowserExitApps, $aBrowserStartAppPids[2]
 
 Global $hEvent, $ClientKey, $FileAsso, $URLAsso, $ChromeProgID
 Global $fReg[7][3] = [[$HKEY_CURRENT_USER, 'Software\Clients\StartMenuInternet'], _
@@ -226,7 +226,7 @@ If Not FileExists($inifile) Then
 	IniWrite($inifile, "Settings", "LastProfileDir", "")
 EndIf
 
-$CheckAppUpdate = IniRead($inifile, "Settings", "CheckAppUpdate", 1) * 1
+$AppUpdateCheckEnabled = IniRead($inifile, "Settings", "CheckAppUpdate", 1) * 1
 $AppUpdateLastCheck = IniRead($inifile, "Settings", "AppUpdateLastCheck", "")
 If Not $AppUpdateLastCheck Then
 	$AppUpdateLastCheck = "2015/01/01 00:00:00"
@@ -237,22 +237,22 @@ $BrowserUpdateLastCheck = IniRead($inifile, "Settings", "BrowserUpdateLastCheck"
 If Not $BrowserUpdateLastCheck Then
 	$BrowserUpdateLastCheck = "2015/01/01 00:00:00"
 EndIf
-$RunInBackground = IniRead($inifile, "Settings", "RunInBackground", 1) * 1
+$BackgroundModeEnabled = IniRead($inifile, "Settings", "RunInBackground", 1) * 1
 $BrowserType = NormalizeBrowserType(IniRead($inifile, "Settings", "BrowserType", $BrowserFirefox))
-$FirefoxPath = IniRead($inifile, "Settings", "FirefoxPath", ".\Firefox\firefox.exe")
+$BrowserPath = IniRead($inifile, "Settings", "FirefoxPath", ".\Firefox\firefox.exe")
 $ProfileDir = IniRead($inifile, "Settings", "ProfileDir", ".\profiles")
 $CustomPluginsDir = IniRead($inifile, "Settings", "CustomPluginsDir", "")
 $CustomCacheDir = IniRead($inifile, "Settings", "CustomCacheDir", "")
 $CacheSize = IniRead($inifile, "Settings", "CacheSize", "")
 $CacheSizeSmart = IniRead($inifile, "Settings", "CacheSizeSmart", 1) * 1
-$CheckDefaultBrowser = IniRead($inifile, "Settings", "CheckDefaultBrowser", 1) * 1
+$DefaultBrowserCheckEnabled = IniRead($inifile, "Settings", "CheckDefaultBrowser", 1) * 1
 $Params = IniRead($inifile, "Settings", "Params", "")
 $ChromiumDebugPortEnabled = IniRead($inifile, "Settings", "ChromiumDebugPortEnabled", 0) * 1
 $ChromiumDebugPort = IniRead($inifile, "Settings", "ChromiumDebugPort", 9222) * 1
 If $ChromiumDebugPort < 1 Or $ChromiumDebugPort > 65535 Then $ChromiumDebugPort = 9222
-$ExApp = IniRead($inifile, "Settings", "ExApp", "")
-$ExAppAutoExit = IniRead($inifile, "Settings", "ExAppAutoExit", 1) * 1
-$ExApp2 = IniRead($inifile, "Settings", "ExApp2", "")
+$BrowserStartApps = IniRead($inifile, "Settings", "ExApp", "")
+$CloseStartAppsAfterBrowserExit = IniRead($inifile, "Settings", "ExAppAutoExit", 1) * 1
+$BrowserExitApps = IniRead($inifile, "Settings", "ExApp2", "")
 $BossKeyEnabled = IniRead($inifile, "Settings", "BossKeyEnabled", 0) * 1
 $BossKey = IniRead($inifile, "Settings", "BossKey", "^`")
 $BossKeyHideToTray = IniRead($inifile, "Settings", "BossKeyHideToTray", 0) * 1
@@ -311,33 +311,33 @@ Opt("ExpandEnvStrings", 1)
 EnvSet("APP", @ScriptDir)
 
 ;~ 第一个启动参数为“-set”，或第一次运行，Firefox、配置文件夹、插件目录不存在，则显示设置窗口
-If ($cmdline[0] = 1 And $cmdline[1] = "-set") Or $FirstRun Or Not FileExists($FirefoxPath) Or Not FileExists($ProfileDir) Then
+If ($cmdline[0] = 1 And $cmdline[1] = "-set") Or $FirstRun Or Not FileExists($BrowserPath) Or Not FileExists($ProfileDir) Then
 	CreateSettingsShortcut(@ScriptDir & "\" & $ScriptNameWithoutSuffix & ".vbs")
 	Settings()
 EndIf
 
 ;~ 转换成绝对路径
-$FirefoxPath = FullPath($FirefoxPath)
-SplitPath($FirefoxPath, $FirefoxDir, $FirefoxExe)
+$BrowserPath = FullPath($BrowserPath)
+SplitPath($BrowserPath, $BrowserDirectory, $BrowserExecutableName)
 $ProfileDir = FullPath($ProfileDir)
 
-If IsMozillaBrowser($BrowserType) And $FirefoxExe = "zotero.exe" Then
+If IsMozillaBrowser($BrowserType) And $BrowserExecutableName = "zotero.exe" Then
 	$isZotero = True
 EndIf
 
 If IsMozillaBrowser($BrowserType) Then
 	;~ 创建禁止检查默认浏览器策略，使用 RunFirefox 后检测默认浏览器结果不准确
-	UpdatePolicies($FirefoxDir, "DontCheckDefaultBrowser", true)
+	UpdatePolicies($BrowserDirectory, "DontCheckDefaultBrowser", true)
 
 	;~ 创建禁用自动更新策略
-	UpdatePolicies($FirefoxDir, "DisableAppUpdate", $AllowBrowserUpdate == 0)
+	UpdatePolicies($BrowserDirectory, "DisableAppUpdate", $AllowBrowserUpdate == 0)
 
 	;~ RunFirefox owns the Jump List so every task can preserve the portable profile.
-	UpdateFirefoxPreferencePolicy($FirefoxDir, "browser.taskbar.lists.enabled", False)
+	UpdateFirefoxPreferencePolicy($BrowserDirectory, "browser.taskbar.lists.enabled", False)
 EndIf
 
 If IsAdmin() And $cmdline[0] = 1 And $cmdline[1] = "-SetDefaultGlobal" Then
-	CheckDefaultBrowser($FirefoxPath)
+	EnsureDefaultBrowser($BrowserPath)
 	Exit
 EndIf
 
@@ -381,30 +381,30 @@ For $i = $CommandLineStart To $cmdline[0]
 	$Params &= " " & QuoteCommandLineArgument($cmdline[$i])
 Next
 
-Local $BrowserIsRunning = FindRunningAppPid($FirefoxPath)
+Local $BrowserIsRunning = FindRunningAppPid($BrowserPath)
 If IsMozillaBrowser($BrowserType) Then
-	DeleteMozillaLaunchOnLoginEntry($FirefoxPath)
+	DeleteMozillaLaunchOnLoginEntry($BrowserPath)
 	SyncMozillaStartMenuShortcuts()
-	FileDelete($FirefoxDir & "\defaults\pref\runfirefox.js")
+	FileDelete($BrowserDirectory & "\defaults\pref\runfirefox.js")
 	$BrowserIsRunning = ProfileInUse($ProfileDir)
 	If Not $BrowserIsRunning Then
 		Local $config = CheckPrefs()
 		If $config Then
-			FileWrite($FirefoxDir & "\defaults\pref\runfirefox.js", $config)
+			FileWrite($BrowserDirectory & "\defaults\pref\runfirefox.js", $config)
 		EndIf
 	EndIf
 EndIf
 
 ;~ Fix Addons not Found
-If IsMozillaBrowser($BrowserType) And ($LastPlatformDir <> $FirefoxDir Or $LastProfileDir <> $ProfileDir) Then
+If IsMozillaBrowser($BrowserType) And ($LastPlatformDir <> $BrowserDirectory Or $LastProfileDir <> $ProfileDir) Then
 	UpdateAddonStartup()
 	UpdateExtensionsJson()
 EndIf
 
 ;~ Start browser
 $BaseParams = BuildBrowserLaunchParams($BrowserType)
-$AppPID = Run('"' & $FirefoxPath & '" ' & $BaseParams & $Params , $FirefoxDir)
-If IsMozillaBrowser($BrowserType) Then WaitAndDeleteMozillaLaunchOnLoginEntry($FirefoxPath)
+$AppPID = Run('"' & $BrowserPath & '" ' & $BaseParams & $Params , $BrowserDirectory)
+If IsMozillaBrowser($BrowserType) Then WaitAndDeleteMozillaLaunchOnLoginEntry($BrowserPath)
 
 FileChangeDir(@ScriptDir)
 CreateSettingsShortcut(@ScriptDir & "\" & $ScriptNameWithoutSuffix & ".vbs")
@@ -420,53 +420,53 @@ If $BrowserIsRunning Then
 EndIf
 
 ; Start external apps
-If $ExApp <> "" Then
-	$aExApp = StringSplit($ExApp, "||", 1)
-	ReDim $aExAppPID[$aExApp[0] + 1]
-	$aExAppPID[0] = $aExApp[0]
-	For $i = 1 To $aExApp[0]
-		$match = StringRegExp($aExApp[$i], '^"(.*?)" *(.*)', 1)
+If $BrowserStartApps <> "" Then
+	$aBrowserStartApps = StringSplit($BrowserStartApps, "||", 1)
+	ReDim $aBrowserStartAppPids[$aBrowserStartApps[0] + 1]
+	$aBrowserStartAppPids[0] = $aBrowserStartApps[0]
+	For $i = 1 To $aBrowserStartApps[0]
+		$match = StringRegExp($aBrowserStartApps[$i], '^"(.*?)" *(.*)', 1)
 		If @error Then
-			$file = $aExApp[$i]
+			$file = $aBrowserStartApps[$i]
 			$args = ""
 		Else
 			$file = $match[0]
 			$args = $match[1]
 		EndIf
 		$file = FullPath($file)
-		$aExAppPID[$i] = ProcessExists(StringRegExpReplace($file, '.*\\', ''))
-		If Not $aExAppPID[$i] And FileExists($file) Then
-			$aExAppPID[$i] = ShellExecute($file, $args, StringRegExpReplace($file, '\\[^\\]+$', ''))
+		$aBrowserStartAppPids[$i] = ProcessExists(StringRegExpReplace($file, '.*\\', ''))
+		If Not $aBrowserStartAppPids[$i] And FileExists($file) Then
+			$aBrowserStartAppPids[$i] = ShellExecute($file, $args, StringRegExpReplace($file, '\\[^\\]+$', ''))
 		EndIf
 	Next
 EndIf
 
-If $CheckDefaultBrowser Then
-	CheckDefaultBrowser($FirefoxPath)
+If $DefaultBrowserCheckEnabled Then
+	EnsureDefaultBrowser($BrowserPath)
 EndIf
 
 Local $BrowserWindowClass = GetBrowserWindowClass($BrowserType)
 WinWait("[REGEXPCLASS:(?i)" & $BrowserWindowClass & "]", "", GetBrowserWindowWait($BrowserType))
-$hWnd_browser = FindVisibleWindowByPid($AppPID, $BrowserWindowClass)
+$hBrowserWindow = FindVisibleWindowByPid($AppPID, $BrowserWindowClass)
 
 Global $AppUserModelId
 If FileExists($TaskBarDir) Then ; win 7+
-	$AppUserModelId = _WindowAppId($hWnd_browser)
-	CheckPinnedPrograms($FirefoxPath)
+	$AppUserModelId = _WindowAppId($hBrowserWindow)
+	CheckPinnedPrograms($BrowserPath)
 	RefreshBrowserJumpList(True)
 EndIf
 
 ;~ Check myfirefox update
-If $CheckAppUpdate And _DateDiff("h", $AppUpdateLastCheck, _NowCalc()) >= 48 Then
-	CheckAppUpdate()
+If $AppUpdateCheckEnabled And _DateDiff("h", $AppUpdateLastCheck, _NowCalc()) >= 48 Then
+	CheckForAppUpdate()
 EndIf
 
-If Not $RunInBackground Then
+If Not $BackgroundModeEnabled Then
 	Exit
 EndIf
 ; ========================= app ended if not run in background ================================
 
-If $CheckDefaultBrowser Then ; register REG for notification
+If $DefaultBrowserCheckEnabled Then ; register REG for notification
 	$hEvent = _WinAPI_CreateEvent()
 	For $i = 0 To UBound($fReg) - 1
 		If $fReg[$i][1] Then
@@ -483,36 +483,36 @@ RegisterBossKeyHotKey()
 ReduceMemory()
 AdlibRegister("ReduceMemory", 300000)
 
-; wait for firefox exit
+; wait for browser exit
 $BrowserIsRunning = 0
 While 1
 	Sleep(500)
 
-	If $hWnd_browser Then
-		$BrowserIsRunning = WinExists($hWnd_browser)
+	If $hBrowserWindow Then
+		$BrowserIsRunning = WinExists($hBrowserWindow)
 	Else ; ProcessExists() is resource consuming than WinExists()
 		$BrowserIsRunning = ProcessExists($AppPID)
 	EndIf
 
 	If Not $BrowserIsRunning Then
 		; check other browser instance
-		$AppPID = FindRunningAppPid($FirefoxPath)
+		$AppPID = FindRunningAppPid($BrowserPath)
 		If Not $AppPID Then
 			ExitLoop
 		EndIf
 		$BrowserIsRunning = 1
-		$hWnd_browser = FindVisibleWindowByPid($AppPID, $BrowserWindowClass)
+		$hBrowserWindow = FindVisibleWindowByPid($AppPID, $BrowserWindowClass)
 	EndIf
 
 	If $TaskBarLastChange Then
-		CheckPinnedPrograms($FirefoxPath)
+		CheckPinnedPrograms($BrowserPath)
 	EndIf
 	RefreshBrowserJumpListIfDue()
 
 	If $hEvent And Not _WinAPI_WaitForSingleObject($hEvent, 0) Then
 		; MsgBox(0, "", "Reg changed!")
 		Sleep(500)
-		CheckDefaultBrowser($FirefoxPath)
+		EnsureDefaultBrowser($BrowserPath)
 		For $i = 0 To UBound($fReg) - 1
 			If $fReg[$i][2] Then
 				_WinAPI_RegNotifyChangeKeyValue($fReg[$i][2], $REG_NOTIFY_CHANGE_LAST_SET, 1, 1, $hEvent)
@@ -523,11 +523,11 @@ WEnd
 
 RefreshBrowserJumpList(True)
 
-If $ExAppAutoExit And $ExApp <> "" Then
+If $CloseStartAppsAfterBrowserExit And $BrowserStartApps <> "" Then
 	$cmd = ''
-	For $i = 1 To $aExAppPID[0]
-		If Not $aExAppPID[$i] Then ContinueLoop
-		$cmd &= ' /PID ' & $aExAppPID[$i]
+	For $i = 1 To $aBrowserStartAppPids[0]
+		If Not $aBrowserStartAppPids[$i] Then ContinueLoop
+		$cmd &= ' /PID ' & $aBrowserStartAppPids[$i]
 	Next
 	If $cmd Then
 		$cmd = 'taskkill' & $cmd & ' /T /F'
@@ -536,12 +536,12 @@ If $ExAppAutoExit And $ExApp <> "" Then
 EndIf
 
 ; Start external apps
-If $ExApp2 <> "" Then
-	$aExApp2 = StringSplit($ExApp2, "||")
-	For $i = 1 To $aExApp2[0]
-		$match = StringRegExp($aExApp2[$i], '^"(.*?)" *(.*)', 1)
+If $BrowserExitApps <> "" Then
+	$aBrowserExitApps = StringSplit($BrowserExitApps, "||")
+	For $i = 1 To $aBrowserExitApps[0]
+		$match = StringRegExp($aBrowserExitApps[$i], '^"(.*?)" *(.*)', 1)
 		If @error Then
-			$file = $aExApp2[$i]
+			$file = $aBrowserExitApps[$i]
 			$args = ""
 		Else
 			$file = $match[0]
@@ -634,14 +634,14 @@ Func IsOwnedBrowserWindow($hWnd)
 
 	Local $ProcPath = GetProcessPath($pid)
 	If $ProcPath = "" Then Return False
-	Return NormalizePathForCompare($ProcPath) = NormalizePathForCompare($FirefoxPath)
+	Return NormalizePathForCompare($ProcPath) = NormalizePathForCompare($BrowserPath)
 EndFunc   ;==>IsOwnedBrowserWindow
 
 Func ShowBossKeyTrayIcon()
 	Opt("TrayAutoPause", 0)
 	Opt("TrayMenuMode", 3)
 	Opt("TrayOnEventMode", 1)
-	TraySetIcon($FirefoxPath)
+	TraySetIcon($BrowserPath)
 	TraySetClick(BitOR($TRAY_CLICK_PRIMARYDOWN, $TRAY_CLICK_PRIMARYUP, $TRAY_DBLCLICK_PRIMARY))
 	TraySetOnEvent($TRAY_EVENT_PRIMARYDOWN, "RestoreBrowserWindows")
 	TraySetOnEvent($TRAY_EVENT_PRIMARYUP, "RestoreBrowserWindows")
@@ -673,17 +673,17 @@ Func OnExit()
 			_WinAPI_RegCloseKey($fReg[$i][2])
 		Next
 	EndIf
-	IniWrite($inifile, "Settings", "LastPlatformDir", $FirefoxDir)
+	IniWrite($inifile, "Settings", "LastPlatformDir", $BrowserDirectory)
 	IniWrite($inifile, "Settings", "LastProfileDir", $ProfileDir)
 EndFunc   ;==>OnExit
 
 
 ;~ 查检 RunFirefox更新
-Func CheckAppUpdate()
+Func CheckForAppUpdate()
 	Local $latestVersion, $releaseNotes
 	If Not GetAvailableAppUpdate($latestVersion, $releaseNotes) Then Return
 	PromptAndApplyAppUpdate($latestVersion, $releaseNotes)
-EndFunc   ;==>CheckAppUpdate
+EndFunc   ;==>CheckForAppUpdate
 
 Func GetAvailableAppUpdate(ByRef $latestVersion, ByRef $releaseNotes)
 	Local $AppUpdateLastCheck, $repo = 'benzBrake/RunFirefox', $MirrorAddress = $GithubDirectMirror
@@ -708,13 +708,13 @@ Func PromptAndApplyAppUpdate($latestVersion, $releaseNotes)
 	Local $repo = 'benzBrake/RunFirefox', $downloadUrl, $MirrorAddress = $GithubDirectMirror, $msg, $file, $FileName
 	$MirrorAddress = _UpgradeNormalizeMirrorAddress($MirrorAddress)
 	$UpdateAvailable = _t("UpdateAvailable", "{AppName} {Version} 已发布，更新内容：\n\n\n{Notes}\n是否自动更新？")
-	$UpdateAvailable = StringReplace($UpdateAvailable, "{AppName}", $CustomArch)
+	$UpdateAvailable = StringReplace($UpdateAvailable, "{AppName}", $AppName)
 	$UpdateAvailable = StringReplace($UpdateAvailable, "{Version}", $latestVersion)
 	$UpdateAvailable = StringReplace($UpdateAvailable, "{Notes}", $releaseNotes)
 	If $hSettings Then
-		$msg = MsgBox(68, $CustomArch, $UpdateAvailable, 0, $hSettings)
+		$msg = MsgBox(68, $AppName, $UpdateAvailable, 0, $hSettings)
 	Else
-		$msg = MsgBox(68, $CustomArch, $UpdateAvailable)
+		$msg = MsgBox(68, $AppName, $UpdateAvailable)
 	EndIf
 	If $msg <> 6 Then Return
 
@@ -723,7 +723,7 @@ Func PromptAndApplyAppUpdate($latestVersion, $releaseNotes)
 	If @AutoItX64 Then
 		$archStr &= "_x64"
 	EndIf
-	Local $downloadFileName = $CustomArch & '_' & $latestVersion & $archStr & '.zip'
+	Local $downloadFileName = $AppName & '_' & $latestVersion & $archStr & '.zip'
 	Local $githubDownloadUrl = 'https://github.com/' & $repo & '/releases/download/v' & $latestVersion & '/' & $downloadFileName
 	Local $downloadUrls = _UpgradeBuildGithubReleaseDownloadUrls($githubDownloadUrl, $MirrorAddress, $GithubJsDelivrMirror)
 
@@ -734,8 +734,8 @@ Func PromptAndApplyAppUpdate($latestVersion, $releaseNotes)
 	Opt("TrayMenuMode", 3) ; Default tray menu items (Script Paused/Exit) will not be shown.
 	TraySetState(1)
 	TraySetClick(8)
-	TraySetToolTip($CustomArch)
-	Local $hCancelAppUpdate = TrayCreateItem(_t("CancelAppUpdate", "取消更新..."))
+	TraySetToolTip($AppName)
+	Local $idCancelAppUpdate = TrayCreateItem(_t("CancelAppUpdate", "取消更新..."))
 	Local $DownloadSuccessful, $DownloadCancelled, $UpdateSuccessful, $error
 	For $i = 0 To UBound($downloadUrls) - 1
 		$downloadUrl = $downloadUrls[$i]
@@ -747,8 +747,8 @@ Func PromptAndApplyAppUpdate($latestVersion, $releaseNotes)
 			Switch TrayGetMsg()
 				Case $TRAY_EVENT_PRIMARYDOWN
 					TrayTip("", _t("AppDownloadProgress", "正在下载 {AppName}\n已下载 %i KB", Round(InetGetInfo($hDownload, 0) / 1024)), 5, 1)
-				Case $hCancelAppUpdate
-					$msg = MsgBox(4 + 32 + 256, $CustomArch,_t("CancelAppUpdateConfirm", "正在下载 {AppName}，确定要取消吗？"))
+				Case $idCancelAppUpdate
+					$msg = MsgBox(4 + 32 + 256, $AppName,_t("CancelAppUpdateConfirm", "正在下载 {AppName}，确定要取消吗？"))
 					If $msg = 6 Then
 						$DownloadCancelled = 1
 						ExitLoop
@@ -764,9 +764,9 @@ Func PromptAndApplyAppUpdate($latestVersion, $releaseNotes)
 			TrayTip("", _t("ApplyingUpdate", "正在应用 {AppName} 更新"), 10, 1)
 			FileSetAttrib($file, "+A")
 			_Zip_UnzipAll($file, $temp)
-			$FileName = $CustomArch & ".exe"
+			$FileName = $AppName & ".exe"
 			If @AutoItX64 Then
-				$FileName = $CustomArch & "_x64.exe"
+				$FileName = $AppName & "_x64.exe"
 			EndIf
 			If FileExists($temp & "\" & $FileName) Then
 				FileMove(@ScriptFullPath, @ScriptDir & "\" & @ScriptName & ".bak", 9)
@@ -784,17 +784,17 @@ Func PromptAndApplyAppUpdate($latestVersion, $releaseNotes)
 			Local $UpdateSuccessfulMsg = _t("UpdateSuccessConfirm", "{AppName} 已更新至 {Version} ！\n原 {ScriptName} 已备份为 {ScriptNameBak}")
 			$UpdateSuccessfulMsg = StringReplace($UpdateSuccessfulMsg, "{Version}", $latestVersion)
 			$UpdateSuccessfulMsg = StringReplace($UpdateSuccessfulMsg, "{ScriptNameBak}", @ScriptName & ".bak")
-			MsgBox(64, $CustomArch, $UpdateSuccessfulMsg)
+			MsgBox(64, $AppName, $UpdateSuccessfulMsg)
 		Else
 			Local $UpdateFailedConfirmMsg = _t("UpdateFailedConfirm", "{AppName} 自动更新失败：\n%s\n\n是否去软件发布页手动下载 {AppName}？", $error)
-			$msg = MsgBox(20, $CustomArch, $UpdateFailedConfirmMsg)
+			$msg = MsgBox(20, $AppName, $UpdateFailedConfirmMsg)
 			If $msg = 6 Then ; Yes
 				ShellExecute("https://github.com/benzBrake/RunFirefox/releases")
 			EndIf
 		EndIf
 	EndIf
 	DirRemove($temp, 1)
-	TrayItemDelete($hCancelAppUpdate)
+	TrayItemDelete($idCancelAppUpdate)
 	TraySetState(2)
 EndFunc   ;==>PromptAndApplyAppUpdate
 
@@ -835,7 +835,7 @@ EndFunc   ;==>StartAppUpdateCheckProcess
 
 Func BeginAppUpdateCheck()
 	If $AppUpdateCheckHandle Then Return
-	If Not $CheckAppUpdate Then Return
+	If Not $AppUpdateCheckEnabled Then Return
 	If _DateDiff("h", $AppUpdateLastCheck, _NowCalc()) < 48 Then Return
 
 	$AppUpdateLastCheck = _NowCalc()
@@ -883,8 +883,8 @@ EndFunc   ;==>PollAppUpdateCheck
 
 
 Func DeleteCfgFiles()
-	FileDelete($FirefoxDir & "\defaults\pref\runfirefox.js")
-	FileDelete($FirefoxDir & "\runfirefox.cfg")
+	FileDelete($BrowserDirectory & "\defaults\pref\runfirefox.js")
+	FileDelete($BrowserDirectory & "\runfirefox.cfg")
 EndFunc   ;==>DeleteCfgFiles
 
 Func DeleteMozillaLaunchOnLoginEntry($BrowserPath)
@@ -927,8 +927,8 @@ Func SyncMozillaStartMenuShortcuts($ProgramsDir = Default)
 	If Not IsMozillaBrowser($BrowserType) Then Return False
 
 	If IsKeyword($ProgramsDir) Then $ProgramsDir = EnvGet("APPDATA") & "\Microsoft\Windows\Start Menu\Programs"
-	Local $PrivateBrowsingPath = $FirefoxDir & "\private_browsing.exe"
-	If Not FileExists($ProgramsDir) Or StringStripWS($FirefoxPath, 3) = "" Then Return False
+	Local $PrivateBrowsingPath = $BrowserDirectory & "\private_browsing.exe"
+	If Not FileExists($ProgramsDir) Or StringStripWS($BrowserPath, 3) = "" Then Return False
 
 	Local $search = FileFindFirstFile($ProgramsDir & "\*.lnk")
 	If $search = -1 Then Return False
@@ -949,7 +949,7 @@ Func SyncMozillaStartMenuShortcuts($ProgramsDir = Default)
 			$path = $objShortcut.TargetPath
 			If @error Or StringStripWS($path, 3) = "" Then ContinueLoop
 
-			$path_matches_browser = NormalizePathForCompare($path) = NormalizePathForCompare($FirefoxPath)
+			$path_matches_browser = NormalizePathForCompare($path) = NormalizePathForCompare($BrowserPath)
 			$path_matches_private = FileExists($PrivateBrowsingPath) And NormalizePathForCompare($path) = NormalizePathForCompare($PrivateBrowsingPath)
 			If Not $path_matches_browser And Not $path_matches_private Then ContinueLoop
 
@@ -1149,7 +1149,7 @@ Func RefreshBrowserJumpList($Force = False)
 	Next
 	If Not $Force And $Signature = $JumpListContentSignature Then Return True
 
-	Local $Built = _JumpListBuild($AppUserModelId, @ScriptFullPath, @ScriptDir, $FirefoxPath, $aTasks, 4, _t("JumpListFrequent", "常用"), $aDestinations, $DestinationCount)
+	Local $Built = _JumpListBuild($AppUserModelId, @ScriptFullPath, @ScriptDir, $BrowserPath, $aTasks, 4, _t("JumpListFrequent", "常用"), $aDestinations, $DestinationCount)
 	If $Built Then $JumpListContentSignature = $Signature
 	Return $Built
 EndFunc   ;==>RefreshBrowserJumpList
@@ -1221,13 +1221,13 @@ Func CheckPinnedPrograms($browser_path)
 					;Sleep(3000)
 					; usually fails to get firefox's window appid while succeeds on chrome,
 					; what's wrong?
-					$AppUserModelId = _WindowAppId($hWnd_browser)
+					$AppUserModelId = _WindowAppId($hBrowserWindow)
 					If Not $AppUserModelId Then
 						If IsMozillaBrowser($BrowserType) Then
 							$AppUserModelId = AppIdFromRegistry()
 							If Not $AppUserModelId Then
 								; helper.exe writes AppUserModelIDs to SOFTWARE\Mozilla\Firefox\TaskBarIDs
-								Local $pid = Run($FirefoxDir & "\uninstall\helper.exe /UpdateShortcutAppUserModelIds")
+								Local $pid = Run($BrowserDirectory & "\uninstall\helper.exe /UpdateShortcutAppUserModelIds")
 								ProcessWaitClose($pid, 5)
 								SyncMozillaStartMenuShortcuts()
 								$AppUserModelId = AppIdFromRegistry()
@@ -1241,7 +1241,7 @@ Func CheckPinnedPrograms($browser_path)
 								$AppUserModelId = "RunFirefox." & StringTrimLeft(_WinAPI_HashString(@ScriptFullPath, 0, 16), 2)
 							EndIf
 						EndIf
-						_WindowAppId($hWnd_browser, $AppUserModelId)
+						_WindowAppId($hBrowserWindow, $AppUserModelId)
 					EndIf
 				EndIf
 				; Firefox 154 uses the shortcut AppUserModelID to enumerate its taskbar
@@ -1320,7 +1320,7 @@ Func AppIdFromRegistry()
 		Local $aRoot[3] = ["HKCU\SOFTWARE", $HKLM_Software_32, $HKLM_Software_64]
 	EndIf
 	For $i = 0 To UBound($aRoot) - 1
-		$appid = RegRead($aRoot[$i] & "\Mozilla\Firefox\TaskBarIDs", $FirefoxDir)
+		$appid = RegRead($aRoot[$i] & "\Mozilla\Firefox\TaskBarIDs", $BrowserDirectory)
 		If $appid Then ExitLoop
 	Next
 	Return $appid
@@ -1335,10 +1335,10 @@ Func CreateSettingsShortcut($fname)
 EndFunc   ;==>CreateSettingsShortcut
 
 
-Func CheckDefaultBrowser($BrowserPath)
+Func EnsureDefaultBrowser($BrowserPath)
 	If IsChromeBrowser($BrowserType) Then Return CheckChromeDefaultBrowser($BrowserPath)
 	Return CheckMozillaDefaultBrowser($BrowserPath)
-EndFunc   ;==>CheckDefaultBrowser
+EndFunc   ;==>EnsureDefaultBrowser
 
 Func CheckMozillaDefaultBrowser($BrowserPath)
 	Local $InternetClient, $key, $i, $j, $var, $RegWriteError = 0
@@ -1571,7 +1571,7 @@ Func ReplaceJarPath($content)
 		Local $dir, $name, $newPath = ""
 		SplitPath($tempPath, $dir, $name, "/")
 		If (_StringEndsWith($dir, "/browser/features")) Then
-			$newPath = "jar:file:///" & $FirefoxDir & "/browser/features/" & $name & "!/";
+			$newPath = "jar:file:///" & $BrowserDirectory & "/browser/features/" & $name & "!/";
 		EndIf
 		If (_StringEndsWith($dir, "/extensions")) Then
 			$newPath = "jar:file:///" & $ProfileDir & "/extensions/" & $name & "!/";
@@ -1612,7 +1612,7 @@ Func ReplaceLocalPath($content)
 		Local $dir, $name, $newPath = ""
 		SplitPath($prevPath, $dir, $name, "\")
 		If (_StringEndsWith($dir, "\browser\features")) Then
-			$newPath = $FirefoxDir & "\browser\features\" & $name;
+			$newPath = $BrowserDirectory & "\browser\features\" & $name;
 		EndIf
 		If (_StringEndsWith($dir, "\extensions")) Then
 			$newPath = $ProfileDir & "\extensions\" & $name;
@@ -1650,67 +1650,67 @@ Func Settings()
 
 	GUICtrlCreateGroup(_t("BrowserFiles", "浏览器程序文件"), 10, 80, 480, 180)
 	GUICtrlCreateLabel(_t("FirefoxPath", "浏览器路径"), 20, 108, 120, 20)
-	$hFirefoxPath = GUICtrlCreateEdit($FirefoxPath, 140, 103, 270, 20, $ES_AUTOHSCROLL)
+	$idBrowserPath = GUICtrlCreateEdit($BrowserPath, 140, 103, 270, 20, $ES_AUTOHSCROLL)
 	GUICtrlSetTip(-1, _t("BrowserExecutablePath", "浏览器主程序路径"))
-	GUICtrlSetOnEvent(-1, "OnFirefoxPathChange")
+	GUICtrlSetOnEvent(-1, "OnBrowserPathChange")
 	GUICtrlCreateButton(_t("Browse", "浏览"), 420, 102, 60, 22)
 	GUICtrlSetTip(-1, _t("ChoosePortableBrowser", "选择便携版浏览器\n主程序（firefox.exe）"))
-	GUICtrlSetOnEvent(-1, "GetFirefoxPath")
+	GUICtrlSetOnEvent(-1, "SelectBrowserExecutable")
 
 	GUICtrlCreateLabel(_t("BrowserType", "浏览器"), 20, 138, 55, 20)
-	$hBrowserType = GUICtrlCreateCombo("", 80, 133, 105, 20, $CBS_DROPDOWNLIST)
-	GUICtrlSetData($hBrowserType, GetBrowserTypeComboData(), GetBrowserTypeLabel($BrowserType))
+	$idBrowserType = GUICtrlCreateCombo("", 80, 133, 105, 20, $CBS_DROPDOWNLIST)
+	GUICtrlSetData($idBrowserType, GetBrowserTypeComboData(), GetBrowserTypeLabel($BrowserType))
 	GUICtrlSetOnEvent(-1, "ChangeBrowserType")
 
 	GUICtrlCreateLabel(_t("UpdateChannel", "更新通道"), 200, 138, 70, 20)
-	$hChannel = GUICtrlCreateCombo("", 275, 133, 80, 20, $CBS_DROPDOWNLIST)
+	$idChannel = GUICtrlCreateCombo("", 275, 133, 80, 20, $CBS_DROPDOWNLIST)
 	GUICtrlSetOnEvent(-1, "ChangeChannel")
 
-	$hAllowBrowserUpdate = GUICtrlCreateCheckbox(_t("BrowserAutoUpdate", " 自动更新"), 365, 133, -1, 20)
+	$idAllowBrowserUpdate = GUICtrlCreateCheckbox(_t("BrowserAutoUpdate", " 自动更新"), 365, 133, -1, 20)
 	If $AllowBrowserUpdate Then
 		GUICtrlSetState(-1, $GUI_CHECKED)
 	EndIf
 
-;~ 	$hDownloadFirefox = GUICtrlCreateLabel("去下载 " & GUICtrlRead($hChannel), 300, 130, 180, 20)
+;~ 	$idLegacyBrowserDownloadLink = GUICtrlCreateLabel("去下载 " & GUICtrlRead($idChannel), 300, 130, 180, 20)
 ;~ 	GUICtrlSetCursor(-1, 0)
 ;~ 	GUICtrlSetColor(-1, 0x0000FF)
 ;~ 	GUICtrlSetTip(-1, "去下载 Firefox")
-;~ 	GUICtrlSetOnEvent(-1, "DownloadFirefox")
+;~ 	GUICtrlSetOnEvent(-1, "DownloadBrowser")
 
 	GUICtrlCreateLabel(_t("BrowserBitness", "浏览器位数："), 20, 168, 120, 20)
-	$hBrowserBitness = GUICtrlCreateLabel("x64", 140, 168, 120, 20)
+	$idBrowserBitness = GUICtrlCreateLabel("x64", 140, 168, 120, 20)
 
 	GUICtrlCreateLabel(_t("LatestVersion", "最新版本："), 280, 168, 80, 20)
-	$hDownloadFirefox64 = GUICtrlCreateLabel(_t("BrowserDownloadAddress", "下载地址"), 365, 168, 115, 20)
+	$idBrowserDownloadLink = GUICtrlCreateLabel(_t("BrowserDownloadAddress", "下载地址"), 365, 168, 115, 20)
 	GUICtrlSetCursor(-1, 0)
 	GUICtrlSetColor(-1, 0x0000FF)
-	GUICtrlSetOnEvent(-1, "DownloadFirefox")
+	GUICtrlSetOnEvent(-1, "DownloadBrowser")
 
 	GUICtrlCreateLabel(_t("CheckBrowserUpdate", "检查浏览器更新："), 20, 198, 120, 20)
-	$hBrowserUpdateCheckMode = GUICtrlCreateCombo("", 140, 193, 120, 20, $CBS_DROPDOWNLIST)
-	GUICtrlSetData($hBrowserUpdateCheckMode, GetBrowserUpdateCheckModeComboData(), GetBrowserUpdateCheckModeLabel($BrowserUpdateCheckMode))
+	$idBrowserUpdateCheckMode = GUICtrlCreateCombo("", 140, 193, 120, 20, $CBS_DROPDOWNLIST)
+	GUICtrlSetData($idBrowserUpdateCheckMode, GetBrowserUpdateCheckModeComboData(), GetBrowserUpdateCheckModeLabel($BrowserUpdateCheckMode))
 	GUICtrlSetOnEvent(-1, "ChangeBrowserUpdateCheckMode")
 
 	GUICtrlCreateLabel(_t("CurrentVersion", "当前版本："), 280, 198, 80, 20)
-	$hCurrentBrowserVersion = GUICtrlCreateLabel("-", 365, 198, 115, 20)
-	$hWaterfoxVersionHint = GUICtrlCreateLabel(_t("WaterfoxCurrentVersionUnsupported", "Waterfox 本地版本号读取不准确"), 140, 228, 220, 20)
+	$idCurrentBrowserVersion = GUICtrlCreateLabel("-", 365, 198, 115, 20)
+	$idWaterfoxVersionHint = GUICtrlCreateLabel(_t("WaterfoxCurrentVersionUnsupported", "Waterfox 本地版本号读取不准确"), 140, 228, 220, 20)
 	GUICtrlSetColor(-1, 0xFF0000)
-	GUICtrlSetState($hWaterfoxVersionHint, $GUI_HIDE)
-	$hBrowserDownloadNow = GUICtrlCreateButton(_t("DownloadNow", "立即下载"), 365, 224, 90, 22)
-	GUICtrlSetOnEvent(-1, "DownloadFirefox")
-	GUICtrlSetState($hBrowserDownloadNow, $GUI_HIDE)
+	GUICtrlSetState($idWaterfoxVersionHint, $GUI_HIDE)
+	$idBrowserDownloadNow = GUICtrlCreateButton(_t("DownloadNow", "立即下载"), 365, 224, 90, 22)
+	GUICtrlSetOnEvent(-1, "DownloadBrowser")
+	GUICtrlSetState($idBrowserDownloadNow, $GUI_HIDE)
 
 	GUICtrlCreateGroup(_t("ProfileFiles", "浏览器用户数据文件"), 10, 270, 480, 90)
 	GUICtrlCreateLabel(_t("ProfileDirectory", "配置文件夹"), 20, 300, 120, 20)
-	$hProfileDir = GUICtrlCreateEdit($ProfileDir, 140, 295, 270, 20, $ES_AUTOHSCROLL)
+	$idProfileDir = GUICtrlCreateEdit($ProfileDir, 140, 295, 270, 20, $ES_AUTOHSCROLL)
 	GUICtrlSetTip(-1, _t("ProfileDirectoryTooltip", "浏览器配置文件夹"))
 	GUICtrlCreateButton(_t("Browse", "浏览"), 420, 294, 60, 22)
 	GUICtrlSetTip(-1, _t("ChooseProfileDirectory", "指定浏览器配置文件夹"))
 	GUICtrlSetOnEvent(-1, "GetProfileDir")
-	$hCopyProfile = GUICtrlCreateCheckbox(_t("ExtractProfileFromSystem", " 从系统中提取浏览器配置文件"), 20, 328, -1, 20)
+	$idCopyProfile = GUICtrlCreateCheckbox(_t("ExtractProfileFromSystem", " 从系统中提取浏览器配置文件"), 20, 328, -1, 20)
 
 	GUICtrlCreateLabel(_t("UILanguage", "显示语言/Language"), 20, 385, 120, 20)
-	$hlanguage = GUICtrlCreateCombo("", 140, 380, 100, 20, $CBS_DROPDOWNLIST)
+	$idLanguage = GUICtrlCreateCombo("", 140, 380, 100, 20, $CBS_DROPDOWNLIST)
 	$sLang = '简体中文'
 	If _ItemExists($LANGUAGES, $LANGUAGE) Then
 		$sLang = _Item($LANGUAGES, $LANGUAGE)
@@ -1719,61 +1719,61 @@ Func Settings()
 	GUICtrlSetData(-1, $sLangEnum, $slang)
 	GUICtrlSetOnEvent(-1, "ChangeLanguage")
 
-	$hCheckAppUpdate = GUICtrlCreateCheckbox(_t("NoticeMeWhenNewVersionPublished", " {AppName} 发布新版时通知我"), 20, 415)
-	If $CheckAppUpdate Then
+	$idAppUpdateCheckEnabled = GUICtrlCreateCheckbox(_t("NoticeMeWhenNewVersionPublished", " {AppName} 发布新版时通知我"), 20, 415)
+	If $AppUpdateCheckEnabled Then
 		GUICtrlSetState(-1, $GUI_CHECKED)
 	EndIf
-	$hRunInBackground = GUICtrlCreateCheckbox(_t("KeepRunFirefoxRunning", " {AppName} 在后台运行直至浏览器退出"), 20, 440)
-	GUICtrlSetOnEvent(-1, "RunInBackground")
-	If $RunInBackground Then
-		GUICtrlSetState($hRunInBackground, $GUI_CHECKED)
+	$idBackgroundModeEnabled = GUICtrlCreateCheckbox(_t("KeepRunFirefoxRunning", " {AppName} 在后台运行直至浏览器退出"), 20, 440)
+	GUICtrlSetOnEvent(-1, "OnBackgroundModeChange")
+	If $BackgroundModeEnabled Then
+		GUICtrlSetState($idBackgroundModeEnabled, $GUI_CHECKED)
 	EndIf
 
 	; 高级
 	GUICtrlCreateTabItem(_t("Advanced", "高级"))
 	GUICtrlCreateGroup(_t("CacheSettings", "缓存设置"), 10, 80, 480, 120)
 	GUICtrlCreateLabel(_t("PluginsDirectory", "插件目录"), 20, 108, 120, 20)
-	$hCustomPluginsDir = GUICtrlCreateEdit($CustomPluginsDir, 140, 103, 270, 20, $ES_AUTOHSCROLL)
+	$idCustomPluginsDir = GUICtrlCreateEdit($CustomPluginsDir, 140, 103, 270, 20, $ES_AUTOHSCROLL)
 	GUICtrlSetTip(-1, _t("PluginsDirectoryTooltip", "浏览器插件目录\n空白=默认位置"))
-	$hGetPluginsDir = GUICtrlCreateButton(_t("Browse", "浏览"), 420, 103, 60, 22)
+	$idGetPluginsDir = GUICtrlCreateButton(_t("Browse", "浏览"), 420, 103, 60, 22)
 	GUICtrlSetTip(-1, _t("SpecifyPluginsDirectoryTooltip", "选择浏览器插件目录"))
 	GUICtrlSetOnEvent(-1, "GetPluginsDir")
 
 	GUICtrlCreateLabel(_t("CacheDirectory", "缓存位置"), 20, 138, 120, 20)
-	$hCustomCacheDir = GUICtrlCreateEdit($CustomCacheDir, 140, 133, 270, 20, $ES_AUTOHSCROLL)
+	$idCustomCacheDir = GUICtrlCreateEdit($CustomCacheDir, 140, 133, 270, 20, $ES_AUTOHSCROLL)
 	GUICtrlSetTip(-1, _t("CacheDirectoryTooltip", "浏览器缓存位置\n空白=默认位置"))
-	$hGetCacheDir = GUICtrlCreateButton(_t("Browse", "浏览"), 420, 133, 60, 22)
+	$idGetCacheDir = GUICtrlCreateButton(_t("Browse", "浏览"), 420, 133, 60, 22)
 	GUICtrlSetTip(-1, _t("SpecifyCacheDirectoryTooltip", "选择浏览器缓存文件夹"))
 	GUICtrlSetOnEvent(-1, "GetCacheDir")
 
 	GUICtrlCreateLabel(_t("CacheSize", "缓存大小"), 20, 168, 120, 20)
-	$hCacheSize = GUICtrlCreateEdit($CacheSize, 140, 163, 60, 20, BitOR($ES_NUMBER, $ES_AUTOHSCROLL))
+	$idCacheSize = GUICtrlCreateEdit($CacheSize, 140, 163, 60, 20, BitOR($ES_NUMBER, $ES_AUTOHSCROLL))
 	GUICtrlSetTip(-1, _t("CacheSizeTooltip", "缓存大小\n空白=默认大小"))
 	GUICtrlCreateLabel("MB", 215, 168, 35, 20)
-	$hCacheSizeSmart = GUICtrlCreateCheckbox(_t("CacheSizeControl", " 自动控制缓存大小"), 250, 163, -1, 20)
+	$idCacheSizeSmart = GUICtrlCreateCheckbox(_t("CacheSizeControl", " 自动控制缓存大小"), 250, 163, -1, 20)
 	If $CacheSizeSmart Then GUICtrlSetState(-1, $GUI_CHECKED)
 
 	GUICtrlCreateGroup(_t("ChromiumSettings", "Chromium设置"), 10, 210, 480, 125)
-	$hChromiumGoogleApiImport = GUICtrlCreateButton(_t("ImportGoogleApi", "导入GoogleAPI"), 20, 233, 140, 22)
+	$idChromiumGoogleApiImport = GUICtrlCreateButton(_t("ImportGoogleApi", "导入GoogleAPI"), 20, 233, 140, 22)
 	GUICtrlSetOnEvent(-1, "ImportChromiumGoogleApi")
 	GUICtrlSetTip(-1, _t("ImportGoogleApiTooltip", "导入GoogleAPI密钥后，Chromium 才能登录 Google 账号"))
-	$hChromiumGoogleApiSuppress = GUICtrlCreateButton(_t("SuppressGoogleApiWarning", "清除GoogleAPI提示"), 180, 233, 140, 22)
+	$idChromiumGoogleApiSuppress = GUICtrlCreateButton(_t("SuppressGoogleApiWarning", "清除GoogleAPI提示"), 180, 233, 140, 22)
 	GUICtrlSetOnEvent(-1, "SuppressChromiumGoogleApiWarning")
 	GUICtrlSetTip(-1, _t("SuppressGoogleApiWarningTooltip", "不导入GoogleAPI密钥，只清除缺少 Google API 密钥提示"))
-	$hChromiumGoogleApiClear = GUICtrlCreateButton(_t("ClearGoogleApi", "清除GoogleAPI"), 340, 233, 140, 22)
+	$idChromiumGoogleApiClear = GUICtrlCreateButton(_t("ClearGoogleApi", "清除GoogleAPI"), 340, 233, 140, 22)
 	GUICtrlSetOnEvent(-1, "ClearChromiumGoogleApi")
 	GUICtrlSetTip(-1, _t("ClearGoogleApiTooltip", "缺少GoogleAPI密钥会导致 Chromium 不能登录 Google 账号"))
-	$hChromiumDebugPortEnabled = GUICtrlCreateCheckbox(_t("EnableChromiumDebugPort", " 启用自定义 CDP 调试端口"), 20, 268, 230, 20)
+	$idChromiumDebugPortEnabled = GUICtrlCreateCheckbox(_t("EnableChromiumDebugPort", " 启用自定义 CDP 调试端口"), 20, 268, 230, 20)
 	GUICtrlSetOnEvent(-1, "RefreshChromiumDebugPortState")
 	If $ChromiumDebugPortEnabled Then GUICtrlSetState(-1, $GUI_CHECKED)
-	$hChromiumDebugPortLabel = GUICtrlCreateLabel(_t("ChromiumDebugPort", "端口"), 275, 273, 45, 20)
-	$hChromiumDebugPort = GUICtrlCreateInput($ChromiumDebugPort, 325, 268, 80, 20, BitOR($ES_NUMBER, $ES_AUTOHSCROLL))
+	$idChromiumDebugPortLabel = GUICtrlCreateLabel(_t("ChromiumDebugPort", "端口"), 275, 273, 45, 20)
+	$idChromiumDebugPort = GUICtrlCreateInput($ChromiumDebugPort, 325, 268, 80, 20, BitOR($ES_NUMBER, $ES_AUTOHSCROLL))
 	GUICtrlSetTip(-1, _t("ChromiumDebugPortTooltip", "CDP 远程调试端口，范围为 1-65535。"))
 	GUICtrlCreateLabel(_t("ChromiumDebugPortConflictHelp", "启用后会自动添加 CDP 参数，请勿在下方命令行参数中重复设置调试端口或调试管道。"), 20, 298, 460, 28)
 	GUICtrlSetColor(-1, 0x666666)
 
 	GUICtrlCreateLabel(_t("CommandLineArguments", "命令行参数"), 20, 345, -1, 20)
-	$hParams = GUICtrlCreateEdit("", 20, 365, 460, 50, BitOR($ES_WANTRETURN, $WS_VSCROLL, $ES_AUTOVSCROLL))
+	$idParams = GUICtrlCreateEdit("", 20, 365, 460, 50, BitOR($ES_WANTRETURN, $WS_VSCROLL, $ES_AUTOVSCROLL))
 	If $Params <> "" Then
 		GUICtrlSetData(-1, StringReplace($Params, " -", @CRLF & "-"))
 	EndIf
@@ -1781,74 +1781,74 @@ Func Settings()
 
 	; Chrome++
 	GUICtrlCreateTabItem(_t("ChromePlusTab", "Chrome++"))
-	$hChromePlusHint = GUICtrlCreateLabel("", 20, 88, 460, 34)
+	$idChromePlusHint = GUICtrlCreateLabel("", 20, 88, 460, 34)
 	GUICtrlCreateLabel(_t("ChromePlusConfigFile", "配置文件"), 20, 128, 115, 20)
-	$hChromePlusConfigPath = GUICtrlCreateEdit("", 145, 123, 170, 20, BitOR($ES_AUTOHSCROLL, $ES_READONLY))
-	$hChromePlusDownloadPatch = GUICtrlCreateButton(_t("DownloadChromePlusPatch", "下载并安装 Chrome++"), 325, 123, 155, 22)
+	$idChromePlusConfigPath = GUICtrlCreateEdit("", 145, 123, 170, 20, BitOR($ES_AUTOHSCROLL, $ES_READONLY))
+	$idChromePlusDownloadPatch = GUICtrlCreateButton(_t("DownloadChromePlusPatch", "下载并安装 Chrome++"), 325, 123, 155, 22)
 	GUICtrlSetOnEvent(-1, "DownloadChromePlusPatchFromSettings")
 
 	GUICtrlCreateLabel(_t("CurrentVersion", "当前版本："), 20, 158, 115, 20)
-	$hChromePlusCurrentVersion = GUICtrlCreateLabel("-", 145, 158, 170, 20)
+	$idChromePlusCurrentVersion = GUICtrlCreateLabel("-", 145, 158, 170, 20)
 	GUICtrlCreateLabel(_t("LatestVersion", "最新版本："), 250, 158, 80, 20)
-	$hChromePlusLatestVersion = GUICtrlCreateLabel("-", 335, 158, 145, 20)
+	$idChromePlusLatestVersion = GUICtrlCreateLabel("-", 335, 158, 145, 20)
 
-	$hChromePlusDoubleClickClose = GUICtrlCreateCheckbox(_t("ChromePlusDoubleClickClose", "双击关闭标签页"), 20, 198, 200, 20)
-	$hChromePlusRightClickClose = GUICtrlCreateCheckbox(_t("ChromePlusRightClickClose", "右键关闭标签页"), 250, 198, 200, 20)
-	$hChromePlusKeepLastTab = GUICtrlCreateCheckbox(_t("ChromePlusKeepLastTab", "保留最后一个标签页"), 20, 228, 200, 20)
-	$hChromePlusWheelTab = GUICtrlCreateCheckbox(_t("ChromePlusWheelTab", "滚轮切换标签页"), 250, 228, 200, 20)
-	$hChromePlusWheelTabWhenPressRButton = GUICtrlCreateCheckbox(_t("ChromePlusWheelTabWhenPressRButton", "按住右键时滚轮切换标签页"), 20, 258, 220, 20)
-	$hChromePlusOpenUrlNewTab = GUICtrlCreateCheckbox(_t("ChromePlusOpenUrlNewTab", "地址栏输入在新标签页打开"), 250, 258, 210, 20)
-	$hChromePlusOpenBookmarkNewTab = GUICtrlCreateCheckbox(_t("ChromePlusOpenBookmarkNewTab", "书签在新标签页打开"), 20, 288, 200, 20)
-	$hChromePlusNewTabDisable = GUICtrlCreateCheckbox(_t("ChromePlusDisableNewTab", "新标签页时禁用上两项"), 250, 288, 200, 20)
-	GUICtrlSetOnEvent($hChromePlusNewTabDisable, "RefreshChromePlusNewTabDisableNameState")
-	$hChromePlusHoverTab = GUICtrlCreateCheckbox(_t("ChromePlusHoverTab", "鼠标悬停激活标签页"), 20, 318, 230, 20)
-	GUICtrlSetOnEvent($hChromePlusHoverTab, "RefreshChromePlusHoverTabDelayState")
-	$hChromePlusHoverTabDelayLabel = GUICtrlCreateLabel(_t("ChromePlusHoverTabDelay", "延迟（毫秒）"), 270, 323, 80, 20)
-	$hChromePlusHoverTabDelay = GUICtrlCreateEdit("400", 355, 318, 125, 20, BitOR($ES_NUMBER, $ES_AUTOHSCROLL))
-	GUICtrlSetTip($hChromePlusHoverTabDelay, _t("ChromePlusHoverTabDelayTooltip", "鼠标需在标签页上停留多久才会激活，范围为 0-5000 毫秒；无效值会使用 400 毫秒。"))
+	$idChromePlusDoubleClickClose = GUICtrlCreateCheckbox(_t("ChromePlusDoubleClickClose", "双击关闭标签页"), 20, 198, 200, 20)
+	$idChromePlusRightClickClose = GUICtrlCreateCheckbox(_t("ChromePlusRightClickClose", "右键关闭标签页"), 250, 198, 200, 20)
+	$idChromePlusKeepLastTab = GUICtrlCreateCheckbox(_t("ChromePlusKeepLastTab", "保留最后一个标签页"), 20, 228, 200, 20)
+	$idChromePlusWheelTab = GUICtrlCreateCheckbox(_t("ChromePlusWheelTab", "滚轮切换标签页"), 250, 228, 200, 20)
+	$idChromePlusWheelTabWhenPressRButton = GUICtrlCreateCheckbox(_t("ChromePlusWheelTabWhenPressRButton", "按住右键时滚轮切换标签页"), 20, 258, 220, 20)
+	$idChromePlusOpenUrlNewTab = GUICtrlCreateCheckbox(_t("ChromePlusOpenUrlNewTab", "地址栏输入在新标签页打开"), 250, 258, 210, 20)
+	$idChromePlusOpenBookmarkNewTab = GUICtrlCreateCheckbox(_t("ChromePlusOpenBookmarkNewTab", "书签在新标签页打开"), 20, 288, 200, 20)
+	$idChromePlusNewTabDisable = GUICtrlCreateCheckbox(_t("ChromePlusDisableNewTab", "新标签页时禁用上两项"), 250, 288, 200, 20)
+	GUICtrlSetOnEvent($idChromePlusNewTabDisable, "RefreshChromePlusNewTabDisableNameState")
+	$idChromePlusHoverTab = GUICtrlCreateCheckbox(_t("ChromePlusHoverTab", "鼠标悬停激活标签页"), 20, 318, 230, 20)
+	GUICtrlSetOnEvent($idChromePlusHoverTab, "RefreshChromePlusHoverTabDelayState")
+	$idChromePlusHoverTabDelayLabel = GUICtrlCreateLabel(_t("ChromePlusHoverTabDelay", "延迟（毫秒）"), 270, 323, 80, 20)
+	$idChromePlusHoverTabDelay = GUICtrlCreateEdit("400", 355, 318, 125, 20, BitOR($ES_NUMBER, $ES_AUTOHSCROLL))
+	GUICtrlSetTip($idChromePlusHoverTabDelay, _t("ChromePlusHoverTabDelayTooltip", "鼠标需在标签页上停留多久才会激活，范围为 0-5000 毫秒；无效值会使用 400 毫秒。"))
 
-	$hChromePlusNewTabDisableNameLabel = GUICtrlCreateLabel(_t("ChromePlusDisableNewTabName", "额外匹配标题"), 20, 368, 115, 20)
-	$hChromePlusNewTabDisableName = GUICtrlCreateEdit("", 145, 363, 335, 20, $ES_AUTOHSCROLL)
-	GUICtrlSetTip($hChromePlusNewTabDisableName, _t("ChromePlusDisableNewTabNameTooltip", '对应 chrome++.ini 的 new_tab_disable_name 原始值；这些标题会被额外视为新标签页。可填写多个标题，并保留英文双引号与逗号，例如 "about:blank","新建标签"'))
+	$idChromePlusNewTabDisableNameLabel = GUICtrlCreateLabel(_t("ChromePlusDisableNewTabName", "额外匹配标题"), 20, 368, 115, 20)
+	$idChromePlusNewTabDisableName = GUICtrlCreateEdit("", 145, 363, 335, 20, $ES_AUTOHSCROLL)
+	GUICtrlSetTip($idChromePlusNewTabDisableName, _t("ChromePlusDisableNewTabNameTooltip", '对应 chrome++.ini 的 new_tab_disable_name 原始值；这些标题会被额外视为新标签页。可填写多个标题，并保留英文双引号与逗号，例如 "about:blank","新建标签"'))
 	GUICtrlCreateLabel(_t("ChromePlusNewTabDisableHelp", "说明：勾选后，如果当前标签页被识别为新标签页，Chrome++ 会临时禁用上面的“地址栏输入在新标签页打开”和“书签在新标签页打开”。这样在新标签页里输入地址或打开书签时，会使用当前新标签页，而不会再额外新建标签页。\n“额外匹配标题”用于补充 Chrome++ 的内置识别列表，匹配到这些标题时也按新标签页处理。"), 20, 398, 460, 62)
 	GUICtrlSetColor(-1, 0x666666)
 
 	; 辅助
 	GUICtrlCreateTabItem(_t("Auxiliary", "辅助"))
 	GUICtrlCreateLabel(_t("RunOnBrowserStart", "浏览器启动时运行"), 20, 90, -1, 20)
-	$hExAppAutoExit = GUICtrlCreateCheckbox(_t("AutoCloseAfterBrowserExit", " #浏览器退出后自动关闭"), 240, 85, -1, 20)
-	If $ExAppAutoExit = 1 Then
-		GUICtrlSetState($hExAppAutoExit, $GUI_CHECKED)
+	$idCloseStartAppsAfterBrowserExit = GUICtrlCreateCheckbox(_t("AutoCloseAfterBrowserExit", " #浏览器退出后自动关闭"), 240, 85, -1, 20)
+	If $CloseStartAppsAfterBrowserExit = 1 Then
+		GUICtrlSetState($idCloseStartAppsAfterBrowserExit, $GUI_CHECKED)
 	EndIf
-	$hExApp = GUICtrlCreateEdit("", 20, 110, 410, 50, BitOR($ES_WANTRETURN, $WS_VSCROLL, $ES_AUTOVSCROLL))
-	If $ExApp <> "" Then
-		GUICtrlSetData(-1, StringReplace($ExApp, "||", @CRLF) & @CRLF)
+	$idBrowserStartApps = GUICtrlCreateEdit("", 20, 110, 410, 50, BitOR($ES_WANTRETURN, $WS_VSCROLL, $ES_AUTOVSCROLL))
+	If $BrowserStartApps <> "" Then
+		GUICtrlSetData(-1, StringReplace($BrowserStartApps, "||", @CRLF) & @CRLF)
 	EndIf
 	GUICtrlSetTip(-1, _t("RunOnBrowserStartTooltip", "浏览器启动时运行的外部程序，支持批处理、vbs文件等\n如需启动参数，可添加在程序路径之后"))
 	GUICtrlCreateButton(_t("Add", "添加"), 440, 109, 40, 22)
 	GUICtrlSetTip(-1, _t("SelectExtraApp", "选择外部程序"))
-	GUICtrlSetOnEvent(-1, "AddExApp")
+	GUICtrlSetOnEvent(-1, "AddBrowserStartApp")
 
 	GUICtrlCreateLabel(_t("RunAfterBrowserExit", "浏览器退出后运行"), 20, 190, -1, 20)
-	$hExApp2 = GUICtrlCreateEdit("", 20, 210, 410, 50, BitOR($ES_WANTRETURN, $WS_VSCROLL, $ES_AUTOVSCROLL))
-	If $ExApp2 <> "" Then
-		GUICtrlSetData(-1, StringReplace($ExApp2, "||", @CRLF) & @CRLF)
+	$idBrowserExitApps = GUICtrlCreateEdit("", 20, 210, 410, 50, BitOR($ES_WANTRETURN, $WS_VSCROLL, $ES_AUTOVSCROLL))
+	If $BrowserExitApps <> "" Then
+		GUICtrlSetData(-1, StringReplace($BrowserExitApps, "||", @CRLF) & @CRLF)
 	EndIf
 	GUICtrlSetTip(-1, _t("RunAfterBrowserExitTooltip", "浏览器退出后运行的外部程序，支持批处理、vbs文件等\n如需启动参数，可添加在程序路径之后"))
 	GUICtrlCreateButton(_t("Add", "添加"), 440, 209, 40, 22)
 	GUICtrlSetTip(-1, _t("SelectExtraApp", "选择外部程序"))
-	GUICtrlSetOnEvent(-1, "AddExApp2")
+	GUICtrlSetOnEvent(-1, "AddBrowserExitApp")
 
 	GUICtrlCreateGroup(_t("BossKeySettings", "Bosskey"), 10, 285, 480, 95)
-	$hBossKeyEnabled = GUICtrlCreateCheckbox(_t("EnableBossKey", " 启用 Bosskey"), 20, 310, 130, 20)
+	$idBossKeyEnabled = GUICtrlCreateCheckbox(_t("EnableBossKey", " 启用 Bosskey"), 20, 310, 130, 20)
 	GUICtrlSetOnEvent(-1, "RefreshBossKeyControlsState")
-	If $BossKeyEnabled Then GUICtrlSetState($hBossKeyEnabled, $GUI_CHECKED)
+	If $BossKeyEnabled Then GUICtrlSetState($idBossKeyEnabled, $GUI_CHECKED)
 	GUICtrlCreateLabel(_t("BossKeyHotkey", "快捷键"), 170, 313, 60, 20)
 	$BossKeyCaptureValue = $BossKey
-	$hBossKey = GUICtrlCreateInput(BossKeyToDisplay($BossKey), 235, 308, 100, 20)
+	$idBossKey = GUICtrlCreateInput(BossKeyToDisplay($BossKey), 235, 308, 100, 20)
 	GUICtrlSetTip(-1, _t("BossKeyHotkeyTooltip", "点击后直接按组合键；Backspace 或 Delete 清空"))
-	$hBossKeyHideToTray = GUICtrlCreateCheckbox(_t("BossKeyHideToTray", " 隐藏到系统托盘"), 345, 310, 135, 20)
-	If $BossKeyHideToTray Then GUICtrlSetState($hBossKeyHideToTray, $GUI_CHECKED)
+	$idBossKeyHideToTray = GUICtrlCreateCheckbox(_t("BossKeyHideToTray", " 隐藏到系统托盘"), 345, 310, 135, 20)
+	If $BossKeyHideToTray Then GUICtrlSetState($idBossKeyHideToTray, $GUI_CHECKED)
 	GUICtrlCreateLabel(_t("BossKeyDescription", "按快捷键隐藏浏览器；再次按快捷键或点击托盘图标还原。"), 20, 342, 460, 20)
 	SetupBossKeyHotkeyCapture()
 	RefreshBossKeyControlsState()
@@ -1856,14 +1856,14 @@ Func Settings()
 	GUICtrlCreateTabItem("")
 	GUICtrlCreateButton(_t("Confirm", "确定"), 260, 489, 70, 22)
 	GUICtrlSetTip(-1, _t("ConfirmTooltip", "保存设置并启动浏览器"))
-	GUICtrlSetOnEvent(-1, "SettingsOK")
+	GUICtrlSetOnEvent(-1, "ConfirmSettings")
 	GUICtrlSetState(-1, $GUI_FOCUS)
 	GUICtrlCreateButton(_t("Cancel", "取消"), 340, 489, 70, 22)
 	GUICtrlSetTip(-1, _t("CancelTooltip", "不保存设置并退出"))
 	GUICtrlSetOnEvent(-1, "ExitApp")
 	GUICtrlCreateButton(_t("Apply", "应用"), 420, 489, 70, 22)
 	GUICtrlSetTip(-1, _t("ApplyTooltip", "保存设置"))
-	GUICtrlSetOnEvent(-1, "SettingsApply")
+	GUICtrlSetOnEvent(-1, "ApplySettings")
 	$hStatus = _GUICtrlStatusBar_Create($hSettings, -1, _t("DoublieClickToOpenSettingsWindow", '双击软件目录下的 "%s.vbs" 文件可调出此窗口', $ScriptNameWithoutSuffix))
 	Opt("ExpandEnvStrings", 1)
 
@@ -1872,18 +1872,18 @@ Func Settings()
 	UpdateBrowserSpecificControls()
 	ShowCurrentChannel()
 	UpdateCurrentBrowserVersionLabel()
-	UpdateFirefoxDownloadLabels(False)
+	UpdateBrowserDownloadLabels(False)
 
 	GUISetState(@SW_SHOW)
 	BeginAppUpdateCheck()
 	If ShouldCheckBrowserVersionNow() Then
 		MarkBrowserVersionCheckStarted()
-		AdlibRegister("RefreshFirefoxVersionLabels", 250)
+		AdlibRegister("RefreshBrowserVersionLabels", 250)
 	EndIf
-	While Not $SettingsOK
+	While Not $SettingsConfirmed
 		Sleep(100)
 	WEnd
-	AdlibUnRegister("RefreshFirefoxVersionLabels")
+	AdlibUnRegister("RefreshBrowserVersionLabels")
 	CancelAppUpdateCheck()
 	CancelBrowserVersionLoad()
 	CancelChromePlusVersionLoad()
@@ -1892,34 +1892,34 @@ Func Settings()
 EndFunc   ;==>Settings
 
 
-Func AddExApp()
+Func AddBrowserStartApp()
 	Local $path
 	$path = FileOpenDialog(_t("ChooseExtraApp", "选择浏览器启动时需运行的外部程序"), @ScriptDir, _
 			_t("ExtraAppAllFiles", "所有文件 (*.*)"), 1 + 2, "", $hSettings)
 	If $path = "" Then Return
 	$path = RelativePath($path)
-	$ExApp = GUICtrlRead($hExApp) & '"' & $path & '"' & @CRLF
-	GUICtrlSetData($hExApp, $ExApp)
-EndFunc   ;==>AddExApp
-Func AddExApp2()
+	$BrowserStartApps = GUICtrlRead($idBrowserStartApps) & '"' & $path & '"' & @CRLF
+	GUICtrlSetData($idBrowserStartApps, $BrowserStartApps)
+EndFunc   ;==>AddBrowserStartApp
+Func AddBrowserExitApp()
 	Local $path
 	$path = FileOpenDialog(_t("ChooseExtraApp", "选择浏览器启动时需运行的外部程序"), @ScriptDir, _
 	_t("ExtraAppAllFiles", "所有文件 (*.*)"), 1 + 2, "", $hSettings)
 	If $path = "" Then Return
 	$path = RelativePath($path)
-	$ExApp2 = GUICtrlRead($hExApp2) & '"' & $path & '"' & @CRLF
-	GUICtrlSetData($hExApp2, $ExApp2)
-EndFunc   ;==>AddExApp2
+	$BrowserExitApps = GUICtrlRead($idBrowserExitApps) & '"' & $path & '"' & @CRLF
+	GUICtrlSetData($idBrowserExitApps, $BrowserExitApps)
+EndFunc   ;==>AddBrowserExitApp
 
 Func SetupBossKeyHotkeyCapture()
 	$BossKeyKeys = CreateBossKeyDictionary()
 	$BossKeyHotkeyProc = DllCallbackRegister("BossKeyHotkeyInputProc", "lresult", "hwnd;uint;wparam;lparam")
 	If @error Then Return
-	$BossKeyInputWndProc = _WinAPI_SetWindowLong(GUICtrlGetHandle($hBossKey), $GWL_WNDPROC, DllCallbackGetPtr($BossKeyHotkeyProc))
+	$BossKeyInputWndProc = _WinAPI_SetWindowLong(GUICtrlGetHandle($idBossKey), $GWL_WNDPROC, DllCallbackGetPtr($BossKeyHotkeyProc))
 EndFunc   ;==>SetupBossKeyHotkeyCapture
 
 Func CleanupBossKeyHotkeyCapture()
-	If $hBossKey And $BossKeyInputWndProc Then _WinAPI_SetWindowLong(GUICtrlGetHandle($hBossKey), $GWL_WNDPROC, $BossKeyInputWndProc)
+	If $idBossKey And $BossKeyInputWndProc Then _WinAPI_SetWindowLong(GUICtrlGetHandle($idBossKey), $GWL_WNDPROC, $BossKeyInputWndProc)
 	If $BossKeyHotkeyProc Then DllCallbackFree($BossKeyHotkeyProc)
 	$BossKeyHotkeyProc = 0
 	$BossKeyInputWndProc = 0
@@ -1927,34 +1927,34 @@ Func CleanupBossKeyHotkeyCapture()
 EndFunc   ;==>CleanupBossKeyHotkeyCapture
 
 Func RefreshBossKeyControlsState()
-	If Not $hBossKeyEnabled Then Return
+	If Not $idBossKeyEnabled Then Return
 	If Not IsBossKeySupportedBrowser(GetSelectedBrowserType()) Then
-		GUICtrlSetState($hBossKeyEnabled, $GUI_UNCHECKED)
-		GUICtrlSetState($hBossKeyEnabled, $GUI_DISABLE)
-		GUICtrlSetState($hBossKey, $GUI_DISABLE)
-		GUICtrlSetState($hBossKeyHideToTray, $GUI_DISABLE)
+		GUICtrlSetState($idBossKeyEnabled, $GUI_UNCHECKED)
+		GUICtrlSetState($idBossKeyEnabled, $GUI_DISABLE)
+		GUICtrlSetState($idBossKey, $GUI_DISABLE)
+		GUICtrlSetState($idBossKeyHideToTray, $GUI_DISABLE)
 		Return
 	EndIf
 
-	GUICtrlSetState($hBossKeyEnabled, $GUI_ENABLE)
+	GUICtrlSetState($idBossKeyEnabled, $GUI_ENABLE)
 	Local $State = $GUI_DISABLE
-	If GUICtrlRead($hBossKeyEnabled) = $GUI_CHECKED Then $State = $GUI_ENABLE
-	GUICtrlSetState($hBossKey, $State)
-	GUICtrlSetState($hBossKeyHideToTray, $State)
+	If GUICtrlRead($idBossKeyEnabled) = $GUI_CHECKED Then $State = $GUI_ENABLE
+	GUICtrlSetState($idBossKey, $State)
+	GUICtrlSetState($idBossKeyHideToTray, $State)
 EndFunc   ;==>RefreshBossKeyControlsState
 
 Func RefreshChromiumDebugPortState()
-	If Not $hChromiumDebugPortEnabled Then Return
+	If Not $idChromiumDebugPortEnabled Then Return
 	Local $Enabled = IsChromeBrowser(GetSelectedBrowserType())
 	If $Enabled Then
-		GUICtrlSetState($hChromiumDebugPortEnabled, $GUI_ENABLE)
+		GUICtrlSetState($idChromiumDebugPortEnabled, $GUI_ENABLE)
 	Else
-		GUICtrlSetState($hChromiumDebugPortEnabled, $GUI_DISABLE)
+		GUICtrlSetState($idChromiumDebugPortEnabled, $GUI_DISABLE)
 	EndIf
 	Local $PortState = $GUI_DISABLE
-	If $Enabled And GUICtrlRead($hChromiumDebugPortEnabled) = $GUI_CHECKED Then $PortState = $GUI_ENABLE
-	GUICtrlSetState($hChromiumDebugPortLabel, $PortState)
-	GUICtrlSetState($hChromiumDebugPort, $PortState)
+	If $Enabled And GUICtrlRead($idChromiumDebugPortEnabled) = $GUI_CHECKED Then $PortState = $GUI_ENABLE
+	GUICtrlSetState($idChromiumDebugPortLabel, $PortState)
+	GUICtrlSetState($idChromiumDebugPort, $PortState)
 EndFunc   ;==>RefreshChromiumDebugPortState
 
 Func BossKeyHotkeyInputProc($hWnd, $iMsg, $wParam, $lParam)
@@ -1964,7 +1964,7 @@ Func BossKeyHotkeyInputProc($hWnd, $iMsg, $wParam, $lParam)
 		Case $WM_KEYDOWN, $WM_SYSKEYDOWN
 			If $wParam = 8 Or $wParam = 46 Then
 				$BossKeyCaptureValue = ""
-				GUICtrlSetData($hBossKey, "")
+				GUICtrlSetData($idBossKey, "")
 				Return 0
 			EndIf
 			If $wParam = 16 Or $wParam = 17 Or $wParam = 18 Or $wParam = 91 Or $wParam = 92 Then Return 0
@@ -2008,7 +2008,7 @@ Func BossKeyHotkeyInputProc($hWnd, $iMsg, $wParam, $lParam)
 			EndIf
 
 			$BossKeyCaptureValue = $HotkeyPrefix & $Key
-			GUICtrlSetData($hBossKey, $DisplayPrefix & " + " & $Key)
+			GUICtrlSetData($idBossKey, $DisplayPrefix & " + " & $Key)
 			Return 0
 	EndSwitch
 
@@ -2051,33 +2051,33 @@ Func CreateBossKeyDictionary()
 	Return $Dictionary
 EndFunc   ;==>CreateBossKeyDictionary
 
-Func OnFirefoxPathChange()
+Func OnBrowserPathChange()
 	ApplyDetectedBrowserTypeFromPath()
 	ShowCurrentChannel()
 	ChangeChannel()
 	UpdateCurrentBrowserVersionLabel()
 	UpdateBrowserSpecificControls()
-EndFunc   ;==>OnFirefoxPathChange
+EndFunc   ;==>OnBrowserPathChange
 
 Func ApplyDetectedBrowserTypeFromPath()
-	If Not $hBrowserType Then Return
+	If Not $idBrowserType Then Return
 
-	Local $DetectedBrowserType = DetectBrowserTypeFromPath(GUICtrlRead($hFirefoxPath))
+	Local $DetectedBrowserType = DetectBrowserTypeFromPath(GUICtrlRead($idBrowserPath))
 	If $DetectedBrowserType = "" Then Return
 	If NormalizeBrowserType(GetSelectedBrowserType()) = $DetectedBrowserType Then Return
 
 	Local $SelectedChannel = "release"
-	If $hChannel Then $SelectedChannel = GUICtrlRead($hChannel)
+	If $idChannel Then $SelectedChannel = GUICtrlRead($idChannel)
 	$BrowserType = $DetectedBrowserType
-	GUICtrlSetData($hBrowserType, GetBrowserTypeComboData(), GetBrowserTypeLabel($DetectedBrowserType))
-	If $hChannel Then UpdateBrowserChannelOptions($DetectedBrowserType, $SelectedChannel)
+	GUICtrlSetData($idBrowserType, GetBrowserTypeComboData(), GetBrowserTypeLabel($DetectedBrowserType))
+	If $idChannel Then UpdateBrowserChannelOptions($DetectedBrowserType, $SelectedChannel)
 EndFunc   ;==>ApplyDetectedBrowserTypeFromPath
 
 Func ChangeBrowserType()
 	Local $NewBrowserType = GetSelectedBrowserType()
-	Local $CurrentPath = StringLower(GUICtrlRead($hFirefoxPath))
+	Local $CurrentPath = StringLower(GUICtrlRead($idBrowserPath))
 	If $CurrentPath = ".\firefox\firefox.exe" Or $CurrentPath = ".\zenbrowser\zen.exe" Or $CurrentPath = ".\floorp\floorp.exe" Or $CurrentPath = ".\waterfox\waterfox.exe" Or $CurrentPath = ".\librewolf\librewolf.exe" Or $CurrentPath = ".\chrome\chrome.exe" Or $CurrentPath = ".\turbo\turbo.exe" Or $CurrentPath = ".\helium\chrome.exe" Or $CurrentPath = ".\whale\whale.exe" Or $CurrentPath = ".\centbrowser\chrome.exe" Or $CurrentPath = ".\vivaldi\vivaldi.exe" Then
-		GUICtrlSetData($hFirefoxPath, GetDefaultBrowserPath($NewBrowserType))
+		GUICtrlSetData($idBrowserPath, GetDefaultBrowserPath($NewBrowserType))
 	EndIf
 	$BrowserType = $NewBrowserType
 	UpdateBrowserChannelOptions($BrowserType, "release")
@@ -2095,16 +2095,16 @@ Func ChangeBrowserUpdateCheckMode()
 	$BrowserUpdateCheckMode = GetSelectedBrowserUpdateCheckMode()
 	If $BrowserUpdateCheckMode = "never" Then
 		CancelBrowserVersionLoad()
-		UpdateFirefoxDownloadLabels(False)
+		UpdateBrowserDownloadLabels(False)
 		Return
 	EndIf
 	BeginBrowserVersionLoad()
 EndFunc   ;==>ChangeBrowserUpdateCheckMode
 
-Func RefreshFirefoxVersionLabels()
-	AdlibUnRegister("RefreshFirefoxVersionLabels")
+Func RefreshBrowserVersionLabels()
+	AdlibUnRegister("RefreshBrowserVersionLabels")
 	BeginBrowserVersionLoad()
-EndFunc   ;==>RefreshFirefoxVersionLabels
+EndFunc   ;==>RefreshBrowserVersionLabels
 
 Func ShouldCheckBrowserVersionNow()
 	Local $Mode = NormalizeBrowserUpdateCheckMode($BrowserUpdateCheckMode)
@@ -2126,27 +2126,27 @@ Func MarkBrowserVersionCheckStarted()
 	IniWrite($inifile, "Settings", "BrowserUpdateLastCheck", $BrowserUpdateLastCheck)
 EndFunc   ;==>MarkBrowserVersionCheckStarted
 
-Func UpdateFirefoxDownloadLabels($LoadVersion, $Unavailable = False)
-	If Not $hDownloadFirefox64 Then Return
+Func UpdateBrowserDownloadLabels($LoadVersion, $Unavailable = False)
+	If Not $idBrowserDownloadLink Then Return
 	Local $CurrentBrowserType = GetSelectedBrowserType()
-	Local $Channel = GUICtrlRead($hChannel)
+	Local $Channel = GUICtrlRead($idChannel)
 	If $Channel = "default" Then $Channel = "release"
 
 	Local $LatestVersion = ""
 	If $LoadVersion Then $LatestVersion = GetLatestBrowserVersionForSettings($CurrentBrowserType, $Channel)
 	If $LatestVersion <> "" Then
-		GUICtrlSetData($hDownloadFirefox64, $LatestVersion)
+		GUICtrlSetData($idBrowserDownloadLink, $LatestVersion)
 		UpdateBrowserDownloadNowState()
 		Return
 	EndIf
 
 	If $Unavailable Then
-		GUICtrlSetData($hDownloadFirefox64, _t("BrowserVersionUnavailable", "获取失败"))
+		GUICtrlSetData($idBrowserDownloadLink, _t("BrowserVersionUnavailable", "获取失败"))
 	Else
-		GUICtrlSetData($hDownloadFirefox64, _t("BrowserDownloadAddress", "下载地址"))
+		GUICtrlSetData($idBrowserDownloadLink, _t("BrowserDownloadAddress", "下载地址"))
 	EndIf
 	UpdateBrowserDownloadNowState()
-EndFunc   ;==>UpdateFirefoxDownloadLabels
+EndFunc   ;==>UpdateBrowserDownloadLabels
 
 Func GetLatestBrowserVersionForSettings($CurrentBrowserType, $Channel)
 	$CurrentBrowserType = NormalizeBrowserType($CurrentBrowserType)
@@ -2166,7 +2166,7 @@ Func GetLatestBrowserVersionForSettings($CurrentBrowserType, $Channel)
 EndFunc   ;==>GetLatestBrowserVersionForSettings
 
 Func UpdateCurrentBrowserVersionLabel()
-	If Not $hCurrentBrowserVersion Then Return
+	If Not $idCurrentBrowserVersion Then Return
 
 	Local $BrowserPath = GetCurrentSettingsBrowserPath()
 	Local $CurrentVersion = ""
@@ -2198,48 +2198,48 @@ Func UpdateCurrentBrowserVersionLabel()
 		EndIf
 	EndIf
 	If $CurrentVersion = "" Then $CurrentVersion = "-"
-	GUICtrlSetData($hCurrentBrowserVersion, $CurrentVersion)
+	GUICtrlSetData($idCurrentBrowserVersion, $CurrentVersion)
 	UpdateWaterfoxVersionHintState()
 	UpdateBrowserDownloadNowState()
 EndFunc   ;==>UpdateCurrentBrowserVersionLabel
 
 Func UpdateWaterfoxVersionHintState()
-	If Not $hWaterfoxVersionHint Then Return
+	If Not $idWaterfoxVersionHint Then Return
 	If NormalizeBrowserType(GetSelectedBrowserType()) = $BrowserWaterfox Then
-		GUICtrlSetState($hWaterfoxVersionHint, $GUI_SHOW)
+		GUICtrlSetState($idWaterfoxVersionHint, $GUI_SHOW)
 	Else
-		GUICtrlSetState($hWaterfoxVersionHint, $GUI_HIDE)
+		GUICtrlSetState($idWaterfoxVersionHint, $GUI_HIDE)
 	EndIf
 EndFunc   ;==>UpdateWaterfoxVersionHintState
 
 Func UpdateBrowserDownloadNowState()
-	If Not $hBrowserDownloadNow Or Not $hDownloadFirefox64 Or Not $hCurrentBrowserVersion Then Return
+	If Not $idBrowserDownloadNow Or Not $idBrowserDownloadLink Or Not $idCurrentBrowserVersion Then Return
 
-	Local $DisplayedLatestVersion = StringStripWS(GUICtrlRead($hDownloadFirefox64), 3)
+	Local $DisplayedLatestVersion = StringStripWS(GUICtrlRead($idBrowserDownloadLink), 3)
 	Local $LatestVersion = NormalizeDisplayedVersionForCompare($DisplayedLatestVersion)
-	Local $CurrentVersion = NormalizeDisplayedVersionForCompare(GUICtrlRead($hCurrentBrowserVersion))
+	Local $CurrentVersion = NormalizeDisplayedVersionForCompare(GUICtrlRead($idCurrentBrowserVersion))
 	Local $CurrentBrowserType = NormalizeBrowserType(GetSelectedBrowserType())
-	Local $Channel = GUICtrlRead($hChannel)
+	Local $Channel = GUICtrlRead($idChannel)
 	If $CurrentBrowserType = $BrowserBrave Then
 		$LatestVersion = NormalizeBraveVersionText($DisplayedLatestVersion)
-		$CurrentVersion = NormalizeBraveVersionText(GUICtrlRead($hCurrentBrowserVersion))
+		$CurrentVersion = NormalizeBraveVersionText(GUICtrlRead($idCurrentBrowserVersion))
 	EndIf
-	GUICtrlSetData($hBrowserDownloadNow, _t("DownloadNow", "立即下载"))
+	GUICtrlSetData($idBrowserDownloadNow, _t("DownloadNow", "立即下载"))
 	If IsDisplayedBrowserVersionUnavailable($DisplayedLatestVersion) Then
 		If Not HasBrowserDownloadFallback($CurrentBrowserType, $Channel) Then
 			If GetBrowserDownloadPageUrl($CurrentBrowserType, $Channel) = "" Then
-				GUICtrlSetState($hBrowserDownloadNow, $GUI_HIDE)
+				GUICtrlSetState($idBrowserDownloadNow, $GUI_HIDE)
 				Return
 			EndIf
-			GUICtrlSetData($hBrowserDownloadNow, _t("OpenDownloadPage", "打开下载页"))
+			GUICtrlSetData($idBrowserDownloadNow, _t("OpenDownloadPage", "打开下载页"))
 		EndIf
-		GUICtrlSetState($hBrowserDownloadNow, $GUI_SHOW)
+		GUICtrlSetState($idBrowserDownloadNow, $GUI_SHOW)
 	ElseIf $CurrentBrowserType = $BrowserWhale Then
-		GUICtrlSetState($hBrowserDownloadNow, $GUI_SHOW)
+		GUICtrlSetState($idBrowserDownloadNow, $GUI_SHOW)
 	ElseIf $LatestVersion <> "" And ($CurrentVersion = "" Or $LatestVersion <> $CurrentVersion) Then
-		GUICtrlSetState($hBrowserDownloadNow, $GUI_SHOW)
+		GUICtrlSetState($idBrowserDownloadNow, $GUI_SHOW)
 	Else
-		GUICtrlSetState($hBrowserDownloadNow, $GUI_HIDE)
+		GUICtrlSetState($idBrowserDownloadNow, $GUI_HIDE)
 	EndIf
 EndFunc   ;==>UpdateBrowserDownloadNowState
 
@@ -2336,8 +2336,8 @@ Func GetBrowserUpdateCheckModeByLabel($Label)
 EndFunc   ;==>GetBrowserUpdateCheckModeByLabel
 
 Func GetSelectedBrowserUpdateCheckMode()
-	If Not $hBrowserUpdateCheckMode Then Return $BrowserUpdateCheckMode
-	Return GetBrowserUpdateCheckModeByLabel(GUICtrlRead($hBrowserUpdateCheckMode))
+	If Not $idBrowserUpdateCheckMode Then Return $BrowserUpdateCheckMode
+	Return GetBrowserUpdateCheckModeByLabel(GUICtrlRead($idBrowserUpdateCheckMode))
 EndFunc   ;==>GetSelectedBrowserUpdateCheckMode
 
 Func GetBrowserUpdateCheckModeComboData()
@@ -2345,19 +2345,19 @@ Func GetBrowserUpdateCheckModeComboData()
 EndFunc   ;==>GetBrowserUpdateCheckModeComboData
 
 Func BeginBrowserVersionLoad($CurrentBrowserType = "", $Channel = "")
-	If Not $hDownloadFirefox64 Then Return
+	If Not $idBrowserDownloadLink Then Return
 	If $CurrentBrowserType = "" Then $CurrentBrowserType = GetSelectedBrowserType()
-	If $Channel = "" Then $Channel = GUICtrlRead($hChannel)
+	If $Channel = "" Then $Channel = GUICtrlRead($idChannel)
 	If $Channel = "default" Then $Channel = "release"
 
 	If NormalizeBrowserType($CurrentBrowserType) = $BrowserWhale Then
 		CancelBrowserVersionLoad()
-		UpdateFirefoxDownloadLabels(False)
+		UpdateBrowserDownloadLabels(False)
 		Return
 	EndIf
 
 	If IsBrowserVersionCached($CurrentBrowserType, $Channel) Then
-		UpdateFirefoxDownloadLabels(True)
+		UpdateBrowserDownloadLabels(True)
 		Return
 	EndIf
 
@@ -2407,7 +2407,7 @@ Func BeginBrowserVersionLoad($CurrentBrowserType = "", $Channel = "")
 
 	If Not $BrowserVersionLoadHandle Then
 		CancelBrowserVersionLoad()
-		UpdateFirefoxDownloadLabels(False)
+		UpdateBrowserDownloadLabels(False)
 		Return
 	EndIf
 
@@ -2518,9 +2518,9 @@ Func PollBrowserVersionLoad()
 EndFunc   ;==>PollBrowserVersionLoad
 
 Func CompleteBrowserVersionLoad($LoadedBrowserType, $LoadedChannel, $Loaded)
-	If Not $hDownloadFirefox64 Then Return
+	If Not $idBrowserDownloadLink Then Return
 	Local $CurrentBrowserType = GetSelectedBrowserType()
-	Local $CurrentChannel = GUICtrlRead($hChannel)
+	Local $CurrentChannel = GUICtrlRead($idChannel)
 	If $CurrentChannel = "default" Then $CurrentChannel = "release"
 	If NormalizeBrowserType($CurrentBrowserType) <> $LoadedBrowserType Or $CurrentChannel <> $LoadedChannel Then
 		BeginBrowserVersionLoad($CurrentBrowserType, $CurrentChannel)
@@ -2528,15 +2528,15 @@ Func CompleteBrowserVersionLoad($LoadedBrowserType, $LoadedChannel, $Loaded)
 	EndIf
 
 	If $Loaded Then
-		UpdateFirefoxDownloadLabels(True)
+		UpdateBrowserDownloadLabels(True)
 	Else
-		UpdateFirefoxDownloadLabels(False, True)
+		UpdateBrowserDownloadLabels(False, True)
 		If $hStatus Then _GUICtrlStatusBar_SetText($hStatus, _t("BrowserVersionLoadFailed", "读取浏览器版本失败。"))
 	EndIf
 EndFunc   ;==>CompleteBrowserVersionLoad
 
 Func UpdateBrowserVersionLoadingLabel()
-	If Not $hDownloadFirefox64 Then Return
+	If Not $idBrowserDownloadLink Then Return
 	Local $CurrentBrowserType = GetSelectedBrowserType()
 	Local $Spinner = "|"
 	Switch Mod($BrowserVersionLoadAnim, 4)
@@ -2548,7 +2548,7 @@ Func UpdateBrowserVersionLoadingLabel()
 			$Spinner = "\"
 	EndSwitch
 	$BrowserVersionLoadAnim += 1
-	GUICtrlSetData($hDownloadFirefox64, _t("BrowserVersionLoading", "正在读取版本 %s", $Spinner))
+	GUICtrlSetData($idBrowserDownloadLink, _t("BrowserVersionLoading", "正在读取版本 %s", $Spinner))
 EndFunc   ;==>UpdateBrowserVersionLoadingLabel
 
 Func IsBrowserVersionCached($CurrentBrowserType, $Channel)
@@ -2566,8 +2566,8 @@ Func IsBrowserVersionCached($CurrentBrowserType, $Channel)
 EndFunc   ;==>IsBrowserVersionCached
 
 Func GetSelectedBrowserType()
-	If Not $hBrowserType Then Return $BrowserType
-	Return GetBrowserTypeByLabel(GUICtrlRead($hBrowserType))
+	If Not $idBrowserType Then Return $BrowserType
+	Return GetBrowserTypeByLabel(GUICtrlRead($idBrowserType))
 EndFunc   ;==>GetSelectedBrowserType
 
 Func DetectBrowserTypeFromPath($BrowserPath)
@@ -2791,8 +2791,8 @@ Func BuildBrowserLaunchParams($Value)
 	If IsChromeBrowser($Value) Then
 		Local $ChromeParams = ""
 		Local $UseChromePlusPortablePaths = False
-		If IsChromePlusSupportedBrowser($Value) And IsChromePlusPatchInstalled($FirefoxPath) Then
-			Local $ChromePlusConfigPath = GetChromePlusConfigPath($FirefoxPath)
+		If IsChromePlusSupportedBrowser($Value) And IsChromePlusPatchInstalled($BrowserPath) Then
+			Local $ChromePlusConfigPath = GetChromePlusConfigPath($BrowserPath)
 			If $ChromePlusConfigPath <> "" Then
 				If FileExists($ChromePlusConfigPath) Or WriteChromePlusManagedConfig($ChromePlusConfigPath) Then _
 					$UseChromePlusPortablePaths = WriteChromePlusPortablePaths($ChromePlusConfigPath)
@@ -2854,26 +2854,26 @@ Func GetBrowserWindowWait($Value)
 EndFunc   ;==>GetBrowserWindowWait
 
 Func UpdateBrowserSpecificControls()
-	If Not $hBrowserType Then Return
+	If Not $idBrowserType Then Return
 	Local $IsChrome = IsChromeBrowser(GetSelectedBrowserType())
 	Local $MozillaState = $GUI_ENABLE
 	Local $ChromiumState = $GUI_DISABLE
 	If $IsChrome Then $MozillaState = $GUI_DISABLE
 	If $IsChrome Then $ChromiumState = $GUI_ENABLE
 
-	GUICtrlSetState($hChannel, $GUI_ENABLE)
-	GUICtrlSetState($hAllowBrowserUpdate, $MozillaState)
-	GUICtrlSetState($hDownloadFirefox64, $GUI_ENABLE)
-	GUICtrlSetState($hCustomPluginsDir, $MozillaState)
-	GUICtrlSetState($hGetPluginsDir, $MozillaState)
-	GUICtrlSetState($hCacheSizeSmart, $MozillaState)
-	GUICtrlSetState($hChromiumGoogleApiImport, $ChromiumState)
-	GUICtrlSetState($hChromiumGoogleApiSuppress, $ChromiumState)
-	GUICtrlSetState($hChromiumGoogleApiClear, $ChromiumState)
+	GUICtrlSetState($idChannel, $GUI_ENABLE)
+	GUICtrlSetState($idAllowBrowserUpdate, $MozillaState)
+	GUICtrlSetState($idBrowserDownloadLink, $GUI_ENABLE)
+	GUICtrlSetState($idCustomPluginsDir, $MozillaState)
+	GUICtrlSetState($idGetPluginsDir, $MozillaState)
+	GUICtrlSetState($idCacheSizeSmart, $MozillaState)
+	GUICtrlSetState($idChromiumGoogleApiImport, $ChromiumState)
+	GUICtrlSetState($idChromiumGoogleApiSuppress, $ChromiumState)
+	GUICtrlSetState($idChromiumGoogleApiClear, $ChromiumState)
 	RefreshChromiumDebugPortState()
 
 	If $IsChrome Then
-		UpdateFirefoxDownloadLabels(False)
+		UpdateBrowserDownloadLabels(False)
 	EndIf
 	RefreshCopyProfileState()
 
@@ -2882,8 +2882,8 @@ Func UpdateBrowserSpecificControls()
 EndFunc   ;==>UpdateBrowserSpecificControls
 
 Func GetCurrentSettingsBrowserPath()
-	If $hFirefoxPath Then Return FullPath(GUICtrlRead($hFirefoxPath))
-	Return FullPath($FirefoxPath)
+	If $idBrowserPath Then Return FullPath(GUICtrlRead($idBrowserPath))
+	Return FullPath($BrowserPath)
 EndFunc   ;==>GetCurrentSettingsBrowserPath
 
 Func IsChromePlusSupportedExecutable($BrowserExe)
@@ -2901,16 +2901,16 @@ Func GetChromePlusConfigPath($BrowserPath)
 	Return $BrowserDir & "\chrome++.ini"
 EndFunc   ;==>GetChromePlusConfigPath
 
-Func SetCheckboxStateByValue($hCtrl, $Value)
+Func SetCheckboxStateByValue($idCtrl, $Value)
 	If Number($Value) <> 0 Then
-		GUICtrlSetState($hCtrl, $GUI_CHECKED)
+		GUICtrlSetState($idCtrl, $GUI_CHECKED)
 	Else
-		GUICtrlSetState($hCtrl, $GUI_UNCHECKED)
+		GUICtrlSetState($idCtrl, $GUI_UNCHECKED)
 	EndIf
 EndFunc   ;==>SetCheckboxStateByValue
 
-Func GetCheckboxIniValue($hCtrl)
-	If GUICtrlRead($hCtrl) = $GUI_CHECKED Then Return "1"
+Func GetCheckboxIniValue($idCtrl)
+	If GUICtrlRead($idCtrl) = $GUI_CHECKED Then Return "1"
 	Return "0"
 EndFunc   ;==>GetCheckboxIniValue
 
@@ -2918,35 +2918,35 @@ Func SetChromePlusTabControlsState($Enabled)
 	Local $State = $GUI_DISABLE
 	If $Enabled Then $State = $GUI_ENABLE
 
-	GUICtrlSetState($hChromePlusDoubleClickClose, $State)
-	GUICtrlSetState($hChromePlusRightClickClose, $State)
-	GUICtrlSetState($hChromePlusKeepLastTab, $State)
-	GUICtrlSetState($hChromePlusWheelTab, $State)
-	GUICtrlSetState($hChromePlusWheelTabWhenPressRButton, $State)
-	GUICtrlSetState($hChromePlusOpenUrlNewTab, $State)
-	GUICtrlSetState($hChromePlusOpenBookmarkNewTab, $State)
-	GUICtrlSetState($hChromePlusNewTabDisable, $State)
-	GUICtrlSetState($hChromePlusHoverTab, $State)
+	GUICtrlSetState($idChromePlusDoubleClickClose, $State)
+	GUICtrlSetState($idChromePlusRightClickClose, $State)
+	GUICtrlSetState($idChromePlusKeepLastTab, $State)
+	GUICtrlSetState($idChromePlusWheelTab, $State)
+	GUICtrlSetState($idChromePlusWheelTabWhenPressRButton, $State)
+	GUICtrlSetState($idChromePlusOpenUrlNewTab, $State)
+	GUICtrlSetState($idChromePlusOpenBookmarkNewTab, $State)
+	GUICtrlSetState($idChromePlusNewTabDisable, $State)
+	GUICtrlSetState($idChromePlusHoverTab, $State)
 	If Not $Enabled Then
-		GUICtrlSetState($hChromePlusHoverTabDelay, $GUI_DISABLE)
-		GUICtrlSetState($hChromePlusHoverTabDelayLabel, $GUI_DISABLE)
-		GUICtrlSetState($hChromePlusNewTabDisableName, $GUI_DISABLE)
-		GUICtrlSetState($hChromePlusNewTabDisableNameLabel, $GUI_DISABLE)
+		GUICtrlSetState($idChromePlusHoverTabDelay, $GUI_DISABLE)
+		GUICtrlSetState($idChromePlusHoverTabDelayLabel, $GUI_DISABLE)
+		GUICtrlSetState($idChromePlusNewTabDisableName, $GUI_DISABLE)
+		GUICtrlSetState($idChromePlusNewTabDisableNameLabel, $GUI_DISABLE)
 	EndIf
 EndFunc   ;==>SetChromePlusTabControlsState
 
 Func LoadChromePlusTabsSettings($ConfigPath)
-	SetCheckboxStateByValue($hChromePlusDoubleClickClose, IniRead($ConfigPath, "tabs", "double_click_close", "0"))
-	SetCheckboxStateByValue($hChromePlusRightClickClose, IniRead($ConfigPath, "tabs", "right_click_close", "1"))
-	SetCheckboxStateByValue($hChromePlusKeepLastTab, IniRead($ConfigPath, "tabs", "keep_last_tab", "1"))
-	SetCheckboxStateByValue($hChromePlusWheelTab, IniRead($ConfigPath, "tabs", "wheel_tab", "0"))
-	SetCheckboxStateByValue($hChromePlusWheelTabWhenPressRButton, IniRead($ConfigPath, "tabs", "wheel_tab_when_press_rbutton", "0"))
-	SetCheckboxStateByValue($hChromePlusOpenUrlNewTab, IniRead($ConfigPath, "tabs", "open_url_new_tab", "0"))
-	SetCheckboxStateByValue($hChromePlusOpenBookmarkNewTab, IniRead($ConfigPath, "tabs", "open_bookmark_new_tab", "0"))
-	SetCheckboxStateByValue($hChromePlusNewTabDisable, IniRead($ConfigPath, "tabs", "new_tab_disable", "1"))
-	SetCheckboxStateByValue($hChromePlusHoverTab, IniRead($ConfigPath, "tabs", "hover_tab", "0"))
-	GUICtrlSetData($hChromePlusHoverTabDelay, NormalizeChromePlusHoverTabDelay(IniRead($ConfigPath, "tabs", "hover_tab_delay", "400")))
-	GUICtrlSetData($hChromePlusNewTabDisableName, ReadIniTextValue($ConfigPath, "tabs", "new_tab_disable_name", '"about:blank","新建标签"'))
+	SetCheckboxStateByValue($idChromePlusDoubleClickClose, IniRead($ConfigPath, "tabs", "double_click_close", "0"))
+	SetCheckboxStateByValue($idChromePlusRightClickClose, IniRead($ConfigPath, "tabs", "right_click_close", "1"))
+	SetCheckboxStateByValue($idChromePlusKeepLastTab, IniRead($ConfigPath, "tabs", "keep_last_tab", "1"))
+	SetCheckboxStateByValue($idChromePlusWheelTab, IniRead($ConfigPath, "tabs", "wheel_tab", "0"))
+	SetCheckboxStateByValue($idChromePlusWheelTabWhenPressRButton, IniRead($ConfigPath, "tabs", "wheel_tab_when_press_rbutton", "0"))
+	SetCheckboxStateByValue($idChromePlusOpenUrlNewTab, IniRead($ConfigPath, "tabs", "open_url_new_tab", "0"))
+	SetCheckboxStateByValue($idChromePlusOpenBookmarkNewTab, IniRead($ConfigPath, "tabs", "open_bookmark_new_tab", "0"))
+	SetCheckboxStateByValue($idChromePlusNewTabDisable, IniRead($ConfigPath, "tabs", "new_tab_disable", "1"))
+	SetCheckboxStateByValue($idChromePlusHoverTab, IniRead($ConfigPath, "tabs", "hover_tab", "0"))
+	GUICtrlSetData($idChromePlusHoverTabDelay, NormalizeChromePlusHoverTabDelay(IniRead($ConfigPath, "tabs", "hover_tab_delay", "400")))
+	GUICtrlSetData($idChromePlusNewTabDisableName, ReadIniTextValue($ConfigPath, "tabs", "new_tab_disable_name", '"about:blank","新建标签"'))
 	RefreshChromePlusHoverTabDelayState()
 	RefreshChromePlusNewTabDisableNameState()
 EndFunc   ;==>LoadChromePlusTabsSettings
@@ -2966,7 +2966,7 @@ Func IsChromePlusHoverTabSupported($BrowserPath)
 EndFunc   ;==>IsChromePlusHoverTabSupported
 
 Func RefreshChromePlusHoverTabDelayState()
-	If Not $hChromePlusHoverTabDelay Then Return
+	If Not $idChromePlusHoverTabDelay Then Return
 
 	Local $Version = GetChromePlusInstalledVersion(GetCurrentSettingsBrowserPath())
 	Local $FeatureSupported = $Version <> "" And VersionCompare($Version, "1.18.0") >= 0
@@ -2975,33 +2975,33 @@ Func RefreshChromePlusHoverTabDelayState()
 		If $Version = "" Then $Version = _t("BrowserVersionUnavailable", "获取失败")
 		$Tooltip = _t("ChromePlusHoverTabVersionRequired", "鼠标悬停激活标签页需要 Chrome++ 1.18.0 或更高版本。当前版本：%s", $Version)
 	EndIf
-	GUICtrlSetTip($hChromePlusHoverTab, $Tooltip)
-	GUICtrlSetTip($hChromePlusHoverTabDelay, $Tooltip)
+	GUICtrlSetTip($idChromePlusHoverTab, $Tooltip)
+	GUICtrlSetTip($idChromePlusHoverTabDelay, $Tooltip)
 
 	Local $State = $GUI_DISABLE
-	If $FeatureSupported Then GUICtrlSetState($hChromePlusHoverTab, $GUI_ENABLE)
-	If $FeatureSupported And GUICtrlRead($hChromePlusHoverTab) = $GUI_CHECKED Then
+	If $FeatureSupported Then GUICtrlSetState($idChromePlusHoverTab, $GUI_ENABLE)
+	If $FeatureSupported And GUICtrlRead($idChromePlusHoverTab) = $GUI_CHECKED Then
 		$State = $GUI_ENABLE
 	Else
-		GUICtrlSetState($hChromePlusHoverTab, $GUI_DISABLE)
+		GUICtrlSetState($idChromePlusHoverTab, $GUI_DISABLE)
 	EndIf
-	GUICtrlSetState($hChromePlusHoverTabDelay, $State)
-	GUICtrlSetState($hChromePlusHoverTabDelayLabel, $State)
+	GUICtrlSetState($idChromePlusHoverTabDelay, $State)
+	GUICtrlSetState($idChromePlusHoverTabDelayLabel, $State)
 EndFunc   ;==>RefreshChromePlusHoverTabDelayState
 
 Func RefreshChromePlusNewTabDisableNameState()
-	If Not $hChromePlusNewTabDisableName Then Return
+	If Not $idChromePlusNewTabDisableName Then Return
 
 	Local $State = $GUI_DISABLE
-	If BitAND(GUICtrlGetState($hChromePlusNewTabDisable), $GUI_ENABLE) = $GUI_ENABLE And GUICtrlRead($hChromePlusNewTabDisable) = $GUI_CHECKED Then
+	If BitAND(GUICtrlGetState($idChromePlusNewTabDisable), $GUI_ENABLE) = $GUI_ENABLE And GUICtrlRead($idChromePlusNewTabDisable) = $GUI_CHECKED Then
 		$State = $GUI_ENABLE
 	EndIf
-	GUICtrlSetState($hChromePlusNewTabDisableName, $State)
-	GUICtrlSetState($hChromePlusNewTabDisableNameLabel, $State)
+	GUICtrlSetState($idChromePlusNewTabDisableName, $State)
+	GUICtrlSetState($idChromePlusNewTabDisableNameLabel, $State)
 EndFunc   ;==>RefreshChromePlusNewTabDisableNameState
 
 Func RefreshChromePlusTabState()
-	If Not $hChromePlusHint Then Return
+	If Not $idChromePlusHint Then Return
 
 	Local $BrowserPath = GetCurrentSettingsBrowserPath()
 	Local $SelectedBrowserType = GetSelectedBrowserType()
@@ -3011,10 +3011,10 @@ Func RefreshChromePlusTabState()
 	Local $CanInstallPatch = $IsChrome And FileExists($BrowserPath) And GetChromePlusConfigPath($BrowserPath) <> ""
 
 	If $HasPatch Then
-		GUICtrlSetData($hChromePlusHint, _t("ChromePlusTabsReady", "已检测到 Chrome++ 补丁，以下设置将写入当前目录的 chrome++.ini [tabs]。"))
-		GUICtrlSetData($hChromePlusConfigPath, GetChromePlusConfigPath($BrowserPath))
-		GUICtrlSetData($hChromePlusDownloadPatch, _t("UpdateChromePlusPatch", "更新 Chrome++"))
-		GUICtrlSetState($hChromePlusDownloadPatch, $GUI_SHOW)
+		GUICtrlSetData($idChromePlusHint, _t("ChromePlusTabsReady", "已检测到 Chrome++ 补丁，以下设置将写入当前目录的 chrome++.ini [tabs]。"))
+		GUICtrlSetData($idChromePlusConfigPath, GetChromePlusConfigPath($BrowserPath))
+		GUICtrlSetData($idChromePlusDownloadPatch, _t("UpdateChromePlusPatch", "更新 Chrome++"))
+		GUICtrlSetState($idChromePlusDownloadPatch, $GUI_SHOW)
 		SetChromePlusTabControlsState(True)
 		LoadChromePlusTabsSettings(GetChromePlusConfigPath($BrowserPath))
 		UpdateChromePlusVersionLabels()
@@ -3023,26 +3023,26 @@ Func RefreshChromePlusTabState()
 	EndIf
 
 	If $IsChrome Then
-		GUICtrlSetData($hChromePlusHint, _t("ChromePlusTabsPatchMissing", "当前浏览器目录未检测到 Chrome++ 补丁（version.dll），安装后才可修改这些选项。"))
-		GUICtrlSetData($hChromePlusConfigPath, GetChromePlusConfigPath($BrowserPath))
-		GUICtrlSetData($hChromePlusDownloadPatch, _t("DownloadChromePlusPatch", "下载并安装 Chrome++"))
-		GUICtrlSetState($hChromePlusDownloadPatch, $GUI_SHOW)
+		GUICtrlSetData($idChromePlusHint, _t("ChromePlusTabsPatchMissing", "当前浏览器目录未检测到 Chrome++ 补丁（version.dll），安装后才可修改这些选项。"))
+		GUICtrlSetData($idChromePlusConfigPath, GetChromePlusConfigPath($BrowserPath))
+		GUICtrlSetData($idChromePlusDownloadPatch, _t("DownloadChromePlusPatch", "下载并安装 Chrome++"))
+		GUICtrlSetState($idChromePlusDownloadPatch, $GUI_SHOW)
 		If $CanInstallPatch Then
-			GUICtrlSetState($hChromePlusDownloadPatch, $GUI_ENABLE)
+			GUICtrlSetState($idChromePlusDownloadPatch, $GUI_ENABLE)
 		Else
-			GUICtrlSetState($hChromePlusDownloadPatch, $GUI_DISABLE)
+			GUICtrlSetState($idChromePlusDownloadPatch, $GUI_DISABLE)
 		EndIf
 		UpdateChromePlusVersionLabels()
 		BeginChromePlusVersionLoad()
 	Else
 		If $IsChromium Then
-			GUICtrlSetData($hChromePlusHint, _t("ChromePlusTabsUnsupportedBrowser", "Chrome++ 暂未兼容当前浏览器。"))
+			GUICtrlSetData($idChromePlusHint, _t("ChromePlusTabsUnsupportedBrowser", "Chrome++ 暂未兼容当前浏览器。"))
 		Else
-			GUICtrlSetData($hChromePlusHint, _t("ChromePlusTabsRequireChrome", "当前仅在 Chrome 系浏览器下可配置 Chrome++ 标签页选项。"))
+			GUICtrlSetData($idChromePlusHint, _t("ChromePlusTabsRequireChrome", "当前仅在 Chrome 系浏览器下可配置 Chrome++ 标签页选项。"))
 		EndIf
-		GUICtrlSetData($hChromePlusConfigPath, "")
-		GUICtrlSetState($hChromePlusDownloadPatch, $GUI_HIDE)
-		GUICtrlSetState($hChromePlusDownloadPatch, $GUI_DISABLE)
+		GUICtrlSetData($idChromePlusConfigPath, "")
+		GUICtrlSetState($idChromePlusDownloadPatch, $GUI_HIDE)
+		GUICtrlSetState($idChromePlusDownloadPatch, $GUI_DISABLE)
 		CancelChromePlusVersionLoad()
 		UpdateChromePlusVersionLabels()
 	EndIf
@@ -3058,7 +3058,7 @@ Func DownloadChromePlusPatchFromSettings()
 EndFunc   ;==>DownloadChromePlusPatchFromSettings
 
 Func UpdateChromePlusVersionLabels($Unavailable = False)
-	If Not $hChromePlusCurrentVersion Or Not $hChromePlusLatestVersion Then Return
+	If Not $idChromePlusCurrentVersion Or Not $idChromePlusLatestVersion Then Return
 
 	Local $BrowserPath = GetCurrentSettingsBrowserPath()
 	Local $CurrentVersion = ""
@@ -3077,45 +3077,45 @@ Func UpdateChromePlusVersionLabels($Unavailable = False)
 
 	If $CurrentVersion = "" Then $CurrentVersion = "-"
 	If $LatestVersion = "" Then $LatestVersion = "-"
-	GUICtrlSetData($hChromePlusCurrentVersion, $CurrentVersion)
-	GUICtrlSetData($hChromePlusLatestVersion, $LatestVersion)
+	GUICtrlSetData($idChromePlusCurrentVersion, $CurrentVersion)
+	GUICtrlSetData($idChromePlusLatestVersion, $LatestVersion)
 	UpdateChromePlusDownloadPatchState()
 EndFunc   ;==>UpdateChromePlusVersionLabels
 
 Func UpdateChromePlusDownloadPatchState()
-	If Not $hChromePlusDownloadPatch Then Return
+	If Not $idChromePlusDownloadPatch Then Return
 
 	Local $BrowserPath = GetCurrentSettingsBrowserPath()
 	Local $IsChrome = IsChromePlusSupportedBrowser(GetSelectedBrowserType())
 	Local $HasPatch = $IsChrome And IsChromePlusPatchInstalled($BrowserPath)
 	Local $CanInstallPatch = $IsChrome And FileExists($BrowserPath) And GetChromePlusConfigPath($BrowserPath) <> ""
 	If Not $IsChrome Then
-		GUICtrlSetState($hChromePlusDownloadPatch, $GUI_HIDE)
-		GUICtrlSetState($hChromePlusDownloadPatch, $GUI_DISABLE)
+		GUICtrlSetState($idChromePlusDownloadPatch, $GUI_HIDE)
+		GUICtrlSetState($idChromePlusDownloadPatch, $GUI_DISABLE)
 		Return
 	EndIf
 
-	GUICtrlSetState($hChromePlusDownloadPatch, $GUI_SHOW)
+	GUICtrlSetState($idChromePlusDownloadPatch, $GUI_SHOW)
 	If Not $HasPatch Then
 		If $CanInstallPatch Then
-			GUICtrlSetState($hChromePlusDownloadPatch, $GUI_ENABLE)
+			GUICtrlSetState($idChromePlusDownloadPatch, $GUI_ENABLE)
 		Else
-			GUICtrlSetState($hChromePlusDownloadPatch, $GUI_DISABLE)
+			GUICtrlSetState($idChromePlusDownloadPatch, $GUI_DISABLE)
 		EndIf
 		Return
 	EndIf
 
 	If Not $CanInstallPatch Then
-		GUICtrlSetState($hChromePlusDownloadPatch, $GUI_DISABLE)
+		GUICtrlSetState($idChromePlusDownloadPatch, $GUI_DISABLE)
 		Return
 	EndIf
 
 	Local $CurrentVersion = NormalizeChromePlusVersionText(GetChromePlusInstalledVersion($BrowserPath))
 	Local $LatestVersion = NormalizeChromePlusVersionText(GetChromePlusVersionFromTag($ChromePlusReleaseTag))
 	If $LatestVersion = "" Or $CurrentVersion = "" Or VersionCompare($LatestVersion, $CurrentVersion) > 0 Then
-		GUICtrlSetState($hChromePlusDownloadPatch, $GUI_ENABLE)
+		GUICtrlSetState($idChromePlusDownloadPatch, $GUI_ENABLE)
 	Else
-		GUICtrlSetState($hChromePlusDownloadPatch, $GUI_DISABLE)
+		GUICtrlSetState($idChromePlusDownloadPatch, $GUI_DISABLE)
 	EndIf
 EndFunc   ;==>UpdateChromePlusDownloadPatchState
 
@@ -3134,7 +3134,7 @@ Func GetChromePlusVersionLoadSpinner()
 EndFunc   ;==>GetChromePlusVersionLoadSpinner
 
 Func BeginChromePlusVersionLoad()
-	If Not $hChromePlusLatestVersion Then Return
+	If Not $idChromePlusLatestVersion Then Return
 	If Not IsChromePlusSupportedBrowser(GetSelectedBrowserType()) Then Return
 	If $ChromePlusReleaseInfoLoaded Then
 		UpdateChromePlusVersionLabels()
@@ -3231,40 +3231,40 @@ Func SaveChromePlusTabsSettings($BrowserPath)
 	If Not FileExists($ConfigPath) And Not WriteChromePlusManagedConfig($ConfigPath) Then Return False
 	If Not WriteChromePlusPortablePaths($ConfigPath) Then Return False
 
-	If IniWrite($ConfigPath, "tabs", "double_click_close", GetCheckboxIniValue($hChromePlusDoubleClickClose)) = 0 Then Return False
-	If IniWrite($ConfigPath, "tabs", "right_click_close", GetCheckboxIniValue($hChromePlusRightClickClose)) = 0 Then Return False
-	If IniWrite($ConfigPath, "tabs", "keep_last_tab", GetCheckboxIniValue($hChromePlusKeepLastTab)) = 0 Then Return False
-	If IniWrite($ConfigPath, "tabs", "wheel_tab", GetCheckboxIniValue($hChromePlusWheelTab)) = 0 Then Return False
-	If IniWrite($ConfigPath, "tabs", "wheel_tab_when_press_rbutton", GetCheckboxIniValue($hChromePlusWheelTabWhenPressRButton)) = 0 Then Return False
-	If IniWrite($ConfigPath, "tabs", "open_url_new_tab", GetCheckboxIniValue($hChromePlusOpenUrlNewTab)) = 0 Then Return False
-	If IniWrite($ConfigPath, "tabs", "open_bookmark_new_tab", GetCheckboxIniValue($hChromePlusOpenBookmarkNewTab)) = 0 Then Return False
-	If IniWrite($ConfigPath, "tabs", "new_tab_disable", GetCheckboxIniValue($hChromePlusNewTabDisable)) = 0 Then Return False
+	If IniWrite($ConfigPath, "tabs", "double_click_close", GetCheckboxIniValue($idChromePlusDoubleClickClose)) = 0 Then Return False
+	If IniWrite($ConfigPath, "tabs", "right_click_close", GetCheckboxIniValue($idChromePlusRightClickClose)) = 0 Then Return False
+	If IniWrite($ConfigPath, "tabs", "keep_last_tab", GetCheckboxIniValue($idChromePlusKeepLastTab)) = 0 Then Return False
+	If IniWrite($ConfigPath, "tabs", "wheel_tab", GetCheckboxIniValue($idChromePlusWheelTab)) = 0 Then Return False
+	If IniWrite($ConfigPath, "tabs", "wheel_tab_when_press_rbutton", GetCheckboxIniValue($idChromePlusWheelTabWhenPressRButton)) = 0 Then Return False
+	If IniWrite($ConfigPath, "tabs", "open_url_new_tab", GetCheckboxIniValue($idChromePlusOpenUrlNewTab)) = 0 Then Return False
+	If IniWrite($ConfigPath, "tabs", "open_bookmark_new_tab", GetCheckboxIniValue($idChromePlusOpenBookmarkNewTab)) = 0 Then Return False
+	If IniWrite($ConfigPath, "tabs", "new_tab_disable", GetCheckboxIniValue($idChromePlusNewTabDisable)) = 0 Then Return False
 	If IsChromePlusHoverTabSupported($ResolvedBrowserPath) Then
-		If IniWrite($ConfigPath, "tabs", "hover_tab", GetCheckboxIniValue($hChromePlusHoverTab)) = 0 Then Return False
-		If IniWrite($ConfigPath, "tabs", "hover_tab_delay", NormalizeChromePlusHoverTabDelay(GUICtrlRead($hChromePlusHoverTabDelay))) = 0 Then Return False
+		If IniWrite($ConfigPath, "tabs", "hover_tab", GetCheckboxIniValue($idChromePlusHoverTab)) = 0 Then Return False
+		If IniWrite($ConfigPath, "tabs", "hover_tab_delay", NormalizeChromePlusHoverTabDelay(GUICtrlRead($idChromePlusHoverTabDelay))) = 0 Then Return False
 	EndIf
-	If Not WriteIniTextValue($ConfigPath, "tabs", "new_tab_disable_name", StringStripWS(GUICtrlRead($hChromePlusNewTabDisableName), 3)) Then Return False
+	If Not WriteIniTextValue($ConfigPath, "tabs", "new_tab_disable_name", StringStripWS(GUICtrlRead($idChromePlusNewTabDisableName), 3)) Then Return False
 	Return True
 EndFunc   ;==>SaveChromePlusTabsSettings
 
 Func RefreshCopyProfileState()
-	If Not $hCopyProfile Then Return
+	If Not $idCopyProfile Then Return
 	Local $CurrentBrowserType = GetSelectedBrowserType()
 	Local $SelectedChannel = "release"
-	If $hChannel Then $SelectedChannel = GUICtrlRead($hChannel)
+	If $idChannel Then $SelectedChannel = GUICtrlRead($idChannel)
 	$DefaultProfDir = GetSystemProfileSourceDir($CurrentBrowserType, $SelectedChannel)
 
 	Local $SourceMarker = "\prefs.js"
 	If IsChromeBrowser($CurrentBrowserType) Then $SourceMarker = "\Local State"
 	Local $TargetProfileDir = FullPath($ProfileDir)
-	If $hProfileDir Then $TargetProfileDir = FullPath(GUICtrlRead($hProfileDir))
+	If $idProfileDir Then $TargetProfileDir = FullPath(GUICtrlRead($idProfileDir))
 
 	If $DefaultProfDir <> "" And FileExists($DefaultProfDir & $SourceMarker) Then
-		GUICtrlSetState($hCopyProfile, $GUI_ENABLE)
-		If $FirstRun And Not FileExists($TargetProfileDir & $SourceMarker) Then GUICtrlSetState($hCopyProfile, $GUI_CHECKED)
+		GUICtrlSetState($idCopyProfile, $GUI_ENABLE)
+		If $FirstRun And Not FileExists($TargetProfileDir & $SourceMarker) Then GUICtrlSetState($idCopyProfile, $GUI_CHECKED)
 	Else
-		GUICtrlSetState($hCopyProfile, $GUI_UNCHECKED)
-		GUICtrlSetState($hCopyProfile, $GUI_DISABLE)
+		GUICtrlSetState($idCopyProfile, $GUI_UNCHECKED)
+		GUICtrlSetState($idCopyProfile, $GUI_DISABLE)
 	EndIf
 EndFunc   ;==>RefreshCopyProfileState
 
@@ -3363,7 +3363,7 @@ Func GetSystemChromiumUserDataDir($BrowserTypeValue, $Channel = "")
 	EndIf
 
 	Local $CurrentBrowserPath = ""
-	If $hFirefoxPath Then $CurrentBrowserPath = StringLower(GUICtrlRead($hFirefoxPath))
+	If $idBrowserPath Then $CurrentBrowserPath = StringLower(GUICtrlRead($idBrowserPath))
 	Local $ChannelLower = StringLower($Channel)
 
 	If StringInStr($CurrentBrowserPath, "chromium") Then
@@ -3410,8 +3410,8 @@ Func UpdateBrowserChannelOptions($Value, $SelectedChannel)
 	EndIf
 	If Not StringRegExp("|" & $Options & "|", "(?i)\|" & $SelectedChannel & "\|") Then $SelectedChannel = $DefaultChannel
 
-	_SendMessage(GUICtrlGetHandle($hChannel), $CB_RESETCONTENT)
-	GUICtrlSetData($hChannel, $Options, $SelectedChannel)
+	_SendMessage(GUICtrlGetHandle($idChannel), $CB_RESETCONTENT)
+	GUICtrlSetData($idChannel, $Options, $SelectedChannel)
 EndFunc   ;==>UpdateBrowserChannelOptions
 
 Func GetFirefoxVersions()
@@ -4610,12 +4610,12 @@ Func ShowChromePlusPatchInstallFailedDialog($ErrorMessage, $LogPath)
 	If $LogPath <> "" Then $Message &= @CRLF & @CRLF & _t("ChromePlusPatchLogSaved", "诊断日志已保存到：\n%s", $LogPath)
 
 	Local $PreviousGuiMode = Opt("GUIOnEventMode", 0)
-	Local $hDialog = GUICreate($CustomArch, 470, 220, -1, -1, BitOR($WS_CAPTION, $WS_SYSMENU), -1, $hSettings)
-	Local $hMessage = GUICtrlCreateEdit($Message, 15, 15, 440, 135, BitOR($ES_READONLY, $ES_MULTILINE, $WS_VSCROLL))
-	Local $hViewLog = GUICtrlCreateButton(_t("ViewLog", "查看日志"), 255, 170, 90, 25)
-	Local $hOK = GUICtrlCreateButton(_t("Confirm", "确定"), 365, 170, 90, 25)
+	Local $hDialog = GUICreate($AppName, 470, 220, -1, -1, BitOR($WS_CAPTION, $WS_SYSMENU), -1, $hSettings)
+	Local $idMessage = GUICtrlCreateEdit($Message, 15, 15, 440, 135, BitOR($ES_READONLY, $ES_MULTILINE, $WS_VSCROLL))
+	Local $idViewLog = GUICtrlCreateButton(_t("ViewLog", "查看日志"), 255, 170, 90, 25)
+	Local $idOK = GUICtrlCreateButton(_t("Confirm", "确定"), 365, 170, 90, 25)
 
-	If $LogPath = "" Or Not FileExists($LogPath) Then GUICtrlSetState($hViewLog, $GUI_DISABLE)
+	If $LogPath = "" Or Not FileExists($LogPath) Then GUICtrlSetState($idViewLog, $GUI_DISABLE)
 	If $hSettings Then GUISetState(@SW_DISABLE, $hSettings)
 	GUISetState(@SW_SHOW, $hDialog)
 
@@ -4624,9 +4624,9 @@ Func ShowChromePlusPatchInstallFailedDialog($ErrorMessage, $LogPath)
 		$aMsg = GUIGetMsg(1)
 		If IsArray($aMsg) And $aMsg[1] = $hDialog Then
 			Switch $aMsg[0]
-				Case $GUI_EVENT_CLOSE, $hOK
+				Case $GUI_EVENT_CLOSE, $idOK
 					ExitLoop
-				Case $hViewLog
+				Case $idViewLog
 					If $LogPath <> "" And FileExists($LogPath) Then ShellExecute($LogPath)
 			EndSwitch
 		EndIf
@@ -4756,7 +4756,7 @@ EndFunc   ;==>BuildBrowserDownloadUrls
 
 Func ShowCurrentChannel()
 	If IsChromeBrowser(GetSelectedBrowserType()) Then Return
-	Local $path = GUICtrlRead($hFirefoxPath)
+	Local $path = GUICtrlRead($idBrowserPath)
 	If Not FileExists($path) Then Return
 	Local $ChannelPath = StringRegExpReplace($path, "\\?[^\\]+$", "") & "\defaults\pref\channel-prefs.js"
 	Local $var = FileRead($ChannelPath)
@@ -4764,60 +4764,60 @@ Func ShowCurrentChannel()
 	If @error Then Return
 	$Channel = $match[0]
 	If $Channel = "aurora" Then $Channel = "dev"
-	_GUICtrlComboBox_SelectString($hChannel, $Channel)
+	_GUICtrlComboBox_SelectString($idChannel, $Channel)
 EndFunc   ;==>ShowCurrentChannel
 
-Func DownloadFirefox()
+Func DownloadBrowser()
 	Local $os = "win64"
 	Local $CurrentBrowserType = GetSelectedBrowserType()
 
-	Local $ChannelString = GUICtrlRead($hChannel)
+	Local $ChannelString = GUICtrlRead($idChannel)
 	Local $Channel = StringRegExpReplace($ChannelString, " *-.*", "")
-	If IsDisplayedBrowserVersionUnavailable(GUICtrlRead($hDownloadFirefox64)) And Not HasBrowserDownloadFallback($CurrentBrowserType, $Channel) Then
+	If IsDisplayedBrowserVersionUnavailable(GUICtrlRead($idBrowserDownloadLink)) And Not HasBrowserDownloadFallback($CurrentBrowserType, $Channel) Then
 		Local $DownloadPageUrl = GetBrowserDownloadPageUrl($CurrentBrowserType, $Channel)
 		If $DownloadPageUrl <> "" Then ShellExecute($DownloadPageUrl)
 		Return
 	EndIf
 
-	Local $FirefoxURLs = BuildBrowserDownloadUrls($CurrentBrowserType, $Channel, $os)
-	If @error Or Not IsArray($FirefoxURLs) Or UBound($FirefoxURLs) = 0 Then
+	Local $BrowserDownloadUrls = BuildBrowserDownloadUrls($CurrentBrowserType, $Channel, $os)
+	If @error Or Not IsArray($BrowserDownloadUrls) Or UBound($BrowserDownloadUrls) = 0 Then
 		_GUICtrlStatusBar_SetText($hStatus, _t("BrowserVersionLoadFailed", "读取浏览器版本失败。"))
 		Return
 	EndIf
-	$FirefoxURL = $FirefoxURLs[0]
+	$BrowserDownloadUrl = $BrowserDownloadUrls[0]
 
-	Local $TargetFirefoxPath = FullPath(GUICtrlRead($hFirefoxPath))
+	Local $TargetBrowserPath = FullPath(GUICtrlRead($idBrowserPath))
 	Local $TargetDir, $TargetFile
-	SplitPath($TargetFirefoxPath, $TargetDir, $TargetFile)
+	SplitPath($TargetBrowserPath, $TargetDir, $TargetFile)
 	If $TargetDir = "" Or $TargetDir = "." Then $TargetDir = @ScriptDir
 
 	If BrowserExecutableExistsInDir($TargetDir, $CurrentBrowserType) Or IsDirectoryNotEmpty($TargetDir) Then
 		Local $ConfirmOverwrite = _t("ConfirmOverwriteBrowserFiles", "目标目录已有浏览器文件或其他文件：\n%s\n\n是否继续下载并覆盖/合并文件？", $TargetDir)
-		If MsgBox(36 + 256, $CustomArch, $ConfirmOverwrite, 0, $hSettings) <> 6 Then Return
+		If MsgBox(36 + 256, $AppName, $ConfirmOverwrite, 0, $hSettings) <> 6 Then Return
 	EndIf
 
-	Local $DownloadedFirefoxPath = DownloadAndExtractFirefox($FirefoxURLs, $TargetDir, $os, $Channel, $CurrentBrowserType)
+	Local $DownloadedBrowserPath = DownloadAndExtractBrowser($BrowserDownloadUrls, $TargetDir, $os, $Channel, $CurrentBrowserType)
 	If @error Then
-		Local $ErrorMessage = _t("BrowserDownloadFailed", "浏览器下载或解压失败：\n%s\n\n请检查网络和目标目录权限后重试。", $DownloadedFirefoxPath)
-		MsgBox(16, $CustomArch, $ErrorMessage, 0, $hSettings)
+		Local $ErrorMessage = _t("BrowserDownloadFailed", "浏览器下载或解压失败：\n%s\n\n请检查网络和目标目录权限后重试。", $DownloadedBrowserPath)
+		MsgBox(16, $AppName, $ErrorMessage, 0, $hSettings)
 		Return
 	EndIf
 
-	$FirefoxPath = RelativePath($DownloadedFirefoxPath)
-	GUICtrlSetData($hFirefoxPath, $FirefoxPath)
-	OnFirefoxPathChange()
-	If IsChromePlusSupportedBrowser($CurrentBrowserType) And Not IsChromePlusPatchInstalled($DownloadedFirefoxPath) Then
+	$BrowserPath = RelativePath($DownloadedBrowserPath)
+	GUICtrlSetData($idBrowserPath, $BrowserPath)
+	OnBrowserPathChange()
+	If IsChromePlusSupportedBrowser($CurrentBrowserType) And Not IsChromePlusPatchInstalled($DownloadedBrowserPath) Then
 		Local $InstallChromePlusConfirm = _t("InstallChromePlusPatchAfterDownloadConfirm", "浏览器已下载并解压完成。\n是否同时下载并安装 Chrome++ 补丁？")
-		If MsgBox(36 + 256, $CustomArch, $InstallChromePlusConfirm, 0, $hSettings) = 6 Then _
-			InstallChromePlusPatchInteractive($DownloadedFirefoxPath, $os)
+		If MsgBox(36 + 256, $AppName, $InstallChromePlusConfirm, 0, $hSettings) = 6 Then _
+			InstallChromePlusPatchInteractive($DownloadedBrowserPath, $os)
 	EndIf
 	UpdateBrowserSpecificControls()
 	_GUICtrlStatusBar_SetText($hStatus, _t("BrowserDownloadSuccess", "浏览器已下载并解压完成。"))
 	Local $OpenDownloadedBrowserConfirm = _t("OpenDownloadedBrowserConfirm", "浏览器已下载并解压完成。\n是否马上打开浏览器？")
-	If MsgBox(36 + 256, $CustomArch, $OpenDownloadedBrowserConfirm, 0, $hSettings) = 6 Then SettingsOK()
-EndFunc   ;==>DownloadFirefox
+	If MsgBox(36 + 256, $AppName, $OpenDownloadedBrowserConfirm, 0, $hSettings) = 6 Then ConfirmSettings()
+EndFunc   ;==>DownloadBrowser
 
-Func DownloadAndExtractFirefox($aDownloadUrls, $TargetDir, $os, $Channel, $CurrentBrowserType)
+Func DownloadAndExtractBrowser($aDownloadUrls, $TargetDir, $os, $Channel, $CurrentBrowserType)
 	Local $TempDir = @TempDir & "\RunFirefox_FirefoxDownload"
 	If Not IsArray($aDownloadUrls) Or UBound($aDownloadUrls) = 0 Then Return SetError(1, 0, _t("CannotStartBrowserDownload", "无法开始下载浏览器。"))
 	Local $DownloadUrl
@@ -4825,7 +4825,7 @@ Func DownloadAndExtractFirefox($aDownloadUrls, $TargetDir, $os, $Channel, $Curre
 	Local $InstallerExt = GetUrlFileExtension($DownloadUrl)
 	Local $Installer = $TempDir & "\BrowserSetup_" & NormalizeBrowserType($CurrentBrowserType) & "_" & $Channel & "_" & $os & $InstallerExt
 	Local $ExtractDir = $TempDir & "\extract"
-	Local $TargetFirefoxPath = $TargetDir & "\" & GetBrowserExecutableName($CurrentBrowserType)
+	Local $TargetBrowserPath = $TargetDir & "\" & GetBrowserExecutableName($CurrentBrowserType)
 	Local $hDownload, $DownloadedBytes, $TotalBytes, $Percent, $DetailText, $ret, $ExtractLog, $SevenZipExe, $i
 	Local $CopiedBrowserFiles = False, $DownloadSuccessful = False, $TriedDownloadUrls = ""
 
@@ -4895,22 +4895,22 @@ Func DownloadAndExtractFirefox($aDownloadUrls, $TargetDir, $os, $Channel, $Curre
 	CloseDownloadProgress()
 
 	ExtractNestedBrowserArchives($SevenZipExe, $ExtractDir, $TempDir)
-	Local $ExtractedFirefoxPath = FindBrowserExecutableForType($ExtractDir, $CurrentBrowserType)
-	If $ExtractedFirefoxPath Then
-		Local $ExtractedFirefoxDir, $ExtractedFirefoxFile
-		SplitPath($ExtractedFirefoxPath, $ExtractedFirefoxDir, $ExtractedFirefoxFile)
-		$CopiedBrowserFiles = DirCopy($ExtractedFirefoxDir, $TargetDir, 1)
-		$TargetFirefoxPath = $TargetDir & "\" & $ExtractedFirefoxFile
+	Local $ExtractedBrowserPath = FindBrowserExecutableForType($ExtractDir, $CurrentBrowserType)
+	If $ExtractedBrowserPath Then
+		Local $ExtractedBrowserDir, $ExtractedBrowserFile
+		SplitPath($ExtractedBrowserPath, $ExtractedBrowserDir, $ExtractedBrowserFile)
+		$CopiedBrowserFiles = DirCopy($ExtractedBrowserDir, $TargetDir, 1)
+		$TargetBrowserPath = $TargetDir & "\" & $ExtractedBrowserFile
 	EndIf
 
-	If Not $CopiedBrowserFiles Or Not FileExists($TargetFirefoxPath) Then
+	If Not $CopiedBrowserFiles Or Not FileExists($TargetBrowserPath) Then
 		Return SetError(6, 0, _t("FailToExtractBrowserInstaller", "解压浏览器安装包失败。") & @CRLF & @CRLF & _t("FirefoxExtractLogKept", "诊断文件已保留在：\n%s", $TempDir))
 	EndIf
 
 	FileDelete($Installer)
 	DirRemove($TempDir, 1)
-	Return $TargetFirefoxPath
-EndFunc   ;==>DownloadAndExtractFirefox
+	Return $TargetBrowserPath
+EndFunc   ;==>DownloadAndExtractBrowser
 
 Func BuildBrowserDownloadFailureDetail($BaseMessage, $TriedDownloadUrls, $Installer)
 	Local $Detail = $BaseMessage
@@ -4930,10 +4930,10 @@ Func ShowDownloadProgress($TitleText, $StatusText, $DetailText)
 	$DownloadProgressCanCancel = 1
 	$hDownloadProgress = GUICreate($TitleText, 420, 135, -1, -1, BitOR($WS_CAPTION, $WS_SYSMENU), -1, $hSettings)
 	GUISetOnEvent($GUI_EVENT_CLOSE, "CancelDownloadProgress")
-	$hDownloadProgressStatus = GUICtrlCreateLabel($StatusText, 15, 15, 390, 20)
-	$hDownloadProgressDetail = GUICtrlCreateLabel($DetailText, 15, 42, 390, 36)
-	$hDownloadProgressBar = GUICtrlCreateProgress(15, 82, 390, 18)
-	$hDownloadProgressCancel = GUICtrlCreateButton(_t("Cancel", "取消"), 170, 108, 80, 22)
+	$idDownloadProgressStatus = GUICtrlCreateLabel($StatusText, 15, 15, 390, 20)
+	$idDownloadProgressDetail = GUICtrlCreateLabel($DetailText, 15, 42, 390, 36)
+	$idDownloadProgressBar = GUICtrlCreateProgress(15, 82, 390, 18)
+	$idDownloadProgressCancel = GUICtrlCreateButton(_t("Cancel", "取消"), 170, 108, 80, 22)
 	GUICtrlSetOnEvent(-1, "CancelDownloadProgress")
 	GUISetState(@SW_SHOW, $hDownloadProgress)
 	WinSetOnTop($hDownloadProgress, "", 1)
@@ -4941,15 +4941,15 @@ EndFunc   ;==>ShowDownloadProgress
 
 Func UpdateDownloadProgress($StatusText, $DetailText, $Percent)
 	If Not $hDownloadProgress Then Return
-	GUICtrlSetData($hDownloadProgressStatus, $StatusText)
-	GUICtrlSetData($hDownloadProgressDetail, $DetailText)
-	GUICtrlSetData($hDownloadProgressBar, $Percent)
+	GUICtrlSetData($idDownloadProgressStatus, $StatusText)
+	GUICtrlSetData($idDownloadProgressDetail, $DetailText)
+	GUICtrlSetData($idDownloadProgressBar, $Percent)
 EndFunc   ;==>UpdateDownloadProgress
 
 Func SetDownloadProgressBusy($StatusText, $DetailText)
 	If Not $hDownloadProgress Then Return
 	$DownloadProgressCanCancel = 0
-	GUICtrlSetState($hDownloadProgressCancel, $GUI_DISABLE)
+	GUICtrlSetState($idDownloadProgressCancel, $GUI_DISABLE)
 	UpdateDownloadProgress($StatusText, $DetailText, 100)
 EndFunc   ;==>SetDownloadProgressBusy
 
@@ -4980,7 +4980,7 @@ Func PumpDownloadProgressEvents()
 		$aMsg = GUIGetMsg(1)
 		If Not IsArray($aMsg) Then Return
 		If $aMsg[0] = 0 Then Return
-		If $aMsg[1] = $hDownloadProgress And ($aMsg[0] = $hDownloadProgressCancel Or $aMsg[0] = $GUI_EVENT_CLOSE) Then
+		If $aMsg[1] = $hDownloadProgress And ($aMsg[0] = $idDownloadProgressCancel Or $aMsg[0] = $GUI_EVENT_CLOSE) Then
 			$DownloadProgressCancelled = 1
 			Return
 		EndIf
@@ -5240,15 +5240,15 @@ Func NotifyEnvironmentChanged()
 	DllCall("user32.dll", "long_ptr", "SendMessageTimeoutW", "hwnd", 0xFFFF, "uint", 0x001A, "wparam", 0, "wstr", "Environment", "uint", 0x0002, "uint", 5000, "dword_ptr*", 0)
 EndFunc   ;==>NotifyEnvironmentChanged
 
-Func RunInBackground()
-	If GUICtrlRead($hRunInBackground) = $GUI_CHECKED Then
+Func OnBackgroundModeChange()
+	If GUICtrlRead($idBackgroundModeEnabled) = $GUI_CHECKED Then
 		Return
 	EndIf
 	Local $msg = MsgBox(36 + 256, "RunFirefox", _t("RunInBackgroundMessage", '允许 RunFirefox 在后台运行可以带来更好的用户体验。若取消此选项，请注意以下几点：\n\n 1. 将浏览器锁定到任务栏或设为默认浏览器后，需再运行一次 RunFirefox 才能生效；\n2. RunFirefox 设置界面中带“#”符号的功能/选项将不会执行，包括浏览器退出后关闭外部程序、运行外部程序等。\n\n确定要取消此选项吗？'), 0, $hSettings)
 	If $msg <> 6 Then
-		GUICtrlSetState($hRunInBackground, $GUI_CHECKED)
+		GUICtrlSetState($idBackgroundModeEnabled, $GUI_CHECKED)
 	EndIf
-EndFunc   ;==>RunInBackground
+EndFunc   ;==>OnBackgroundModeChange
 
 ;~ 设置界面取消
 Func ExitApp()
@@ -5256,59 +5256,59 @@ Func ExitApp()
 EndFunc   ;==>ExitApp
 
 ;~ 设置界面确定按钮
-Func SettingsOK()
-	SettingsApply()
+Func ConfirmSettings()
+	ApplySettings()
 	If @error Then Return
-	$SettingsOK = 1
-EndFunc   ;==>SettingsOK
+	$SettingsConfirmed = 1
+EndFunc   ;==>ConfirmSettings
 
 
 
 ;~ 设置界面应用按钮
-Func SettingsApply()
+Func ApplySettings()
 	Local $msg, $var
 	FileChangeDir(@ScriptDir)
 
 	Opt("ExpandEnvStrings", 0)
-	$FirefoxPath = RelativePath(GUICtrlRead($hFirefoxPath))
+	$BrowserPath = RelativePath(GUICtrlRead($idBrowserPath))
 	ApplyDetectedBrowserTypeFromPath()
 	$BrowserType = GetSelectedBrowserType()
 
-	If GUICtrlRead($hAllowBrowserUpdate) = $GUI_CHECKED Then
+	If GUICtrlRead($idAllowBrowserUpdate) = $GUI_CHECKED Then
 		$AllowBrowserUpdate = 1
 	Else
 		$AllowBrowserUpdate = 0
 	EndIf
 	If IsChromeBrowser($BrowserType) Then $AllowBrowserUpdate = 0
-	$ProfileDir = RelativePath(GUICtrlRead($hProfileDir))
-	$CustomPluginsDir = RelativePath(GUICtrlRead($hCustomPluginsDir))
-	$CustomCacheDir = RelativePath(GUICtrlRead($hCustomCacheDir))
-	$CacheSize = GUICtrlRead($hCacheSize)
-	If GUICtrlRead($hCacheSizeSmart) = $GUI_CHECKED Then
+	$ProfileDir = RelativePath(GUICtrlRead($idProfileDir))
+	$CustomPluginsDir = RelativePath(GUICtrlRead($idCustomPluginsDir))
+	$CustomCacheDir = RelativePath(GUICtrlRead($idCustomCacheDir))
+	$CacheSize = GUICtrlRead($idCacheSize)
+	If GUICtrlRead($idCacheSizeSmart) = $GUI_CHECKED Then
 		$CacheSizeSmart = 1
 	Else
 		$CacheSizeSmart = 0
 	EndIf
 	If IsChromeBrowser($BrowserType) Then $CacheSizeSmart = 0
-	$var = GUICtrlRead($hParams)
+	$var = GUICtrlRead($idParams)
 	$var = StringStripWS($var, 3)
 	$Params = StringReplace($var, @CRLF, " ") ; 换行符换成空格
-	If GUICtrlRead($hChromiumDebugPortEnabled) = $GUI_CHECKED Then
+	If GUICtrlRead($idChromiumDebugPortEnabled) = $GUI_CHECKED Then
 		$ChromiumDebugPortEnabled = 1
 	Else
 		$ChromiumDebugPortEnabled = 0
 	EndIf
-	Local $DebugPortInput = StringStripWS(GUICtrlRead($hChromiumDebugPort), 3)
+	Local $DebugPortInput = StringStripWS(GUICtrlRead($idChromiumDebugPort), 3)
 	Local $DebugPortValid = StringRegExp($DebugPortInput, "^\d+$") And Number($DebugPortInput) >= 1 And Number($DebugPortInput) <= 65535
 	If IsChromeBrowser($BrowserType) And $ChromiumDebugPortEnabled Then
 		If Not $DebugPortValid Then
 			MsgBox(16, "RunFirefox", _t("ChromiumDebugPortInvalid", "CDP 调试端口必须是 1-65535 之间的整数。"), 0, $hSettings)
-			GUICtrlSetState($hChromiumDebugPort, $GUI_FOCUS)
+			GUICtrlSetState($idChromiumDebugPort, $GUI_FOCUS)
 			Return SetError(1)
 		EndIf
 		If HasCustomCdpParameter($Params) Then
 			MsgBox(16, "RunFirefox", _t("ChromiumDebugPortConflict", "自定义 CDP 调试端口设置与命令行参数中的远程调试参数冲突。请关闭此设置，或删除命令行参数中的 --remote-debugging-port / --remote-debugging-pipe。"), 0, $hSettings)
-			GUICtrlSetState($hParams, $GUI_FOCUS)
+			GUICtrlSetState($idParams, $GUI_FOCUS)
 			Return SetError(1)
 		EndIf
 	EndIf
@@ -5317,51 +5317,51 @@ Func SettingsApply()
 	Else
 		$ChromiumDebugPort = 9222
 	EndIf
-	If GUICtrlRead($hCheckAppUpdate) = $GUI_CHECKED Then
-		$CheckAppUpdate = 1
+	If GUICtrlRead($idAppUpdateCheckEnabled) = $GUI_CHECKED Then
+		$AppUpdateCheckEnabled = 1
 	Else
-		$CheckAppUpdate = 0
+		$AppUpdateCheckEnabled = 0
 	EndIf
 	$BrowserUpdateCheckMode = GetSelectedBrowserUpdateCheckMode()
-	If GUICtrlRead($hRunInBackground) = $GUI_CHECKED Then
-		$RunInBackground = 1
+	If GUICtrlRead($idBackgroundModeEnabled) = $GUI_CHECKED Then
+		$BackgroundModeEnabled = 1
 	Else
-		$RunInBackground = 0
+		$BackgroundModeEnabled = 0
 	EndIf
-	If IsBossKeySupportedBrowser($BrowserType) And GUICtrlRead($hBossKeyEnabled) = $GUI_CHECKED Then
+	If IsBossKeySupportedBrowser($BrowserType) And GUICtrlRead($idBossKeyEnabled) = $GUI_CHECKED Then
 		$BossKeyEnabled = 1
 	Else
 		$BossKeyEnabled = 0
 	EndIf
 	$BossKey = $BossKeyCaptureValue
-	If GUICtrlRead($hBossKeyHideToTray) = $GUI_CHECKED Then
+	If GUICtrlRead($idBossKeyHideToTray) = $GUI_CHECKED Then
 		$BossKeyHideToTray = 1
 	Else
 		$BossKeyHideToTray = 0
 	EndIf
-	Local $var = GUICtrlRead($hExApp)
+	Local $var = GUICtrlRead($idBrowserStartApps)
 	$var = StringStripWS($var, 3)
 	$var = StringReplace($var, @CRLF, "||")
 	$var = StringRegExpReplace($var, "\|+\s*\|+", "\|\|")
-	$ExApp = $var
-	If GUICtrlRead($hExAppAutoExit) = $GUI_CHECKED Then
-		$ExAppAutoExit = 1
+	$BrowserStartApps = $var
+	If GUICtrlRead($idCloseStartAppsAfterBrowserExit) = $GUI_CHECKED Then
+		$CloseStartAppsAfterBrowserExit = 1
 	Else
-		$ExAppAutoExit = 0
+		$CloseStartAppsAfterBrowserExit = 0
 	EndIf
-	$var = GUICtrlRead($hExApp2)
+	$var = GUICtrlRead($idBrowserExitApps)
 	$var = StringStripWS($var, 3)
 	$var = StringReplace($var, @CRLF, "||")
 	$var = StringRegExpReplace($var, "\|+\s*\|+", "\|\|")
-	$ExApp2 = $var
+	$BrowserExitApps = $var
 
-	IniWrite($inifile, "Settings", "CheckAppUpdate", $CheckAppUpdate)
-	IniWrite($inifile, "Settings", "RunInBackground", $RunInBackground)
+	IniWrite($inifile, "Settings", "CheckAppUpdate", $AppUpdateCheckEnabled)
+	IniWrite($inifile, "Settings", "RunInBackground", $BackgroundModeEnabled)
 	IniWrite($inifile, "Settings", "AllowBrowserUpdate", $AllowBrowserUpdate)
 	IniWrite($inifile, "Settings", "BrowserUpdateCheckMode", $BrowserUpdateCheckMode)
 	IniWrite($inifile, "Settings", "BrowserUpdateLastCheck", $BrowserUpdateLastCheck)
 	IniWrite($inifile, "Settings", "BrowserType", $BrowserType)
-	IniWrite($inifile, "Settings", "FirefoxPath", $FirefoxPath)
+	IniWrite($inifile, "Settings", "FirefoxPath", $BrowserPath)
 	IniWrite($inifile, "Settings", "ProfileDir", $ProfileDir)
 	IniWrite($inifile, "Settings", "CustomPluginsDir", $CustomPluginsDir)
 	IniWrite($inifile, "Settings", "CustomCacheDir", $CustomCacheDir)
@@ -5373,25 +5373,25 @@ Func SettingsApply()
 	IniWrite($inifile, "Settings", "BossKeyEnabled", $BossKeyEnabled)
 	IniWrite($inifile, "Settings", "BossKey", $BossKey)
 	IniWrite($inifile, "Settings", "BossKeyHideToTray", $BossKeyHideToTray)
-	$var = $ExApp
+	$var = $BrowserStartApps
 	If StringRegExp($var, '^".*"$') Then $var = '"' & $var & '"'
 	IniWrite($inifile, "Settings", "ExApp", $var)
-	IniWrite($inifile, "Settings", "ExAppAutoExit", $ExAppAutoExit)
-	$var = $ExApp2
+	IniWrite($inifile, "Settings", "ExAppAutoExit", $CloseStartAppsAfterBrowserExit)
+	$var = $BrowserExitApps
 	If StringRegExp($var, '^".*"$') Then $var = '"' & $var & '"'
 	IniWrite($inifile, "Settings", "ExApp2", $var)
 
 	Opt("ExpandEnvStrings", 1)
 
-	;Firefox path
-	If Not FileExists($FirefoxPath) Then
-		MsgBox(16, "RunFirefox", _t("FirefoxPathErrorMessage", "Firefox 路径错误，请重新设置。\n\n%s", $FirefoxPath), 0, $hSettings)
-		GUICtrlSetState($hFirefoxPath, $GUI_FOCUS)
+	; Browser path
+	If Not FileExists($BrowserPath) Then
+		MsgBox(16, "RunFirefox", _t("FirefoxPathErrorMessage", "Firefox 路径错误，请重新设置。\n\n%s", $BrowserPath), 0, $hSettings)
+		GUICtrlSetState($idBrowserPath, $GUI_FOCUS)
 		Return SetError(1)
 	EndIf
 
 	If IsMozillaBrowser($BrowserType) Then
-		Local $ChannelString = GUICtrlRead($hChannel)
+		Local $ChannelString = GUICtrlRead($idChannel)
 		Local $Channel = StringRegExpReplace($ChannelString, " -.*", "")
 		Local $UpdateChannel = $Channel
 		If $BrowserType = $BrowserZen Then
@@ -5400,7 +5400,7 @@ Func SettingsApply()
 			; Firefox Developer Edition still uses aurora as the internal update channel.
 			$UpdateChannel = "aurora"
 		EndIf
-		Local $ChannelPath = StringRegExpReplace($FirefoxPath, "\\?[^\\]+$", "") & "\defaults\pref\channel-prefs.js"
+		Local $ChannelPath = StringRegExpReplace($BrowserPath, "\\?[^\\]+$", "") & "\defaults\pref\channel-prefs.js"
 		Local $var = FileRead($ChannelPath)
 		Local $ChannelPrefs = '// Changed by RunFirefox' & @CRLF & 'pref("app.update.channel", "' & $UpdateChannel & '");' & @CRLF
 		If $BrowserType = $BrowserZen Then
@@ -5415,15 +5415,15 @@ Func SettingsApply()
 	;profiles dir
 	If $ProfileDir = "" Then
 		MsgBox(16, "RunFirefox", _t("PleaseProfileFolder", "请设置配置文件夹！"), 0, $hSettings)
-		GUICtrlSetState($hProfileDir, $GUI_FOCUS)
+		GUICtrlSetState($idProfileDir, $GUI_FOCUS)
 		Return SetError(2)
 	ElseIf Not FileExists($ProfileDir) Then
 		DirCreate($ProfileDir)
 	EndIf
 
 	; 提取系统浏览器配置文件
-	If GUICtrlRead($hCopyProfile) = $GUI_CHECKED Then
-		$DefaultProfDir = GetSystemProfileSourceDir($BrowserType, GUICtrlRead($hChannel))
+	If GUICtrlRead($idCopyProfile) = $GUI_CHECKED Then
+		$DefaultProfDir = GetSystemProfileSourceDir($BrowserType, GUICtrlRead($idChannel))
 		Local $ShouldCopyProfile = ($DefaultProfDir <> "")
 		While $ShouldCopyProfile
 			If IsChromeBrowser($BrowserType) Then
@@ -5448,7 +5448,7 @@ Func SettingsApply()
 				_GUICtrlStatusBar_SetText($hStatus, _t("ExtractProfileFailed", "提取配置文件失败！"))
 			EndIf
 		EndIf
-		GUICtrlSetState($hCopyProfile, $GUI_UNCHECKED)
+		GUICtrlSetState($idCopyProfile, $GUI_UNCHECKED)
 	EndIf
 
 	; plugins dir
@@ -5456,11 +5456,11 @@ Func SettingsApply()
 		DirCreate($CustomPluginsDir)
 	EndIf
 
-	If Not SaveChromePlusTabsSettings($FirefoxPath) Then
-		MsgBox(16, "RunFirefox", _t("ChromePlusTabsSaveFailed", "保存 Chrome++ 标签页设置失败：\n%s", GetChromePlusConfigPath($FirefoxPath)), 0, $hSettings)
+	If Not SaveChromePlusTabsSettings($BrowserPath) Then
+		MsgBox(16, "RunFirefox", _t("ChromePlusTabsSaveFailed", "保存 Chrome++ 标签页设置失败：\n%s", GetChromePlusConfigPath($BrowserPath)), 0, $hSettings)
 		Return SetError(3)
 	EndIf
-EndFunc   ;==>SettingsApply
+EndFunc   ;==>ApplySettings
 
 ;~ 打开网站
 Func Website()
@@ -5472,16 +5472,16 @@ Func OriginalWebsite()
 	ShellExecute("https://github.com/cnjackchen/my-firefox")
 EndFunc   ;==>Website
 
-;~ 查找Firefox主程序
-Func GetFirefoxPath()
+;~ 选择浏览器主程序
+Func SelectBrowserExecutable()
 	Local $ExecutableName = GetBrowserExecutableName(GetSelectedBrowserType())
 	Local $path = FileOpenDialog(_t("ChooseBrowserExecutable", "选择浏览器主程序（%s）", $ExecutableName), @ScriptDir, _t("ExecutableFile", "可执行文件(*.exe)"), 1 + 2, $ExecutableName, $hSettings)
 	FileChangeDir(@ScriptDir) ; FileOpenDialog 会改变 @workingdir，将它改回来
 	If $path = "" Then Return
-	$FirefoxPath = RelativePath($path)
-	GUICtrlSetData($hFirefoxPath, $FirefoxPath)
-	OnFirefoxPathChange()
-EndFunc   ;==>GetFirefoxPath
+	$BrowserPath = RelativePath($path)
+	GUICtrlSetData($idBrowserPath, $BrowserPath)
+	OnBrowserPathChange()
+EndFunc   ;==>SelectBrowserExecutable
 
 ;~ 指定配置文件夹
 Func GetProfileDir()
@@ -5489,7 +5489,7 @@ Func GetProfileDir()
 	FileChangeDir(@ScriptDir)
 	If $dir = "" Then Return
 	$ProfileDir = RelativePath($dir)
-	GUICtrlSetData($hProfileDir, $ProfileDir)
+	GUICtrlSetData($idProfileDir, $ProfileDir)
 EndFunc   ;==>GetProfileDir
 
 ;~ 指定插件目录
@@ -5498,7 +5498,7 @@ Func GetPluginsDir()
 	FileChangeDir(@ScriptDir)
 	If $dir = "" Then Return
 	$CustomPluginsDir = RelativePath($dir)
-	GUICtrlSetData($hCustomPluginsDir, $CustomPluginsDir)
+	GUICtrlSetData($idCustomPluginsDir, $CustomPluginsDir)
 EndFunc   ;==>GetPluginsDir
 
 ;~ 指定缓存位置
@@ -5507,7 +5507,7 @@ Func GetCacheDir()
 	FileChangeDir(@ScriptDir)
 	If $dir = "" Then Return
 	$CustomCacheDir = RelativePath($dir)
-	GUICtrlSetData($hCustomCacheDir, $CustomCacheDir)
+	GUICtrlSetData($idCustomCacheDir, $CustomCacheDir)
 EndFunc   ;==>GetCacheDir
 
 ;~ 判断配置文件是否正在使用
@@ -5846,7 +5846,7 @@ Func _t($key, $defaultString, $replaceString = "")
 			$str = $defaultString
 		EndIf
 	EndIf
-	$str = StringReplace($str, "{AppName}", $CustomArch)
+	$str = StringReplace($str, "{AppName}", $AppName)
 	$str = StringReplace($str, "{ScriptName}", @ScriptName)
 	If ($replaceString <> "") Then
 		$str = StringFormat($str, $replaceString)
@@ -5859,7 +5859,7 @@ Func ChangeLanguage()
 	$newLang = SaveLang();
 	If $newLang <> $LANGUAGE Then
 		$LANGUAGE = $newLang
-		MsgBox(64, $CustomArch, _t("RestartToApplyLanguage", "语言设置将在重启 {AppName} 后生效"))
+		MsgBox(64, $AppName, _t("RestartToApplyLanguage", "语言设置将在重启 {AppName} 后生效"))
 		GUIDelete($hSettings)
 		If @Compiled Then
 			ShellExecute(@ScriptName, "-Set", @ScriptDir)
@@ -5870,7 +5870,7 @@ Func ChangeLanguage()
 EndFunc   ;==>ChangeLanguage
 ; 保存语言
 Func SaveLang()
-	local $slang = GUICtrlRead($hlanguage), $index = -1, $keys = $LANGUAGES.Keys, $newLang = ""
+	local $slang = GUICtrlRead($idLanguage), $index = -1, $keys = $LANGUAGES.Keys, $newLang = ""
 	For $i = 0 To UBound($keys) - 1
 		Local $key = $keys[$i]
 		if _Item($LANGUAGES, $key) = $sLang Then

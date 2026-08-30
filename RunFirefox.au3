@@ -206,7 +206,7 @@ If Not FileExists($inifile) Then
 	IniWrite($inifile, "Settings", "BrowserUpdateCheckMode", "startup")
 	IniWrite($inifile, "Settings", "BrowserUpdateLastCheck", "2015/01/01 00:00:00")
 	IniWrite($inifile, "Settings", "BrowserType", $BrowserFirefox)
-	IniWrite($inifile, "Settings", "FirefoxPath", ".\Firefox\firefox.exe")
+	IniWrite($inifile, "Settings", "BrowserPath", ".\Firefox\firefox.exe")
 	IniWrite($inifile, "Settings", "ProfileDir", ".\profiles")
 	IniWrite($inifile, "Settings", "CustomPluginsDir", "")
 	IniWrite($inifile, "Settings", "CustomCacheDir", "")
@@ -239,7 +239,13 @@ If Not $BrowserUpdateLastCheck Then
 EndIf
 $BackgroundModeEnabled = IniRead($inifile, "Settings", "RunInBackground", 1) * 1
 $BrowserType = NormalizeBrowserType(IniRead($inifile, "Settings", "BrowserType", $BrowserFirefox))
-$BrowserPath = IniRead($inifile, "Settings", "FirefoxPath", ".\Firefox\firefox.exe")
+Local $BrowserPathValue = IniRead($inifile, "Settings", "BrowserPath", "__MISSING__")
+If $BrowserPathValue = "__MISSING__" Then
+	; Keep reading the legacy key so existing configurations migrate transparently.
+	$BrowserPathValue = IniRead($inifile, "Settings", "FirefoxPath", ".\Firefox\firefox.exe")
+	IniWrite($inifile, "Settings", "BrowserPath", $BrowserPathValue)
+EndIf
+$BrowserPath = $BrowserPathValue
 $ProfileDir = IniRead($inifile, "Settings", "ProfileDir", ".\profiles")
 $CustomPluginsDir = IniRead($inifile, "Settings", "CustomPluginsDir", "")
 $CustomCacheDir = IniRead($inifile, "Settings", "CustomCacheDir", "")
@@ -5361,7 +5367,7 @@ Func ApplySettings()
 	IniWrite($inifile, "Settings", "BrowserUpdateCheckMode", $BrowserUpdateCheckMode)
 	IniWrite($inifile, "Settings", "BrowserUpdateLastCheck", $BrowserUpdateLastCheck)
 	IniWrite($inifile, "Settings", "BrowserType", $BrowserType)
-	IniWrite($inifile, "Settings", "FirefoxPath", $BrowserPath)
+	IniWrite($inifile, "Settings", "BrowserPath", $BrowserPath)
 	IniWrite($inifile, "Settings", "ProfileDir", $ProfileDir)
 	IniWrite($inifile, "Settings", "CustomPluginsDir", $CustomPluginsDir)
 	IniWrite($inifile, "Settings", "CustomCacheDir", $CustomCacheDir)

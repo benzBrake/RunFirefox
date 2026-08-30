@@ -6,13 +6,13 @@
 [![Beta](https://img.shields.io/badge/%E6%B5%8B%E8%AF%95%E7%89%88-nightly.link-orange?style=for-the-badge&logo=githubactions&logoColor=white)](https://nightly.link/benzBrake/RunFirefox/workflows/build/master)
 [![Downloads](https://img.shields.io/github/downloads/benzBrake/RunFirefox/total?style=for-the-badge&label=%E7%B4%AF%E8%AE%A1%E4%B8%8B%E8%BD%BD)](https://github.com/benzBrake/RunFirefox/releases)
 
-从 MyFirefox 修改而来，是 Firefox 的便携版引导器
+RunFirefox 从 MyFirefox 演进而来，是支持 Gecko 与 Chromium 系浏览器的便携版启动器。
 
-1. 自定义Firefox浏览器程序文件、数据文件夹、缓存文件夹的位置等。
-2. 制作Firefox便携版，可设为默认浏览器（与安装版一样，在浏览器设置里设置即可）。
+1. 自定义浏览器程序文件、用户数据文件夹和缓存文件夹的位置等。
+2. 制作支持的浏览器便携版，并可设为默认浏览器（与安装版一样，在浏览器设置里设置即可）。
 3. 支持浏览器启动/退出时运行外部程序。
 4. 支持锁定到任务栏后点击启动（打开浏览器后在任务栏右键锁定即可）
-5. Firefox 与 Chromium 系浏览器的 Jump List 提供常用网站、浏览器启动任务和启动器设置入口。
+5. Gecko 与 Chromium 系浏览器的 Jump List 提供常用网站、浏览器启动任务和启动器设置入口。
 
 **[点此查看如何制作便携版？](docs/GUIDE.md)**
 

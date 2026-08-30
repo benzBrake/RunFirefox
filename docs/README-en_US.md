@@ -4,14 +4,14 @@
 [![Beta](https://img.shields.io/badge/Beta-nightly.link-orange?style=for-the-badge&logo=githubactions&logoColor=white)](https://nightly.link/benzBrake/RunFirefox/workflows/build/master)
 [![Downloads](https://img.shields.io/github/downloads/benzBrake/RunFirefox/total?style=for-the-badge&label=Downloads)](https://github.com/benzBrake/RunFirefox/releases)
 
-Derived from MyFirefox, this is a portable version launcher for Firefox.
+Evolved from MyFirefox, RunFirefox is a portable browser launcher for Gecko and Chromium-based browsers.
 
 Features:
-1. Customizable location for Firefox program files, data folders, and cache folders.
-2. Ability to create a portable version of Firefox that can be set as the default browser (just like the installed version, set in the browser settings).
+1. Customize the locations of browser program files, user data, and cache folders.
+2. Create portable versions of supported browsers and set them as the default browser through their settings.
 3. Support for running external programs when the browser starts or exits.
 4. Support for launching the browser by clicking on the taskbar icon (right-click and select "Pin to taskbar" after opening the browser).
-5. Jump Lists for Firefox and Chromium-based browsers include frequent sites, browser launch tasks, and a Launcher settings entry.
+5. Jump Lists for Gecko and Chromium-based browsers include frequent sites, browser launch tasks, and a launcher settings entry.
 
 **[View the full changelog](CHANGELOG-en_US.md)**
 

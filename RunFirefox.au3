@@ -6,8 +6,8 @@
 #AutoIt3Wrapper_UseUpx=y
 #AutoIt3Wrapper_Compile_Both=y
 #AutoIt3Wrapper_UseX64=y
-#AutoIt3Wrapper_Res_Comment=Firefox Portable
-#AutoIt3Wrapper_Res_Description=Firefox Portable
+#AutoIt3Wrapper_Res_Comment=Portable Browser Launcher
+#AutoIt3Wrapper_Res_Description=Portable Browser Launcher
 #AutoIt3Wrapper_Res_Fileversion=2.8.16.0
 #AutoIt3Wrapper_Res_LegalCopyright=Ryan <github-benzBrake@woai.ru>
 #AutoIt3Wrapper_Res_Language=2052
@@ -22,7 +22,7 @@
 	Link              https://github.com/benzBrake/RunFirefox
 	OldLink:          http://code.taobao.org/p/RunFirefox/wiki/index/
 	Script Function:
-	自定义Firefox程序和配置文件夹的路径，用来制作Firefox便携版，便携版可设为默认浏览器。
+	自定义浏览器程序和配置文件夹的路径，用来制作便携版浏览器，便携版可设为默认浏览器。
 #ce
 
 #include <StaticConstants.au3>

@@ -112,6 +112,7 @@ Global Const $HeliumRepo = "imputnet/helium-windows"
 Global Const $HeliumLatestReleaseUrl = "https://github.com/" & $HeliumRepo & "/releases/latest"
 Global Const $HeliumLatestReleaseApiUrl = "https://api.github.com/repos/" & $HeliumRepo & "/releases/latest"
 Global Const $WhaleStandaloneX64Url = "https://installer-whale.pstatic.net/downloads/sa_installers/WhaleSetupX64.exe"
+Global Const $WhaleLatestVersionUrl = "https://cv.whale.naver.com/version/latest_version"
 Global Const $CentBrowserDownloadPageUrl = "https://www.centbrowser.com/"
 Global Const $VivaldiDownloadPageUrl = "https://vivaldi.com/download/"
 Global Const $VivaldiUpdateX64Url = "https://update.vivaldi.com/update/1.0/public/appcast.x64.xml"
@@ -156,6 +157,7 @@ Global $TurboReleaseInfoLoaded = False, $TurboReleaseVersion = "", $TurboAssetNa
 Global $HeliumReleaseInfoLoaded = False, $HeliumReleaseTag = ""
 Global $CentReleaseInfoLoaded = False, $CentReleaseVersion = "", $CentDownloadUrl = ""
 Global $VivaldiReleaseInfoLoaded = False, $VivaldiReleaseVersion = "", $VivaldiDownloadUrl = ""
+Global $WhaleReleaseInfoLoaded = False, $WhaleReleaseVersion = ""
 Global $BraveReleaseInfoLoaded = False, $BraveReleaseTag = "", $BraveDownloadUrl = ""
 Global $BraveVersionApiUrls = 0, $BraveVersionApiIndex = 0
 Global $ChromePlusReleaseInfoLoaded = False, $ChromePlusReleaseTag = "", $ChromePlusArchiveUrl = ""
@@ -2166,6 +2168,7 @@ Func GetLatestBrowserVersionForSettings($CurrentBrowserType, $Channel)
 	If $CurrentBrowserType = $BrowserHelium Then Return GetLatestHeliumVersion()
 	If $CurrentBrowserType = $BrowserCent Then Return GetLatestCentVersion()
 	If $CurrentBrowserType = $BrowserVivaldi Then Return GetLatestVivaldiVersion()
+	If $CurrentBrowserType = $BrowserWhale Then Return GetLatestWhaleVersion()
 	If $CurrentBrowserType = $BrowserBrave Then Return GetLatestBraveVersion()
 	If IsChromeBrowser($CurrentBrowserType) Then Return GetChromeVersionCache($Channel)
 	Return GetLatestFirefoxVersion($Channel)
@@ -2239,8 +2242,6 @@ Func UpdateBrowserDownloadNowState()
 			EndIf
 			GUICtrlSetData($idBrowserDownloadNow, _t("OpenDownloadPage", "打开下载页"))
 		EndIf
-		GUICtrlSetState($idBrowserDownloadNow, $GUI_SHOW)
-	ElseIf $CurrentBrowserType = $BrowserWhale Then
 		GUICtrlSetState($idBrowserDownloadNow, $GUI_SHOW)
 	ElseIf $LatestVersion <> "" And ($CurrentVersion = "" Or $LatestVersion <> $CurrentVersion) Then
 		GUICtrlSetState($idBrowserDownloadNow, $GUI_SHOW)
@@ -2356,12 +2357,6 @@ Func BeginBrowserVersionLoad($CurrentBrowserType = "", $Channel = "")
 	If $Channel = "" Then $Channel = GUICtrlRead($idChannel)
 	If $Channel = "default" Then $Channel = "release"
 
-	If NormalizeBrowserType($CurrentBrowserType) = $BrowserWhale Then
-		CancelBrowserVersionLoad()
-		UpdateBrowserDownloadLabels(False)
-		Return
-	EndIf
-
 	If IsBrowserVersionCached($CurrentBrowserType, $Channel) Then
 		UpdateBrowserDownloadLabels(True)
 		Return
@@ -2392,6 +2387,9 @@ Func BeginBrowserVersionLoad($CurrentBrowserType = "", $Channel = "")
 	ElseIf NormalizeBrowserType($CurrentBrowserType) = $BrowserVivaldi Then
 		$BrowserVersionLoadKind = "inet"
 		$BrowserVersionLoadHandle = InetGet($VivaldiDownloadPageUrl, $BrowserVersionLoadFile, 1, 1)
+	ElseIf NormalizeBrowserType($CurrentBrowserType) = $BrowserWhale Then
+		$BrowserVersionLoadKind = "inet"
+		$BrowserVersionLoadHandle = InetGet($WhaleLatestVersionUrl, $BrowserVersionLoadFile, 1, 1)
 	ElseIf NormalizeBrowserType($CurrentBrowserType) = $BrowserBrave Then
 		$BrowserVersionLoadKind = "inet"
 		; Never send the release API request directly; LAN environments may restrict api.github.com.
@@ -2413,7 +2411,11 @@ Func BeginBrowserVersionLoad($CurrentBrowserType = "", $Channel = "")
 
 	If Not $BrowserVersionLoadHandle Then
 		CancelBrowserVersionLoad()
-		UpdateBrowserDownloadLabels(False)
+		If NormalizeBrowserType($CurrentBrowserType) = $BrowserWhale Then
+			UpdateBrowserDownloadLabels(False, True)
+		Else
+			UpdateBrowserDownloadLabels(False)
+		EndIf
 		Return
 	EndIf
 
@@ -2502,6 +2504,8 @@ Func PollBrowserVersionLoad()
 				$Loaded = CacheCentReleaseInfo($Content)
 			ElseIf $LoadedBrowserType = $BrowserVivaldi Then
 				$Loaded = CacheVivaldiReleaseInfo($Content)
+			ElseIf $LoadedBrowserType = $BrowserWhale Then
+				$Loaded = CacheWhaleReleaseInfo($Content)
 			ElseIf $LoadedBrowserType = $BrowserBrave Then
 				$Loaded = CacheBraveReleaseInfo($Content)
 			Else
@@ -2562,6 +2566,7 @@ Func IsBrowserVersionCached($CurrentBrowserType, $Channel)
 	If NormalizeBrowserType($CurrentBrowserType) = $BrowserHelium Then Return $HeliumReleaseInfoLoaded
 	If NormalizeBrowserType($CurrentBrowserType) = $BrowserCent Then Return $CentReleaseInfoLoaded
 	If NormalizeBrowserType($CurrentBrowserType) = $BrowserVivaldi Then Return $VivaldiReleaseInfoLoaded
+	If NormalizeBrowserType($CurrentBrowserType) = $BrowserWhale Then Return $WhaleReleaseInfoLoaded
 	If NormalizeBrowserType($CurrentBrowserType) = $BrowserBrave Then Return $BraveReleaseInfoLoaded
 	If IsChromeBrowser($CurrentBrowserType) Then Return GetChromeVersionCache($Channel) <> ""
 	If NormalizeBrowserType($CurrentBrowserType) = $BrowserZen Then Return GetZenUpdateXmlCache($Channel) <> ""
@@ -3791,6 +3796,23 @@ Func GetLatestVivaldiVersion()
 	If $VivaldiReleaseVersion = "" Then Return ""
 	Return $VivaldiReleaseVersion
 EndFunc   ;==>GetLatestVivaldiVersion
+
+Func CacheWhaleReleaseInfo($Content)
+	$WhaleReleaseInfoLoaded = False
+	$WhaleReleaseVersion = ""
+
+	Local $Match = StringRegExp($Content, '(?i)"@version"\s*:\s*"([0-9]+(?:\.[0-9]+)+)"', 1)
+	If @error Or Not IsArray($Match) Then Return False
+	$WhaleReleaseVersion = StringStripWS($Match[0], 3)
+	If $WhaleReleaseVersion = "" Then Return False
+	$WhaleReleaseInfoLoaded = True
+	Return True
+EndFunc   ;==>CacheWhaleReleaseInfo
+
+Func GetLatestWhaleVersion()
+	If $WhaleReleaseVersion = "" Then Return ""
+	Return $WhaleReleaseVersion
+EndFunc   ;==>GetLatestWhaleVersion
 
 Func GetBraveReleasePage()
 	If $BraveReleaseInfoLoaded Then Return True

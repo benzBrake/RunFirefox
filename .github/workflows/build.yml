@@ -19,6 +19,12 @@ jobs:
 
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Test release note generator
+        shell: pwsh
+        run: .\scripts\test-generate-release-notes.ps1
 
       - name: Validate changelog files
         shell: pwsh

@@ -58,7 +58,7 @@ pwsh -File .\scripts\release-advisor.ps1 -PendingSubject "<commit subject>"
 - 如果脚本输出 `Should release: no`，AI 可以正常提交，但不要建议打 tag。
 - 除非用户明确要求，否则 AI 不要自动创建或推送 tag。
 
-当前仓库的自动构建逻辑仍然是“先打 `v*` tag，再由 workflow 回写版本号并编译 release”。
+当前仓库的自动构建逻辑是“先更新版本号和更新日志，再打 `v*` tag，由 workflow 校验版本并编译 release”。
 为了让 AI 在 commit 前先判断这次改动是否值得发版，可以运行：
 
 ```powershell
@@ -80,4 +80,10 @@ Suggested tag: v2.8.5
 
 那就表示这次提交后比较适合补一个 `v2.8.5` tag，再交给现有 workflow 去构建 release。
 
-tag 之前更新 RunFirefox.au3 版本号，以及 CHANGELOG.md / docs/CHANGELOG-en_US.md 中对应版本的更新日志
+日常开发时，所有尚未发布的用户可感知变更都写入 `CHANGELOG.md` 与 `docs/CHANGELOG-en_US.md` 顶部的 `## [Unreleased]`，不要追加到已经发布的版本段。
+
+tag 之前：
+
+1. 将两个 changelog 的 `Unreleased` 内容同步迁入新的 `## [X.Y.Z] - YYYY-MM-DD` 版本段，并保留空的 `Unreleased` 标题。
+2. 更新 RunFirefox.au3 的文件版本号和 `$AppVersion`。
+3. 提交上述发版准备改动后再创建 tag；如果 `Unreleased` 仍有内容，release workflow 会拒绝发布。

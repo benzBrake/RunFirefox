@@ -173,6 +173,8 @@ try {
     Write-Host "All $passed release note generator tests passed."
 } finally {
     if (Test-Path -LiteralPath $testRoot) {
-        Remove-Item -LiteralPath $testRoot -Recurse -Force
+        # Git/antivirus processes on hosted Windows runners can briefly retain
+        # files in the temporary repositories after the assertions complete.
+        Remove-Item -LiteralPath $testRoot -Recurse -Force -ErrorAction SilentlyContinue
     }
 }

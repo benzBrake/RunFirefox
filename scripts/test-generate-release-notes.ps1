@@ -171,6 +171,9 @@ try {
     Assert-FailureContains -Name 'legacy baseline rejects old section edits' -Result (Invoke-Generator -Root $legacyRepo -Arguments @('-ValidateOnly')) -Expected 'differs from its released baseline'
 
     Write-Host "All $passed release note generator tests passed."
+    # Assertions intentionally invoke failing generator cases; do not leak
+    # the child process exit code into the successful test result.
+    exit 0
 } finally {
     if (Test-Path -LiteralPath $testRoot) {
         # Git/antivirus processes on hosted Windows runners can briefly retain

@@ -96,6 +96,7 @@ Global Const $BrowserWhale = "whale"
 Global Const $BrowserCent = "cent"
 Global Const $BrowserVivaldi = "vivaldi"
 Global Const $BrowserBrave = "brave"
+Global Const $BrowserUngoogledChromium = "ungoogled-chromium"
 Global Const $ZenUpdateBaseUrl = "https://updates.zen-browser.app/updates/browser/WINNT_x86_64-msvc-x64"
 Global Const $FloorpRepo = "Floorp-Projects/Floorp"
 Global Const $FloorpLatestReleaseUrl = "https://github.com/" & $FloorpRepo & "/releases/latest"
@@ -118,6 +119,9 @@ Global Const $VivaldiDownloadPageUrl = "https://vivaldi.com/download/"
 Global Const $VivaldiUpdateX64Url = "https://update.vivaldi.com/update/1.0/public/appcast.x64.xml"
 Global Const $BraveRepo = "portapps/brave-portable"
 Global Const $BraveLatestReleaseApiUrl = "https://api.github.com/repos/" & $BraveRepo & "/releases/latest"
+Global Const $UngoogledChromiumRepo = "ungoogled-software/ungoogled-chromium-windows"
+Global Const $UngoogledChromiumGitCodeTagsUrl = "https://gitcode.com/gh_mirrors/un/ungoogled-chromium-windows/tags"
+Global Const $UngoogledChromiumLatestReleaseApiUrl = "https://api.github.com/repos/" & $UngoogledChromiumRepo & "/releases/latest"
 Global Const $BraveVersionDataUrl = "https://data.jsdelivr.com/v1/package/gh/" & $BraveRepo
 Global Const $ChromeStableStandaloneX64Url = "https://dl.google.com/chrome/install/ChromeStandaloneSetup64.exe"
 Global Const $ChromeBetaStandaloneX64Url = "https://dl.google.com/chrome/install/beta/ChromeBetaStandaloneSetup64.exe"
@@ -159,6 +163,7 @@ Global $CentReleaseInfoLoaded = False, $CentReleaseVersion = "", $CentDownloadUr
 Global $VivaldiReleaseInfoLoaded = False, $VivaldiReleaseVersion = "", $VivaldiDownloadUrl = ""
 Global $WhaleReleaseInfoLoaded = False, $WhaleReleaseVersion = ""
 Global $BraveReleaseInfoLoaded = False, $BraveReleaseTag = "", $BraveDownloadUrl = ""
+Global $UngoogledChromiumReleaseInfoLoaded = False, $UngoogledChromiumReleaseTag = ""
 Global $BraveVersionApiUrls = 0, $BraveVersionApiIndex = 0
 Global $ChromePlusReleaseInfoLoaded = False, $ChromePlusReleaseTag = "", $ChromePlusArchiveUrl = ""
 Global $ChromeStableVersion = "", $ChromeStableDownloadUrl = "", $ChromeBetaVersion = "", $ChromeBetaDownloadUrl = "", $ChromeDevVersion = "", $ChromeDevDownloadUrl = "", $ChromeCanaryVersion = "", $ChromeCanaryDownloadUrl = ""
@@ -1686,7 +1691,9 @@ Func Settings()
 ;~ 	GUICtrlSetOnEvent(-1, "DownloadBrowser")
 
 	GUICtrlCreateLabel(_t("BrowserBitness", "浏览器位数："), 20, 168, 120, 20)
-	$idBrowserBitness = GUICtrlCreateLabel("x64", 140, 168, 120, 20)
+	$idBrowserBitness = GUICtrlCreateCombo("", 140, 163, 120, 20, $CBS_DROPDOWNLIST)
+	GUICtrlSetData($idBrowserBitness, "x64|x86|arm64", "x64")
+	GUICtrlSetState($idBrowserBitness, $GUI_DISABLE)
 
 	GUICtrlCreateLabel(_t("LatestVersion", "最新版本："), 280, 168, 80, 20)
 	$idBrowserDownloadLink = GUICtrlCreateLabel(_t("BrowserDownloadAddress", "下载地址"), 365, 168, 115, 20)
@@ -2084,10 +2091,16 @@ EndFunc   ;==>ApplyDetectedBrowserTypeFromPath
 Func ChangeBrowserType()
 	Local $NewBrowserType = GetSelectedBrowserType()
 	Local $CurrentPath = StringLower(GUICtrlRead($idBrowserPath))
-	If $CurrentPath = ".\firefox\firefox.exe" Or $CurrentPath = ".\zenbrowser\zen.exe" Or $CurrentPath = ".\floorp\floorp.exe" Or $CurrentPath = ".\waterfox\waterfox.exe" Or $CurrentPath = ".\librewolf\librewolf.exe" Or $CurrentPath = ".\chrome\chrome.exe" Or $CurrentPath = ".\turbo\turbo.exe" Or $CurrentPath = ".\helium\chrome.exe" Or $CurrentPath = ".\whale\whale.exe" Or $CurrentPath = ".\centbrowser\chrome.exe" Or $CurrentPath = ".\vivaldi\vivaldi.exe" Then
+	If $CurrentPath = ".\firefox\firefox.exe" Or $CurrentPath = ".\zenbrowser\zen.exe" Or $CurrentPath = ".\floorp\floorp.exe" Or $CurrentPath = ".\waterfox\waterfox.exe" Or $CurrentPath = ".\librewolf\librewolf.exe" Or $CurrentPath = ".\chrome\chrome.exe" Or $CurrentPath = ".\turbo\turbo.exe" Or $CurrentPath = ".\helium\chrome.exe" Or $CurrentPath = ".\whale\whale.exe" Or $CurrentPath = ".\centbrowser\chrome.exe" Or $CurrentPath = ".\vivaldi\vivaldi.exe" Or $CurrentPath = ".\ungoogled-chromium\chrome.exe" Then
 		GUICtrlSetData($idBrowserPath, GetDefaultBrowserPath($NewBrowserType))
 	EndIf
 	$BrowserType = $NewBrowserType
+	If NormalizeBrowserType($NewBrowserType) = $BrowserUngoogledChromium Then
+		GUICtrlSetState($idBrowserBitness, $GUI_ENABLE)
+	Else
+		GUICtrlSetData($idBrowserBitness, "x64", "x64")
+		GUICtrlSetState($idBrowserBitness, $GUI_DISABLE)
+	EndIf
 	UpdateBrowserChannelOptions($BrowserType, "release")
 	UpdateCurrentBrowserVersionLabel()
 	UpdateBrowserSpecificControls()
@@ -2170,6 +2183,7 @@ Func GetLatestBrowserVersionForSettings($CurrentBrowserType, $Channel)
 	If $CurrentBrowserType = $BrowserVivaldi Then Return GetLatestVivaldiVersion()
 	If $CurrentBrowserType = $BrowserWhale Then Return GetLatestWhaleVersion()
 	If $CurrentBrowserType = $BrowserBrave Then Return GetLatestBraveVersion()
+	If $CurrentBrowserType = $BrowserUngoogledChromium Then Return GetLatestUngoogledChromiumVersion()
 	If IsChromeBrowser($CurrentBrowserType) Then Return GetChromeVersionCache($Channel)
 	Return GetLatestFirefoxVersion($Channel)
 EndFunc   ;==>GetLatestBrowserVersionForSettings
@@ -2257,7 +2271,7 @@ EndFunc   ;==>IsDisplayedBrowserVersionUnavailable
 Func HasBrowserDownloadFallback($CurrentBrowserType, $Channel)
 	$CurrentBrowserType = NormalizeBrowserType($CurrentBrowserType)
 	Switch $CurrentBrowserType
-		Case $BrowserFirefox, $BrowserZen, $BrowserFloorp, $BrowserWaterfox, $BrowserTurbo, $BrowserHelium, $BrowserWhale, $BrowserVivaldi, $BrowserBrave
+		Case $BrowserFirefox, $BrowserZen, $BrowserFloorp, $BrowserWaterfox, $BrowserTurbo, $BrowserHelium, $BrowserWhale, $BrowserVivaldi, $BrowserBrave, $BrowserUngoogledChromium
 			Return True
 		Case $BrowserChrome
 			Return NormalizeChromeChannel($Channel) <> "canary"
@@ -2396,6 +2410,9 @@ Func BeginBrowserVersionLoad($CurrentBrowserType = "", $Channel = "")
 		$BraveVersionApiUrls = _UpgradeBuildGithubDirectUrls($BraveLatestReleaseApiUrl, $GithubDirectMirror)
 		$BraveVersionApiIndex = 0
 		$BrowserVersionLoadHandle = InetGet($BraveVersionApiUrls[$BraveVersionApiIndex], $BrowserVersionLoadFile, 1, 1)
+	ElseIf NormalizeBrowserType($CurrentBrowserType) = $BrowserUngoogledChromium Then
+		$BrowserVersionLoadKind = "inet"
+		$BrowserVersionLoadHandle = InetGet($UngoogledChromiumGitCodeTagsUrl, $BrowserVersionLoadFile, 1, 1)
 	ElseIf IsChromeBrowser($CurrentBrowserType) Then
 		$BrowserVersionLoadKind = "chrome"
 		$BrowserVersionLoadHandle = StartChromeVersionLoadProcess($Channel, "win64", $BrowserVersionLoadFile)
@@ -2508,6 +2525,8 @@ Func PollBrowserVersionLoad()
 				$Loaded = CacheWhaleReleaseInfo($Content)
 			ElseIf $LoadedBrowserType = $BrowserBrave Then
 				$Loaded = CacheBraveReleaseInfo($Content)
+			ElseIf $LoadedBrowserType = $BrowserUngoogledChromium Then
+				$Loaded = CacheUngoogledChromiumReleaseInfo($Content)
 			Else
 				$Loaded = CacheFirefoxVersions($Content)
 			EndIf
@@ -2516,6 +2535,7 @@ Func PollBrowserVersionLoad()
 	If Not $Loaded And $LoadedBrowserType = $BrowserLibreWolf Then $Loaded = GetLibreWolfReleasePage()
 	If Not $Loaded And $LoadedBrowserType = $BrowserTurbo Then $Loaded = GetTurboReleasePage()
 	If Not $Loaded And $LoadedBrowserType = $BrowserBrave Then $Loaded = GetBraveReleasePage()
+	If Not $Loaded And $LoadedBrowserType = $BrowserUngoogledChromium Then $Loaded = GetUngoogledChromiumReleaseFallback()
 	FileDelete($LoadedFile)
 	$BrowserVersionLoadFile = ""
 	$BrowserVersionLoadBrowserType = ""
@@ -2568,6 +2588,7 @@ Func IsBrowserVersionCached($CurrentBrowserType, $Channel)
 	If NormalizeBrowserType($CurrentBrowserType) = $BrowserVivaldi Then Return $VivaldiReleaseInfoLoaded
 	If NormalizeBrowserType($CurrentBrowserType) = $BrowserWhale Then Return $WhaleReleaseInfoLoaded
 	If NormalizeBrowserType($CurrentBrowserType) = $BrowserBrave Then Return $BraveReleaseInfoLoaded
+	If NormalizeBrowserType($CurrentBrowserType) = $BrowserUngoogledChromium Then Return $UngoogledChromiumReleaseInfoLoaded
 	If IsChromeBrowser($CurrentBrowserType) Then Return GetChromeVersionCache($Channel) <> ""
 	If NormalizeBrowserType($CurrentBrowserType) = $BrowserZen Then Return GetZenUpdateXmlCache($Channel) <> ""
 	If NormalizeBrowserType($CurrentBrowserType) = $BrowserFloorp Then Return $FloorpReleaseInfoLoaded
@@ -2593,6 +2614,7 @@ Func DetectBrowserTypeFromPath($BrowserPath)
 	Local $BrowserExeLower = StringLower($BrowserExe)
 	Local $FullBrowserPathLower = StringLower($FullBrowserPath)
 	Local $Identity = GetExecutableIdentityText($FullBrowserPath)
+	If StringInStr($FullBrowserPathLower, "\ungoogled-chromium\") Or StringInStr($Identity, "ungoogled chromium") Or StringInStr($Identity, "ungoogled-chromium") Then Return $BrowserUngoogledChromium
 
 	If StringInStr($Identity, "helium") Or StringInStr($Identity, "the helium authors") Then Return $BrowserHelium
 	If $BrowserExeLower = "turbo.exe" Or StringInStr($Identity, "turbo browser") Then Return $BrowserTurbo
@@ -2674,7 +2696,7 @@ EndFunc   ;==>IsChromiumBrowserIdentity
 
 Func IsChromeBrowser($Value)
 	Local $Normalized = NormalizeBrowserType($Value)
-	Return $Normalized = $BrowserChrome Or $Normalized = $BrowserTurbo Or $Normalized = $BrowserHelium Or $Normalized = $BrowserWhale Or $Normalized = $BrowserCent Or $Normalized = $BrowserVivaldi Or $Normalized = $BrowserBrave
+	Return $Normalized = $BrowserChrome Or $Normalized = $BrowserUngoogledChromium Or $Normalized = $BrowserTurbo Or $Normalized = $BrowserHelium Or $Normalized = $BrowserWhale Or $Normalized = $BrowserCent Or $Normalized = $BrowserVivaldi Or $Normalized = $BrowserBrave
 EndFunc   ;==>IsChromeBrowser
 
 Func IsGoogleChromeBrowser($Value)
@@ -2683,7 +2705,7 @@ EndFunc   ;==>IsGoogleChromeBrowser
 
 Func IsChromePlusSupportedBrowser($Value)
 	Local $Normalized = NormalizeBrowserType($Value)
-	Return $Normalized = $BrowserChrome Or $Normalized = $BrowserHelium Or $Normalized = $BrowserWhale
+	Return $Normalized = $BrowserChrome Or $Normalized = $BrowserUngoogledChromium Or $Normalized = $BrowserHelium Or $Normalized = $BrowserWhale
 EndFunc   ;==>IsChromePlusSupportedBrowser
 
 Func IsBossKeySupportedBrowser($Value)
@@ -2712,6 +2734,7 @@ Func NormalizeBrowserType($Value)
 	If $Value = $BrowserCent Or $Value = "cent browser" Or $Value = "centbrowser" Or $Value = "百分浏览器" Or $Value = "百分瀏覽器" Then Return $BrowserCent
 	If $Value = $BrowserVivaldi Then Return $BrowserVivaldi
 	If $Value = $BrowserBrave Or $Value = "brave browser" Then Return $BrowserBrave
+	If $Value = $BrowserUngoogledChromium Or $Value = "ungoogled chromium" Or $Value = "ungoogled-chromium" Then Return $BrowserUngoogledChromium
 	Return $BrowserFirefox
 EndFunc   ;==>NormalizeBrowserType
 
@@ -2723,6 +2746,7 @@ Func GetBrowserDisplayName($Value)
 	If NormalizeBrowserType($Value) = $BrowserCent Then Return "Cent Browser"
 	If NormalizeBrowserType($Value) = $BrowserVivaldi Then Return "Vivaldi"
 	If NormalizeBrowserType($Value) = $BrowserBrave Then Return "Brave"
+	If NormalizeBrowserType($Value) = $BrowserUngoogledChromium Then Return "Ungoogled Chromium"
 	If NormalizeBrowserType($Value) = $BrowserZen Then Return "ZenBrowser"
 	If NormalizeBrowserType($Value) = $BrowserFloorp Then Return "Floorp"
 	If NormalizeBrowserType($Value) = $BrowserWaterfox Then Return "Waterfox"
@@ -2738,6 +2762,7 @@ Func GetBrowserTypeLabel($Value)
 	If NormalizeBrowserType($Value) = $BrowserCent Then Return _t("BrowserCent", "百分浏览器")
 	If NormalizeBrowserType($Value) = $BrowserVivaldi Then Return _t("BrowserVivaldi", "Vivaldi")
 	If NormalizeBrowserType($Value) = $BrowserBrave Then Return _t("BrowserBrave", "Brave")
+	If NormalizeBrowserType($Value) = $BrowserUngoogledChromium Then Return _t("BrowserUngoogledChromium", "Ungoogled Chromium")
 	If NormalizeBrowserType($Value) = $BrowserZen Then Return _t("BrowserZen", "ZenBrowser")
 	If NormalizeBrowserType($Value) = $BrowserFloorp Then Return _t("BrowserFloorp", "Floorp")
 	If NormalizeBrowserType($Value) = $BrowserWaterfox Then Return _t("BrowserWaterfox", "Waterfox")
@@ -2753,6 +2778,7 @@ Func GetBrowserTypeByLabel($Label)
 	If $Label = _t("BrowserCent", "百分浏览器") Or StringLower($Label) = "cent" Or StringLower($Label) = "cent browser" Or $Label = "百分浏览器" Or $Label = "百分瀏覽器" Then Return $BrowserCent
 	If $Label = _t("BrowserVivaldi", "Vivaldi") Or StringLower($Label) = "vivaldi" Then Return $BrowserVivaldi
 	If $Label = _t("BrowserBrave", "Brave") Or StringLower($Label) = "brave" Then Return $BrowserBrave
+	If $Label = _t("BrowserUngoogledChromium", "Ungoogled Chromium") Or StringLower($Label) = "ungoogled-chromium" Or StringLower($Label) = "ungoogled chromium" Then Return $BrowserUngoogledChromium
 	If $Label = _t("BrowserZen", "ZenBrowser") Or StringLower($Label) = "zenbrowser" Then Return $BrowserZen
 	If $Label = _t("BrowserFloorp", "Floorp") Or StringLower($Label) = "floorp" Then Return $BrowserFloorp
 	If $Label = _t("BrowserWaterfox", "Waterfox") Or StringLower($Label) = "waterfox" Then Return $BrowserWaterfox
@@ -2761,7 +2787,7 @@ Func GetBrowserTypeByLabel($Label)
 EndFunc   ;==>GetBrowserTypeByLabel
 
 Func GetBrowserTypeComboData()
-	Return _t("BrowserFirefox", "Firefox 原版") & "|" & _t("BrowserZen", "ZenBrowser") & "|" & _t("BrowserFloorp", "Floorp") & "|" & _t("BrowserWaterfox", "Waterfox") & "|" & _t("BrowserLibreWolf", "LibreWolf") & "|" & _t("BrowserChrome", "Chrome") & "|" & _t("BrowserTurbo", "涡轮浏览器") & "|" & _t("BrowserHelium", "Helium") & "|" & _t("BrowserWhale", "Naver Whale") & "|" & _t("BrowserCent", "百分浏览器") & "|" & _t("BrowserVivaldi", "Vivaldi") & "|" & _t("BrowserBrave", "Brave")
+	Return _t("BrowserFirefox", "Firefox 原版") & "|" & _t("BrowserZen", "ZenBrowser") & "|" & _t("BrowserFloorp", "Floorp") & "|" & _t("BrowserWaterfox", "Waterfox") & "|" & _t("BrowserLibreWolf", "LibreWolf") & "|" & _t("BrowserChrome", "Chrome") & "|" & _t("BrowserUngoogledChromium", "Ungoogled Chromium") & "|" & _t("BrowserTurbo", "涡轮浏览器") & "|" & _t("BrowserHelium", "Helium") & "|" & _t("BrowserWhale", "Naver Whale") & "|" & _t("BrowserCent", "百分浏览器") & "|" & _t("BrowserVivaldi", "Vivaldi") & "|" & _t("BrowserBrave", "Brave")
 EndFunc   ;==>GetBrowserTypeComboData
 
 Func GetBrowserExecutableName($Value)
@@ -2772,6 +2798,7 @@ Func GetBrowserExecutableName($Value)
 	If NormalizeBrowserType($Value) = $BrowserCent Then Return "chrome.exe"
 	If NormalizeBrowserType($Value) = $BrowserVivaldi Then Return "vivaldi.exe"
 	If NormalizeBrowserType($Value) = $BrowserBrave Then Return "brave.exe"
+	If NormalizeBrowserType($Value) = $BrowserUngoogledChromium Then Return "chrome.exe"
 	If NormalizeBrowserType($Value) = $BrowserZen Then Return "zen.exe"
 	If NormalizeBrowserType($Value) = $BrowserFloorp Then Return "floorp.exe"
 	If NormalizeBrowserType($Value) = $BrowserWaterfox Then Return "waterfox.exe"
@@ -2791,6 +2818,7 @@ Func GetDefaultBrowserPath($Value)
 	If NormalizeBrowserType($Value) = $BrowserCent Then Return ".\CentBrowser\chrome.exe"
 	If NormalizeBrowserType($Value) = $BrowserVivaldi Then Return ".\Vivaldi\vivaldi.exe"
 	If NormalizeBrowserType($Value) = $BrowserBrave Then Return ".\Brave\brave.exe"
+	If NormalizeBrowserType($Value) = $BrowserUngoogledChromium Then Return ".\ungoogled-chromium\chrome.exe"
 	If NormalizeBrowserType($Value) = $BrowserZen Then Return ".\ZenBrowser\zen.exe"
 	If NormalizeBrowserType($Value) = $BrowserFloorp Then Return ".\Floorp\floorp.exe"
 	If NormalizeBrowserType($Value) = $BrowserWaterfox Then Return ".\Waterfox\waterfox.exe"
@@ -2867,6 +2895,12 @@ EndFunc   ;==>GetBrowserWindowWait
 Func UpdateBrowserSpecificControls()
 	If Not $idBrowserType Then Return
 	Local $IsChrome = IsChromeBrowser(GetSelectedBrowserType())
+	If NormalizeBrowserType(GetSelectedBrowserType()) = $BrowserUngoogledChromium Then
+		GUICtrlSetState($idBrowserBitness, $GUI_ENABLE)
+	Else
+		GUICtrlSetData($idBrowserBitness, "x64", "x64")
+		GUICtrlSetState($idBrowserBitness, $GUI_DISABLE)
+	EndIf
 	Local $MozillaState = $GUI_ENABLE
 	Local $ChromiumState = $GUI_DISABLE
 	If $IsChrome Then $MozillaState = $GUI_DISABLE
@@ -3848,6 +3882,28 @@ Func GetLatestBraveVersion()
 	Return StringRegExpReplace($BraveReleaseTag, "(?i)^v", "")
 EndFunc   ;==>GetLatestBraveVersion
 
+Func GetUngoogledChromiumReleaseFallback()
+	Local $Content = GetGithubLatestReleaseApi($UngoogledChromiumLatestReleaseApiUrl)
+	If $Content = "" Then Return False
+	Return CacheUngoogledChromiumReleaseInfo($Content)
+EndFunc   ;==>GetUngoogledChromiumReleaseFallback
+
+Func CacheUngoogledChromiumReleaseInfo($Content)
+	$UngoogledChromiumReleaseInfoLoaded = False
+	$UngoogledChromiumReleaseTag = ""
+	Local $Match = StringRegExp($Content, '(?i)(?:tag_name|/releases/tag/|/tags/)["=:>/ ]+([0-9]+[.][0-9]+[.][0-9]+[.][0-9]+-[0-9.]+)', 1)
+	If @error Then $Match = StringRegExp($Content, '(?i)([0-9]+[.][0-9]+[.][0-9]+[.][0-9]+-[0-9.]+)', 1)
+	If @error Or Not IsArray($Match) Then Return False
+	$UngoogledChromiumReleaseTag = $Match[0]
+	$UngoogledChromiumReleaseInfoLoaded = True
+	Return True
+EndFunc   ;==>CacheUngoogledChromiumReleaseInfo
+
+Func GetLatestUngoogledChromiumVersion()
+	If $UngoogledChromiumReleaseTag = "" Then Return ""
+	Return $UngoogledChromiumReleaseTag
+EndFunc   ;==>GetLatestUngoogledChromiumVersion
+
 Func GetVivaldiChannelLabel($Channel)
 	Local $Version = GetLatestVivaldiVersion()
 	If $Version = "" Then Return $Channel
@@ -4003,6 +4059,18 @@ Func BuildBraveDownloadUrl($Channel, $os)
 	If Not StringRegExp($BraveDownloadUrl, "(?i)^https://github\.com/" & $BraveRepo & "/releases/download/[^/]+/brave-portable-win64-[^/]+\.7z$") Then Return SetError(2, 0, "")
 	Return $BraveDownloadUrl
 EndFunc   ;==>BuildBraveDownloadUrl
+
+Func BuildUngoogledChromiumDownloadUrl($Channel, $os)
+	If Not $UngoogledChromiumReleaseInfoLoaded Then
+		If Not GetUngoogledChromiumReleaseFallback() Then Return SetError(1, 0, "")
+	EndIf
+	If $UngoogledChromiumReleaseTag = "" Then Return SetError(2, 0, "")
+	Local $Arch = StringLower(StringStripWS($os, 3))
+	If $Arch = "win64" Then $Arch = "x64"
+	If $Arch = "win32" Then $Arch = "x86"
+	If $Arch <> "x64" And $Arch <> "x86" And $Arch <> "arm64" Then Return SetError(3, 0, "")
+	Return "https://github.com/" & $UngoogledChromiumRepo & "/releases/download/" & $UngoogledChromiumReleaseTag & "/ungoogled-chromium_" & $UngoogledChromiumReleaseTag & "_windows_" & $Arch & ".zip"
+EndFunc   ;==>BuildUngoogledChromiumDownloadUrl
 
 Func BuildWhaleDownloadUrl($Channel, $os)
 	If $os <> "win64" Then Return SetError(1, 0, "")
@@ -4746,6 +4814,7 @@ Func DecodeXmlAttribute($Value)
 EndFunc   ;==>DecodeXmlAttribute
 
 Func BuildBrowserDownloadUrl($Value, $Channel, $os)
+	If NormalizeBrowserType($Value) = $BrowserUngoogledChromium Then Return BuildUngoogledChromiumDownloadUrl($Channel, $os)
 	If NormalizeBrowserType($Value) = $BrowserTurbo Then Return BuildTurboDownloadUrl($Channel, $os)
 	If NormalizeBrowserType($Value) = $BrowserHelium Then Return BuildHeliumDownloadUrl($Channel, $os)
 	If NormalizeBrowserType($Value) = $BrowserWhale Then Return BuildWhaleDownloadUrl($Channel, $os)
@@ -4775,7 +4844,7 @@ Func BuildBrowserDownloadUrls($Value, $Channel, $os)
 		Return $TurboUrls
 	EndIf
 
-	If NormalizeBrowserType($Value) = $BrowserZen Or NormalizeBrowserType($Value) = $BrowserFloorp Or NormalizeBrowserType($Value) = $BrowserHelium Or NormalizeBrowserType($Value) = $BrowserBrave Then Return _UpgradeBuildGithubReleaseDownloadUrls($DownloadUrl, $GithubDirectMirror, $GithubJsDelivrMirror)
+	If NormalizeBrowserType($Value) = $BrowserUngoogledChromium Or NormalizeBrowserType($Value) = $BrowserZen Or NormalizeBrowserType($Value) = $BrowserFloorp Or NormalizeBrowserType($Value) = $BrowserHelium Or NormalizeBrowserType($Value) = $BrowserBrave Then Return _UpgradeBuildGithubReleaseDownloadUrls($DownloadUrl, $GithubDirectMirror, $GithubJsDelivrMirror)
 
 	Local $aUrls[1]
 	$aUrls[0] = $DownloadUrl
@@ -4796,8 +4865,13 @@ Func ShowCurrentChannel()
 EndFunc   ;==>ShowCurrentChannel
 
 Func DownloadBrowser()
-	Local $os = "win64"
 	Local $CurrentBrowserType = GetSelectedBrowserType()
+	Local $os = "win64"
+	If NormalizeBrowserType($CurrentBrowserType) = $BrowserUngoogledChromium Then
+		Local $SelectedArch = StringLower(StringStripWS(GUICtrlRead($idBrowserBitness), 3))
+		If $SelectedArch = "x86" Then $os = "win32"
+		If $SelectedArch = "arm64" Then $os = "arm64"
+	EndIf
 
 	Local $ChannelString = GUICtrlRead($idChannel)
 	Local $Channel = StringRegExpReplace($ChannelString, " *-.*", "")

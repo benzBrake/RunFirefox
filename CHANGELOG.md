@@ -2,6 +2,7 @@
 
 ## [Unreleased]
 
+- 2026.09.08 新增 Ungoogled Chromium 下载支持，并支持 x64/x86/arm64 架构选择
 - 2026.09.04 Naver Whale 现在会从官方接口读取最新版本号，并参与本地版本比较
 - 2026.08.30 Chromium 系浏览器的任务栏固定项现在会跟随当前浏览器 EXE 图标
 - 2026.08.29 Chromium 系浏览器 Jump List 新增常用网站、浏览器启动任务与“启动器设置”入口

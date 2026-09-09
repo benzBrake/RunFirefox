@@ -2,6 +2,7 @@
 
 ## [Unreleased]
 
+- 2026.09.08 Added Ungoogled Chromium download support and x64/x86/arm64 architecture selection
 - 2026.09.04 Naver Whale now reads the latest version from its official endpoint and compares it with the local version
 - 2026.08.30 Taskbar pins for Chromium-based browsers now follow the current browser EXE icon
 - 2026.08.29 Added frequent sites, browser launch tasks, and a Launcher settings entry to Jump Lists for Chromium-based browsers

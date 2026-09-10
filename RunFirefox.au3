@@ -101,7 +101,7 @@ Global $TaskBarDir = @AppDataDir & "\Microsoft\Internet Explorer\Quick Launch\Us
 Global $AppPID, $TaskBarLastChange, $BrowserIconLastChange = 0, $BrowserIconState = ""
 Global $JumpListLastRefresh = 0, $JumpListContentSignature = ""
 Global $AllowBrowserUpdate, $AppUpdateCheckEnabled, $AppUpdateLastCheck, $BackgroundModeEnabled, $BrowserType, $BrowserPath, $ProfileDir
-Global $BrowserUpdateCheckMode, $BrowserUpdateLastCheck
+Global $BrowserUpdateCheckMode, $BrowserUpdateLastCheck, $BrowserUpdateChannel
 Global $CustomPluginsDir, $CustomCacheDir, $CacheSize, $CacheSizeSmart, $DefaultBrowserCheckEnabled, $Params
 Global $ChromiumDebugPortEnabled, $ChromiumDebugPort
 Global $BrowserStartApps, $CloseStartAppsAfterBrowserExit, $BrowserExitApps
@@ -131,6 +131,7 @@ Global $idBossKeyEnabled, $idBossKey, $idBossKeyHideToTray, $BossKeyCaptureValue
 Global $aBrowserStartApps, $aBrowserExitApps, $aBrowserStartAppPids[2]
 #include "libs\DownloadTools.au3"
 #include "libs\BrowserDownload.au3"
+#include "libs\BrowserAutoUpdate.au3"
 #include "libs\ChromePlusBundled.au3"
 
 Func GetBrowserLocale($DefaultLocale = "")
@@ -207,6 +208,7 @@ $BrowserUpdateLastCheck = IniRead($inifile, "Settings", "BrowserUpdateLastCheck"
 If Not $BrowserUpdateLastCheck Then
 	$BrowserUpdateLastCheck = "2015/01/01 00:00:00"
 EndIf
+$BrowserUpdateChannel = _BrowserDownloadNormalizeChromeChannel(IniRead($inifile, "Settings", "BrowserUpdateChannel", "stable"))
 $BackgroundModeEnabled = IniRead($inifile, "Settings", "RunInBackground", 1) * 1
 $BrowserType = NormalizeBrowserType(IniRead($inifile, "Settings", "BrowserType", $BrowserFirefox))
 Local $BrowserPathValue = IniRead($inifile, "Settings", "BrowserPath", "__MISSING__")
@@ -263,6 +265,7 @@ IniWrite($inifile, "Settings", "GithubDirectMirror", $GithubDirectMirror)
 IniWrite($inifile, "Settings", "GithubJsDelivrMirror", $GithubJsDelivrMirror)
 
 _BrowserDownloadConfigure($AppVersion, GetBrowserLocale("zh-CN"), $GithubDirectMirror, $GithubJsDelivrMirror)
+_BrowserAutoUpdateConfigure(@ScriptDir & "\BrowserUpdateCache")
 
 If $CmdLine[0] >= 4 And $CmdLine[1] = "--load-chrome-version" Then
 	_BrowserDownloadWriteChromeUpdateInfoFile($CmdLine[2], $CmdLine[3], $CmdLine[4])
@@ -379,6 +382,9 @@ If IsMozillaBrowser($BrowserType) And ($LastPlatformDir <> $BrowserDirectory Or 
 	UpdateExtensionsJson()
 EndIf
 
+;~ Apply staged browser update before the browser process starts
+If _BrowserAutoUpdateIsSupported($BrowserType) And Not $BrowserIsRunning Then BrowserAutoUpdateApplyPendingInteractive()
+
 ;~ Start browser
 $BaseParams = BuildBrowserLaunchParams($BrowserType)
 $LaunchParams = $BaseParams & $Params
@@ -440,6 +446,9 @@ EndIf
 If $AppUpdateCheckEnabled And _DateDiff("h", $AppUpdateLastCheck, _NowCalc()) >= 48 Then
 	CheckForAppUpdate()
 EndIf
+
+;~ Check portable browser update (RunFirefox-managed, Firefox style)
+If $BackgroundModeEnabled And $AllowBrowserUpdate And _BrowserAutoUpdateIsSupported($BrowserType) Then BrowserAutoUpdateCheck()
 
 If Not $BackgroundModeEnabled Then
 	Exit
@@ -2118,6 +2127,71 @@ Func MarkBrowserVersionCheckStarted()
 	IniWrite($inifile, "Settings", "BrowserUpdateLastCheck", $BrowserUpdateLastCheck)
 EndFunc   ;==>MarkBrowserVersionCheckStarted
 
+;~ Apply a staged browser update while the browser is not running (Firefox-style
+;~ "update on next launch"). Failures are reported but never block the launch.
+Func BrowserAutoUpdateApplyPendingInteractive()
+	_BrowserAutoUpdateCleanPartialDownloads()
+	Local $Result = _BrowserAutoUpdateApplyPending($BrowserPath, $BrowserType)
+	If @error Then
+		If $Result <> "" Then MsgBox(16, $AppName, _t("BrowserUpdateApplyFailed", "应用浏览器更新失败：\n%s", $Result))
+		Return
+	EndIf
+	; Success stays silent so applying an update never delays the launch.
+EndFunc   ;==>BrowserAutoUpdateApplyPendingInteractive
+
+;~ Background check + confirm + download + stage for RunFirefox-managed updates.
+;~ Runs only while RunFirefox stays alive (background mode) so the download is
+;~ never killed by the launcher exiting.
+Func BrowserAutoUpdateCheck()
+	If Not ShouldCheckBrowserVersionNow() Then Return
+	MarkBrowserVersionCheckStarted()
+	_BrowserAutoUpdateCleanPartialDownloads()
+
+	Local $Pending = _BrowserAutoUpdateGetPendingUpdate()
+	Local $LocalVersion = _BrowserAutoUpdateGetLocalVersion($BrowserPath)
+	If IsArray($Pending) Then
+		; A staged update is already waiting for the next launch. Drop it only
+		; when the installed browser is no longer older (for example a manual
+		; download already brought it up to date).
+		If Not _BrowserAutoUpdateVersionIsNewer($Pending[0], $LocalVersion) Then _BrowserAutoUpdateCleanStaging()
+		Return
+	EndIf
+
+	Local $Channel = _BrowserDownloadNormalizeChromeChannel($BrowserUpdateChannel)
+	Local $OutputFile = @TempDir & "\RunFirefox_BrowserAutoUpdate_" & @AutoItPID & ".tmp"
+	FileDelete($OutputFile)
+	Local $VersionPid = _BrowserDownloadStartChromeVersionLoadProcess($Channel, "win64", $OutputFile)
+	If Not $VersionPid Then Return
+
+	Local $Timer = TimerInit()
+	While ProcessExists($VersionPid)
+		If TimerDiff($Timer) > 60000 Then
+			ProcessClose($VersionPid)
+			ExitLoop
+		EndIf
+		Sleep(200)
+	WEnd
+	Local $Loaded = _BrowserDownloadLoadChromeUpdateInfoFile($Channel, $OutputFile)
+	FileDelete($OutputFile)
+	If Not $Loaded Then Return
+
+	Local $LatestVersion = _BrowserDownloadGetChromeVersionCache($Channel)
+	If Not _BrowserAutoUpdateVersionIsNewer($LatestVersion, _BrowserAutoUpdateGetLocalVersion($BrowserPath)) Then Return
+
+	Local $UpdateConfirm = _t("BrowserAutoUpdateAvailable", "发现浏览器新版本：%s\n\n是否下载更新？下载完成后将在下次启动浏览器时自动应用。", $LatestVersion)
+	If MsgBox(36 + 256, $AppName, $UpdateConfirm) <> 6 Then Return
+
+	Local $Urls = _BrowserDownloadBuildUrls($BrowserType, $Channel, "win64")
+	If @error Or Not IsArray($Urls) Or UBound($Urls) = 0 Then Return
+	Local $Staged = _BrowserAutoUpdateStageUpdate($BrowserType, $Channel, $LatestVersion, $Urls)
+	If Not $Staged Then
+		If @error = 2 Then Return ; user cancelled the download
+		MsgBox(16, $AppName, _t("BrowserUpdateStageFailed", "浏览器更新包下载失败，下次检查时将重试。"))
+		Return
+	EndIf
+	MsgBox(64, $AppName, _t("BrowserUpdateStaged", "更新包已下载完成：%s\n\n下次启动浏览器时将自动应用更新。", $LatestVersion))
+EndFunc   ;==>BrowserAutoUpdateCheck
+
 Func UpdateBrowserDownloadLabels($LoadVersion, $Unavailable = False)
 	If Not $idBrowserDownloadLink Then Return
 	Local $CurrentBrowserType = GetSelectedBrowserType()
@@ -2722,9 +2796,15 @@ Func UpdateBrowserSpecificControls()
 	Local $ChromiumState = $GUI_DISABLE
 	If $IsChrome Then $MozillaState = $GUI_DISABLE
 	If $IsChrome Then $ChromiumState = $GUI_ENABLE
+	; Browser auto update works either through the browser's own updater
+	; (Mozilla) or through RunFirefox's managed update (Chrome for now).
+	Local $AutoUpdateSupported = IsMozillaBrowser(GetSelectedBrowserType()) Or _BrowserAutoUpdateIsSupported(GetSelectedBrowserType())
+	Local $AutoUpdateState = $GUI_ENABLE
+	If Not $AutoUpdateSupported Then $AutoUpdateState = $GUI_DISABLE
 
 	GUICtrlSetState($idChannel, $GUI_ENABLE)
-	GUICtrlSetState($idAllowBrowserUpdate, $MozillaState)
+	GUICtrlSetState($idAllowBrowserUpdate, $AutoUpdateState)
+	GUICtrlSetState($idBrowserUpdateCheckMode, $AutoUpdateState)
 	GUICtrlSetState($idBrowserDownloadLink, $GUI_ENABLE)
 	GUICtrlSetState($idCustomPluginsDir, $MozillaState)
 	GUICtrlSetState($idGetPluginsDir, $MozillaState)
@@ -3941,7 +4021,7 @@ Func ApplySettings()
 	Else
 		$AllowBrowserUpdate = 0
 	EndIf
-	If IsChromeBrowser($BrowserType) Then $AllowBrowserUpdate = 0
+	If IsChromeBrowser($BrowserType) And Not _BrowserAutoUpdateIsSupported($BrowserType) Then $AllowBrowserUpdate = 0
 	$ProfileDir = RelativePath(GUICtrlRead($idProfileDir))
 	$CustomPluginsDir = RelativePath(GUICtrlRead($idCustomPluginsDir))
 	$CustomCacheDir = RelativePath(GUICtrlRead($idCustomCacheDir))
@@ -4072,6 +4152,11 @@ Func ApplySettings()
 			FileDelete($ChannelPath)
 			FileWrite($ChannelPath, $ChannelPrefs)
 		EndIf
+	ElseIf _BrowserAutoUpdateIsSupported($BrowserType) Then
+		; Remember the channel so the startup update check queries the same one.
+		Local $ChromeChannelString = GUICtrlRead($idChannel)
+		$BrowserUpdateChannel = _BrowserDownloadNormalizeChromeChannel(StringRegExpReplace($ChromeChannelString, " -.*", ""))
+		IniWrite($inifile, "Settings", "BrowserUpdateChannel", $BrowserUpdateChannel)
 	EndIf
 
 	;profiles dir

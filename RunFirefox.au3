@@ -3755,7 +3755,7 @@ Func DownloadBrowser()
 	GUICtrlSetData($idBrowserPath, $BrowserPath)
 	OnBrowserPathChange()
 	If IsChromePlusSupportedBrowser($CurrentBrowserType) And Not IsChromePlusPatchInstalled($DownloadedBrowserPath) Then
-		Local $InstallChromePlusConfirm = _t("InstallChromePlusPatchAfterDownloadConfirm", "浏览器已下载并解压完成。\n是否同时下载并安装 Chrome++ 补丁？")
+		Local $InstallChromePlusConfirm = _t("InstallChromePlusPatchAfterDownloadConfirm", "浏览器已下载并解压完成。\n\nChrome++ 为可选补丁，非必须安装。安装后可提供右键关闭标签页、书签在新标签页打开等功能。\n\n是否下载并安装 Chrome++ 补丁？")
 		If MsgBox(36 + 256, $AppName, $InstallChromePlusConfirm, 0, $hSettings) = 6 Then _
 			InstallChromePlusPatchInteractive($DownloadedBrowserPath, $os)
 	EndIf

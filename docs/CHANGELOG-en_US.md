@@ -2,6 +2,7 @@
 
 ## [Unreleased]
 
+- Clarified that Chrome++ installation is optional and highlighted features such as right-clicking to close tabs and opening bookmarks in new tabs.
 - Removed Chrome++ support for Whale due to compatibility issues.
 - Split browser version lookup, URL construction, and installer extraction into browser-download and shared download-tool libraries while preserving existing sources, mirror fallback, and UI behavior.
 

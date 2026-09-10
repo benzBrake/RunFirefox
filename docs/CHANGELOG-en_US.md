@@ -2,7 +2,7 @@
 
 ## [Unreleased]
 
-- Compacted the Chrome++ tab options and added a "suppress the false out-of-date upgrade prompt" checkbox mapped to chrome++.ini suppress_false_upgrade_notification; it defaults to on for newly created managed configs (fresh Chrome++ installs) while existing configs stay unchanged.
+- Compacted the Chrome++ tab options and added a "suppress the false out-of-date upgrade prompt" checkbox mapped to chrome++.ini suppress_false_upgrade_notification; it defaults to on for newly created managed configs (fresh Chrome++ installs) while existing configs stay unchanged. The settings window is taller accordingly, the "Extra matched titles" field moved below the new-tab options, the upgrade-prompt option moved to the bottom, and help texts are now fully visible.
 - Chromium-based browsers without Chrome++ now get --disable-features=OutdatedBuildDetector appended automatically at launch, deduplicated against automatic and custom command-line arguments, with --disable-features values merged so user-disabled features are preserved.
 - Clarified that Chrome++ installation is optional and highlighted features such as right-clicking to close tabs and opening bookmarks in new tabs.
 - Added optional offline installation of bundled custom Chrome++ for Brave and Whale, selected by browser x86/x64 architecture. The tab retains its settings, displays the bundled version, and offers replacement based on file contents.

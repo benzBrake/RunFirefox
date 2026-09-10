@@ -60,9 +60,6 @@ Opt("WinTitleMatchMode", 4)
 
 Global Const $AppName = "RunFirefox"
 Global Const $AppVersion = "2.8.17"
-Global Const $FirefoxVersionUrl = "https://product-details.mozilla.org/1.0/firefox_versions.json"
-Global Const $ChromeUpdateUrl = "https://tools.google.com/service/update2"
-Global Const $ChromeUpdateUserAgent = "Google Update/1.3.32.7;winhttp;cup-ecdsa"
 Global Const $ChromePlusRepo = "Bush2021/chrome_plus"
 Global Const $ChromePlusReleasesApiUrl = "https://api.github.com/repos/" & $ChromePlusRepo & "/releases?per_page=30"
 Global Const $ChromePlusJsDelivrVersionsUrl = "https://data.jsdelivr.com/v1/package/gh/" & $ChromePlusRepo
@@ -98,38 +95,6 @@ Global Const $BrowserVivaldi = "vivaldi"
 Global Const $BrowserBrave = "brave"
 Global Const $BrowserXunlei = "xunlei"
 Global Const $BrowserUngoogledChromium = "ungoogled-chromium"
-Global Const $ZenUpdateBaseUrl = "https://updates.zen-browser.app/updates/browser/WINNT_x86_64-msvc-x64"
-Global Const $FloorpRepo = "Floorp-Projects/Floorp"
-Global Const $FloorpLatestReleaseUrl = "https://github.com/" & $FloorpRepo & "/releases/latest"
-Global Const $FloorpWindowsX64Asset = "floorp-windows-x86_64.installer.exe"
-Global Const $WaterfoxRepo = "BrowserWorks/Waterfox"
-Global Const $WaterfoxLatestReleaseApiUrl = "https://api.github.com/repos/" & $WaterfoxRepo & "/releases/latest"
-Global Const $WaterfoxDownloadPageUrl = "https://www.waterfox.com/download/"
-Global Const $LibreWolfLatestReleaseApiUrl = "https://librewolf.dev/api/v1/repos/librewolf/bsys6/releases/latest"
-Global Const $LibreWolfDownloadPageUrl = "https://librewolf.net/installation/windows/"
-Global Const $TurboRepo = "tbrowser/Turbo-Browser"
-Global Const $TurboDownloadInfoUrl = "https://tbrowser.cn/update/update.js"
-Global Const $TurboLatestReleaseApiUrl = "https://api.github.com/repos/" & $TurboRepo & "/releases/latest"
-Global Const $HeliumRepo = "imputnet/helium-windows"
-Global Const $HeliumLatestReleaseUrl = "https://github.com/" & $HeliumRepo & "/releases/latest"
-Global Const $HeliumLatestReleaseApiUrl = "https://api.github.com/repos/" & $HeliumRepo & "/releases/latest"
-Global Const $WhaleStandaloneX64Url = "https://installer-whale.pstatic.net/downloads/sa_installers/WhaleSetupX64.exe"
-Global Const $WhaleLatestVersionUrl = "https://cv.whale.naver.com/version/latest_version"
-Global Const $CentBrowserDownloadPageUrl = "https://www.centbrowser.com/"
-Global Const $VivaldiDownloadPageUrl = "https://vivaldi.com/download/"
-Global Const $VivaldiUpdateX64Url = "https://update.vivaldi.com/update/1.0/public/appcast.x64.xml"
-Global Const $BraveRepo = "portapps/brave-portable"
-Global Const $BraveLatestReleaseApiUrl = "https://api.github.com/repos/" & $BraveRepo & "/releases/latest"
-Global Const $UngoogledChromiumRepo = "ungoogled-software/ungoogled-chromium-windows"
-Global Const $UngoogledChromiumGitCodeTagsUrl = "https://gitcode.com/gh_mirrors/un/ungoogled-chromium-windows/tags"
-Global Const $UngoogledChromiumLatestReleaseApiUrl = "https://api.github.com/repos/" & $UngoogledChromiumRepo & "/releases/latest"
-Global Const $BraveVersionDataUrl = "https://data.jsdelivr.com/v1/package/gh/" & $BraveRepo
-Global Const $XunleiBrowserDownloadPageUrl = "https://x.xunlei.com/"
-Global Const $XunleiVersionDataUrl = "https://static-x.xunlei.com/x-xunlei-com/production/_nuxt/qrcanvas-vue.esm.8cc019a3.js"
-Global Const $ChromeStableStandaloneX64Url = "https://dl.google.com/chrome/install/ChromeStandaloneSetup64.exe"
-Global Const $ChromeBetaStandaloneX64Url = "https://dl.google.com/chrome/install/beta/ChromeBetaStandaloneSetup64.exe"
-Global Const $ChromeDevStandaloneX64Url = "https://dl.google.com/chrome/install/dev/ChromeDevStandaloneSetup64.exe"
-Global Const $ChromeCanaryDownloadPageUrl = "https://www.google.com/chrome/canary/"
 Global $FirstRun = 0, $FirstLaunch = 0, $BrowserExecutableName, $BrowserDirectory, $isZotero = false
 Global $TaskBarDir = @AppDataDir & "\Microsoft\Internet Explorer\Quick Launch\User Pinned\TaskBar"
 Global $AppPID, $TaskBarLastChange, $BrowserIconLastChange = 0, $BrowserIconState = ""
@@ -154,32 +119,23 @@ Global $idChromePlusHoverTab, $idChromePlusHoverTabDelay, $idChromePlusHoverTabD
 Global $idChromePlusNewTabDisable, $idChromePlusNewTabDisableName, $idChromePlusNewTabDisableNameLabel
 Global $idChromiumGoogleApiImport, $idChromiumGoogleApiSuppress, $idChromiumGoogleApiClear
 Global $idChromiumDebugPortEnabled, $idChromiumDebugPort, $idChromiumDebugPortLabel
-Global $LANG_DATA
-Global $FirefoxVersionsObj = 0
-Global $ZenReleaseUpdateXml = "", $ZenTwilightUpdateXml = ""
-Global $FloorpReleaseInfoLoaded = False, $FloorpReleaseTag = ""
-Global $WaterfoxReleaseInfoLoaded = False, $WaterfoxReleaseVersion = ""
-Global $LibreWolfReleaseInfoLoaded = False, $LibreWolfReleaseVersion = "", $LibreWolfDownloadUrl = ""
-Global $TurboReleaseInfoLoaded = False, $TurboReleaseVersion = "", $TurboAssetName = "", $TurboDownloadUrl = "", $TurboGithubDownloadUrl = ""
-Global $HeliumReleaseInfoLoaded = False, $HeliumReleaseTag = ""
-Global $CentReleaseInfoLoaded = False, $CentReleaseVersion = "", $CentDownloadUrl = ""
-Global $VivaldiReleaseInfoLoaded = False, $VivaldiReleaseVersion = "", $VivaldiDownloadUrl = ""
-Global $WhaleReleaseInfoLoaded = False, $WhaleReleaseVersion = ""
-Global $BraveReleaseInfoLoaded = False, $BraveReleaseTag = "", $BraveDownloadUrl = ""
-Global $XunleiReleaseInfoLoaded = False, $XunleiDownloadUrl = ""
-Global $UngoogledChromiumReleaseInfoLoaded = False, $UngoogledChromiumReleaseTag = ""
-Global $BraveVersionApiUrls = 0, $BraveVersionApiIndex = 0
+Global $LANG_DATA, $LANGUAGE, $LANGUAGES
 Global $ChromePlusReleaseInfoLoaded = False, $ChromePlusReleaseTag = "", $ChromePlusArchiveUrl = ""
-Global $ChromeStableVersion = "", $ChromeStableDownloadUrl = "", $ChromeBetaVersion = "", $ChromeBetaDownloadUrl = "", $ChromeDevVersion = "", $ChromeDevDownloadUrl = "", $ChromeCanaryVersion = "", $ChromeCanaryDownloadUrl = ""
-Global $BrowserVersionLoadHandle = 0, $BrowserVersionLoadFile = "", $BrowserVersionLoadBrowserType = "", $BrowserVersionLoadChannel = "", $BrowserVersionLoadKind = "", $BrowserVersionLoadAnim = 0
+Global $BrowserVersionLoadAnim = 0
 Global $ChromePlusVersionLoadHandle = 0, $ChromePlusVersionLoadFile = "", $ChromePlusVersionLoadAnim = 0
 Global $AppUpdateCheckHandle = 0, $AppUpdateCheckFile = ""
-Global $hDownloadProgress, $idDownloadProgressStatus, $idDownloadProgressDetail, $idDownloadProgressBar, $idDownloadProgressCancel
-Global $DownloadProgressCancelled = 0, $DownloadProgressCanCancel = 0
-Global $DownloadProgressPreviousGuiMode = -1
 Global $idBrowserStartApps, $idCloseStartAppsAfterBrowserExit, $idBrowserExitApps
 Global $idBossKeyEnabled, $idBossKey, $idBossKeyHideToTray, $BossKeyCaptureValue = "", $BossKeyHotkeyProc = 0, $BossKeyInputWndProc = 0, $BossKeyKeys = 0
 Global $aBrowserStartApps, $aBrowserExitApps, $aBrowserStartAppPids[2]
+#include "libs\DownloadTools.au3"
+#include "libs\BrowserDownload.au3"
+
+Func GetBrowserLocale($DefaultLocale = "")
+	Local $Locale = StringReplace($LANGUAGE, "_", "-")
+	If $Locale = "" Then Return $DefaultLocale
+	If Not StringRegExp($Locale, "^[A-Za-z]{2,3}(-[A-Za-z0-9]+)*$") Then Return $DefaultLocale
+	Return $Locale
+EndFunc
 
 Global $hEvent, $ClientKey, $FileAsso, $URLAsso, $ChromeProgID
 Global $fReg[7][3] = [[$HKEY_CURRENT_USER, 'Software\Clients\StartMenuInternet'], _
@@ -303,8 +259,10 @@ If $GithubJsDelivrMirror = "" Then $GithubJsDelivrMirror = _UpgradeGetDefaultGit
 IniWrite($inifile, "Settings", "GithubDirectMirror", $GithubDirectMirror)
 IniWrite($inifile, "Settings", "GithubJsDelivrMirror", $GithubJsDelivrMirror)
 
+_BrowserDownloadConfigure($AppVersion, GetBrowserLocale("zh-CN"), $GithubDirectMirror, $GithubJsDelivrMirror)
+
 If $CmdLine[0] >= 4 And $CmdLine[1] = "--load-chrome-version" Then
-	WriteChromeUpdateInfoFile($CmdLine[2], $CmdLine[3], $CmdLine[4])
+	_BrowserDownloadWriteChromeUpdateInfoFile($CmdLine[2], $CmdLine[3], $CmdLine[4])
 	Exit
 EndIf
 
@@ -2174,23 +2132,7 @@ Func UpdateBrowserDownloadLabels($LoadVersion, $Unavailable = False)
 EndFunc   ;==>UpdateBrowserDownloadLabels
 
 Func GetLatestBrowserVersionForSettings($CurrentBrowserType, $Channel)
-	$CurrentBrowserType = NormalizeBrowserType($CurrentBrowserType)
-	If $Channel = "default" Then $Channel = "release"
-
-	If $CurrentBrowserType = $BrowserZen Then Return GetLatestZenVersion($Channel)
-	If $CurrentBrowserType = $BrowserFloorp Then Return GetLatestFloorpVersion()
-	If $CurrentBrowserType = $BrowserWaterfox Then Return GetLatestWaterfoxVersion()
-	If $CurrentBrowserType = $BrowserLibreWolf Then Return GetLatestLibreWolfVersion()
-	If $CurrentBrowserType = $BrowserTurbo Then Return GetLatestTurboVersion()
-	If $CurrentBrowserType = $BrowserHelium Then Return GetLatestHeliumVersion()
-	If $CurrentBrowserType = $BrowserCent Then Return GetLatestCentVersion()
-	If $CurrentBrowserType = $BrowserVivaldi Then Return GetLatestVivaldiVersion()
-	If $CurrentBrowserType = $BrowserWhale Then Return GetLatestWhaleVersion()
-	If $CurrentBrowserType = $BrowserBrave Then Return GetLatestBraveVersion()
-	If $CurrentBrowserType = $BrowserXunlei Then Return ""
-	If $CurrentBrowserType = $BrowserUngoogledChromium Then Return GetLatestUngoogledChromiumVersion()
-	If IsChromeBrowser($CurrentBrowserType) Then Return GetChromeVersionCache($Channel)
-	Return GetLatestFirefoxVersion($Channel)
+	Return _BrowserDownloadGetLatestVersion($CurrentBrowserType, $Channel)
 EndFunc   ;==>GetLatestBrowserVersionForSettings
 
 Func UpdateCurrentBrowserVersionLabel()
@@ -2278,29 +2220,11 @@ Func IsDisplayedBrowserVersionUnavailable($DisplayedVersion)
 EndFunc   ;==>IsDisplayedBrowserVersionUnavailable
 
 Func HasBrowserDownloadFallback($CurrentBrowserType, $Channel)
-	$CurrentBrowserType = NormalizeBrowserType($CurrentBrowserType)
-	Switch $CurrentBrowserType
-		Case $BrowserFirefox, $BrowserZen, $BrowserFloorp, $BrowserWaterfox, $BrowserTurbo, $BrowserHelium, $BrowserWhale, $BrowserVivaldi, $BrowserBrave, $BrowserXunlei, $BrowserUngoogledChromium
-			Return True
-		Case $BrowserChrome
-			Return NormalizeChromeChannel($Channel) <> "canary"
-	EndSwitch
-	Return False
+	Return _BrowserDownloadHasFallback($CurrentBrowserType, $Channel)
 EndFunc   ;==>HasBrowserDownloadFallback
 
 Func GetBrowserDownloadPageUrl($CurrentBrowserType, $Channel)
-	$CurrentBrowserType = NormalizeBrowserType($CurrentBrowserType)
-	Switch $CurrentBrowserType
-		Case $BrowserLibreWolf
-			Return $LibreWolfDownloadPageUrl
-		Case $BrowserCent
-			Return $CentBrowserDownloadPageUrl
-		Case $BrowserXunlei
-			Return $XunleiBrowserDownloadPageUrl
-		Case $BrowserChrome
-			If NormalizeChromeChannel($Channel) = "canary" Then Return $ChromeCanaryDownloadPageUrl
-	EndSwitch
-	Return ""
+	Return _BrowserDownloadGetPageUrl($CurrentBrowserType, $Channel)
 EndFunc   ;==>GetBrowserDownloadPageUrl
 
 Func NormalizeDisplayedVersionForCompare($Version)
@@ -2387,61 +2311,11 @@ Func BeginBrowserVersionLoad($CurrentBrowserType = "", $Channel = "")
 		Return
 	EndIf
 
-	If $BrowserVersionLoadHandle Then
-		If $BrowserVersionLoadBrowserType = NormalizeBrowserType($CurrentBrowserType) And $BrowserVersionLoadChannel = $Channel Then
+	If _BrowserDownloadIsVersionLoadActive($CurrentBrowserType, $Channel) Then
 			UpdateBrowserVersionLoadingLabel()
 			Return
-		EndIf
-		CancelBrowserVersionLoad()
 	EndIf
-
-	$BrowserVersionLoadBrowserType = NormalizeBrowserType($CurrentBrowserType)
-	$BrowserVersionLoadChannel = $Channel
-	$BrowserVersionLoadFile = @TempDir & "\RunFirefox_BrowserVersion_" & @AutoItPID & ".tmp"
-	FileDelete($BrowserVersionLoadFile)
-
-	If NormalizeBrowserType($CurrentBrowserType) = $BrowserTurbo Then
-		$BrowserVersionLoadKind = "inet"
-		$BrowserVersionLoadHandle = InetGet($TurboDownloadInfoUrl, $BrowserVersionLoadFile, 1, 1)
-	ElseIf NormalizeBrowserType($CurrentBrowserType) = $BrowserHelium Then
-		$BrowserVersionLoadKind = "inet"
-		$BrowserVersionLoadHandle = InetGet($HeliumLatestReleaseUrl, $BrowserVersionLoadFile, 1, 1)
-	ElseIf NormalizeBrowserType($CurrentBrowserType) = $BrowserCent Then
-		$BrowserVersionLoadKind = "inet"
-		$BrowserVersionLoadHandle = InetGet($CentBrowserDownloadPageUrl, $BrowserVersionLoadFile, 1, 1)
-	ElseIf NormalizeBrowserType($CurrentBrowserType) = $BrowserVivaldi Then
-		$BrowserVersionLoadKind = "inet"
-		$BrowserVersionLoadHandle = InetGet($VivaldiDownloadPageUrl, $BrowserVersionLoadFile, 1, 1)
-	ElseIf NormalizeBrowserType($CurrentBrowserType) = $BrowserWhale Then
-		$BrowserVersionLoadKind = "inet"
-		$BrowserVersionLoadHandle = InetGet($WhaleLatestVersionUrl, $BrowserVersionLoadFile, 1, 1)
-	ElseIf NormalizeBrowserType($CurrentBrowserType) = $BrowserBrave Then
-		$BrowserVersionLoadKind = "inet"
-		; Never send the release API request directly; LAN environments may restrict api.github.com.
-		$BraveVersionApiUrls = _UpgradeBuildGithubDirectUrls($BraveLatestReleaseApiUrl, $GithubDirectMirror)
-		$BraveVersionApiIndex = 0
-		$BrowserVersionLoadHandle = InetGet($BraveVersionApiUrls[$BraveVersionApiIndex], $BrowserVersionLoadFile, 1, 1)
-	ElseIf NormalizeBrowserType($CurrentBrowserType) = $BrowserXunlei Then
-		$BrowserVersionLoadKind = "inet"
-		$BrowserVersionLoadHandle = InetGet($XunleiVersionDataUrl, $BrowserVersionLoadFile, 1, 1)
-	ElseIf NormalizeBrowserType($CurrentBrowserType) = $BrowserUngoogledChromium Then
-		$BrowserVersionLoadKind = "inet"
-		$BrowserVersionLoadHandle = InetGet($UngoogledChromiumGitCodeTagsUrl, $BrowserVersionLoadFile, 1, 1)
-	ElseIf IsChromeBrowser($CurrentBrowserType) Then
-		$BrowserVersionLoadKind = "chrome"
-		$BrowserVersionLoadHandle = StartChromeVersionLoadProcess($Channel, "win64", $BrowserVersionLoadFile)
-	Else
-		Local $Url = $FirefoxVersionUrl
-		If NormalizeBrowserType($CurrentBrowserType) = $BrowserZen Then $Url = $ZenUpdateBaseUrl & "/" & GetZenUpdateChannel($Channel) & "/update.xml"
-		If NormalizeBrowserType($CurrentBrowserType) = $BrowserFloorp Then $Url = $FloorpLatestReleaseUrl
-		If NormalizeBrowserType($CurrentBrowserType) = $BrowserWaterfox Then $Url = $WaterfoxDownloadPageUrl
-		If NormalizeBrowserType($CurrentBrowserType) = $BrowserLibreWolf Then $Url = $LibreWolfLatestReleaseApiUrl
-		$BrowserVersionLoadKind = "inet"
-		$BrowserVersionLoadHandle = InetGet($Url, $BrowserVersionLoadFile, 1, 1)
-	EndIf
-
-	If Not $BrowserVersionLoadHandle Then
-		CancelBrowserVersionLoad()
+	If Not _BrowserDownloadStartVersionLoad($CurrentBrowserType, $Channel, "win64") Then
 		If NormalizeBrowserType($CurrentBrowserType) = $BrowserWhale Then
 			UpdateBrowserDownloadLabels(False, True)
 		Else
@@ -2457,110 +2331,16 @@ EndFunc   ;==>BeginBrowserVersionLoad
 
 Func CancelBrowserVersionLoad()
 	AdlibUnRegister("PollBrowserVersionLoad")
-	If $BrowserVersionLoadHandle Then
-		If $BrowserVersionLoadKind = "chrome" Then
-			If ProcessExists($BrowserVersionLoadHandle) Then ProcessClose($BrowserVersionLoadHandle)
-		Else
-			InetClose($BrowserVersionLoadHandle)
-		EndIf
-	EndIf
-	If $BrowserVersionLoadFile <> "" Then FileDelete($BrowserVersionLoadFile)
-	$BrowserVersionLoadHandle = 0
-	$BrowserVersionLoadFile = ""
-	$BrowserVersionLoadBrowserType = ""
-	$BrowserVersionLoadChannel = ""
-	$BrowserVersionLoadKind = ""
+	_BrowserDownloadCancelVersionLoad()
 EndFunc   ;==>CancelBrowserVersionLoad
 
 Func PollBrowserVersionLoad()
-	If Not $BrowserVersionLoadHandle Then
-		CancelBrowserVersionLoad()
-		Return
-	EndIf
-
 	UpdateBrowserVersionLoadingLabel()
-	If $BrowserVersionLoadKind = "chrome" Then
-		If ProcessExists($BrowserVersionLoadHandle) Then Return
-
-		Local $LoadedChromeBrowserType = $BrowserVersionLoadBrowserType
-		Local $LoadedChromeChannel = $BrowserVersionLoadChannel
-		Local $LoadedChromeFile = $BrowserVersionLoadFile
-		$BrowserVersionLoadHandle = 0
-		AdlibUnRegister("PollBrowserVersionLoad")
-
-		Local $ChromeLoaded = LoadChromeUpdateInfoFile($LoadedChromeChannel, $LoadedChromeFile)
-		FileDelete($LoadedChromeFile)
-		$BrowserVersionLoadFile = ""
-		$BrowserVersionLoadBrowserType = ""
-		$BrowserVersionLoadChannel = ""
-		$BrowserVersionLoadKind = ""
-
-		CompleteBrowserVersionLoad($LoadedChromeBrowserType, $LoadedChromeChannel, $ChromeLoaded)
-		Return
-	EndIf
-
-	If Not InetGetInfo($BrowserVersionLoadHandle, 2) Then Return
-
-	Local $DownloadSuccessful = InetGetInfo($BrowserVersionLoadHandle, 3)
-	Local $LoadedBrowserType = $BrowserVersionLoadBrowserType
-	Local $LoadedChannel = $BrowserVersionLoadChannel
-	Local $LoadedFile = $BrowserVersionLoadFile
-	InetClose($BrowserVersionLoadHandle)
-	$BrowserVersionLoadHandle = 0
-	If Not $DownloadSuccessful And $LoadedBrowserType = $BrowserBrave And IsArray($BraveVersionApiUrls) And $BraveVersionApiIndex + 1 < UBound($BraveVersionApiUrls) Then
-		$BraveVersionApiIndex += 1
-		$BrowserVersionLoadHandle = InetGet($BraveVersionApiUrls[$BraveVersionApiIndex], $LoadedFile, 1, 1)
-		If $BrowserVersionLoadHandle Then Return
-	EndIf
+	Local $LoadedBrowserType = "", $LoadedChannel = ""
+	Local $Result = _BrowserDownloadPollVersionLoad($LoadedBrowserType, $LoadedChannel)
+	If $Result = 0 Then Return
 	AdlibUnRegister("PollBrowserVersionLoad")
-
-	Local $Loaded = False
-	If $DownloadSuccessful Then
-		Local $Content = FileRead($LoadedFile)
-		If $Content <> "" Then
-			If $LoadedBrowserType = $BrowserZen Then
-				SetZenUpdateXml($LoadedChannel, $Content)
-				$Loaded = True
-			ElseIf $LoadedBrowserType = $BrowserFloorp Then
-				$Loaded = CacheFloorpReleaseInfo($Content)
-			ElseIf $LoadedBrowserType = $BrowserWaterfox Then
-				$Loaded = CacheWaterfoxReleaseInfo($Content)
-			ElseIf $LoadedBrowserType = $BrowserLibreWolf Then
-				$Loaded = CacheLibreWolfReleaseInfo($Content)
-			ElseIf $LoadedBrowserType = $BrowserTurbo Then
-				$Loaded = CacheTurboReleaseInfo($Content)
-			ElseIf $LoadedBrowserType = $BrowserHelium Then
-				$Loaded = CacheHeliumReleaseInfo($Content)
-			ElseIf $LoadedBrowserType = $BrowserCent Then
-				$Loaded = CacheCentReleaseInfo($Content)
-			ElseIf $LoadedBrowserType = $BrowserVivaldi Then
-				$Loaded = CacheVivaldiReleaseInfo($Content)
-			ElseIf $LoadedBrowserType = $BrowserWhale Then
-				$Loaded = CacheWhaleReleaseInfo($Content)
-			ElseIf $LoadedBrowserType = $BrowserBrave Then
-				$Loaded = CacheBraveReleaseInfo($Content)
-			ElseIf $LoadedBrowserType = $BrowserXunlei Then
-				$Loaded = CacheXunleiReleaseInfo($Content)
-			ElseIf $LoadedBrowserType = $BrowserUngoogledChromium Then
-				$Loaded = CacheUngoogledChromiumReleaseInfo($Content)
-			Else
-				$Loaded = CacheFirefoxVersions($Content)
-			EndIf
-		EndIf
-	EndIf
-	If Not $Loaded And $LoadedBrowserType = $BrowserLibreWolf Then $Loaded = GetLibreWolfReleasePage()
-	If Not $Loaded And $LoadedBrowserType = $BrowserTurbo Then $Loaded = GetTurboReleasePage()
-	If Not $Loaded And $LoadedBrowserType = $BrowserBrave Then $Loaded = GetBraveReleasePage()
-	If Not $Loaded And $LoadedBrowserType = $BrowserUngoogledChromium Then $Loaded = GetUngoogledChromiumReleaseFallback()
-	FileDelete($LoadedFile)
-	$BrowserVersionLoadFile = ""
-	$BrowserVersionLoadBrowserType = ""
-	$BrowserVersionLoadChannel = ""
-	$BrowserVersionLoadKind = ""
-	$BraveVersionApiUrls = 0
-	$BraveVersionApiIndex = 0
-
-	CompleteBrowserVersionLoad($LoadedBrowserType, $LoadedChannel, $Loaded)
+	CompleteBrowserVersionLoad($LoadedBrowserType, $LoadedChannel, $Result = 1)
 EndFunc   ;==>PollBrowserVersionLoad
 
 Func CompleteBrowserVersionLoad($LoadedBrowserType, $LoadedChannel, $Loaded)
@@ -2598,20 +2378,7 @@ Func UpdateBrowserVersionLoadingLabel()
 EndFunc   ;==>UpdateBrowserVersionLoadingLabel
 
 Func IsBrowserVersionCached($CurrentBrowserType, $Channel)
-	If NormalizeBrowserType($CurrentBrowserType) = $BrowserTurbo Then Return $TurboReleaseInfoLoaded
-	If NormalizeBrowserType($CurrentBrowserType) = $BrowserHelium Then Return $HeliumReleaseInfoLoaded
-	If NormalizeBrowserType($CurrentBrowserType) = $BrowserCent Then Return $CentReleaseInfoLoaded
-	If NormalizeBrowserType($CurrentBrowserType) = $BrowserVivaldi Then Return $VivaldiReleaseInfoLoaded
-	If NormalizeBrowserType($CurrentBrowserType) = $BrowserWhale Then Return $WhaleReleaseInfoLoaded
-	If NormalizeBrowserType($CurrentBrowserType) = $BrowserBrave Then Return $BraveReleaseInfoLoaded
-	If NormalizeBrowserType($CurrentBrowserType) = $BrowserXunlei Then Return $XunleiReleaseInfoLoaded
-	If NormalizeBrowserType($CurrentBrowserType) = $BrowserUngoogledChromium Then Return $UngoogledChromiumReleaseInfoLoaded
-	If IsChromeBrowser($CurrentBrowserType) Then Return GetChromeVersionCache($Channel) <> ""
-	If NormalizeBrowserType($CurrentBrowserType) = $BrowserZen Then Return GetZenUpdateXmlCache($Channel) <> ""
-	If NormalizeBrowserType($CurrentBrowserType) = $BrowserFloorp Then Return $FloorpReleaseInfoLoaded
-	If NormalizeBrowserType($CurrentBrowserType) = $BrowserWaterfox Then Return $WaterfoxReleaseInfoLoaded
-	If NormalizeBrowserType($CurrentBrowserType) = $BrowserLibreWolf Then Return $LibreWolfReleaseInfoLoaded
-	Return IsObj($FirefoxVersionsObj)
+	Return _BrowserDownloadIsVersionCached($CurrentBrowserType, $Channel)
 EndFunc   ;==>IsBrowserVersionCached
 
 Func GetSelectedBrowserType()
@@ -3485,857 +3252,7 @@ Func UpdateBrowserChannelOptions($Value, $SelectedChannel)
 	GUICtrlSetData($idChannel, $Options, $SelectedChannel)
 EndFunc   ;==>UpdateBrowserChannelOptions
 
-Func GetFirefoxVersions()
-	If IsObj($FirefoxVersionsObj) Then Return $FirefoxVersionsObj
 
-	Local $sVersions = BinaryToString(InetRead($FirefoxVersionUrl, 1), 4)
-	If @error Or $sVersions = "" Then Return SetError(1, 0, 0)
-
-	If Not CacheFirefoxVersions($sVersions) Then Return SetError(1, 0, 0)
-	Return $FirefoxVersionsObj
-EndFunc   ;==>GetFirefoxVersions
-
-Func CacheFirefoxVersions($sVersions)
-	Local $oVersions = Json_Decode($sVersions)
-	If @error Or Not Json_IsObject($oVersions) Then Return SetError(1, 0, 0)
-
-	$FirefoxVersionsObj = $oVersions
-	Return True
-EndFunc   ;==>CacheFirefoxVersions
-
-Func GetLatestFirefoxVersion($Channel)
-	Local $VersionKey = "LATEST_FIREFOX_VERSION"
-
-	Switch $Channel
-		Case "beta"
-			$VersionKey = "LATEST_FIREFOX_DEVEL_VERSION"
-		Case "dev"
-			$VersionKey = "FIREFOX_DEVEDITION"
-		Case "esr"
-			$VersionKey = "FIREFOX_ESR"
-		Case "nightly"
-			$VersionKey = "FIREFOX_NIGHTLY"
-	EndSwitch
-
-	Local $oVersions = GetFirefoxVersions()
-	If @error Or Not IsObj($oVersions) Then Return ""
-
-	Local $Version = Json_ObjGet($oVersions, $VersionKey)
-	If @error Or $Version = "" Then Return ""
-
-	Return $Version
-EndFunc   ;==>GetLatestFirefoxVersion
-
-Func GetFirefoxChannelLabel($Channel)
-	Local $Version = GetLatestFirefoxVersion($Channel)
-	If $Version = "" Then Return $Channel
-	Return $Channel & " (" & $Version & ")"
-EndFunc   ;==>GetFirefoxChannelLabel
-
-Func GetZenUpdateXml($Channel)
-	Local $sCachedUpdateXml = GetZenUpdateXmlCache($Channel)
-	If $sCachedUpdateXml <> "" Then Return $sCachedUpdateXml
-
-	$Channel = GetZenUpdateChannel($Channel)
-	Local $sUpdateXml = BinaryToString(InetRead($ZenUpdateBaseUrl & "/" & $Channel & "/update.xml", 1), 4)
-	If @error Or $sUpdateXml = "" Then Return SetError(1, 0, "")
-	SetZenUpdateXml($Channel, $sUpdateXml)
-	Return $sUpdateXml
-EndFunc   ;==>GetZenUpdateXml
-
-Func GetZenUpdateXmlCache($Channel)
-	$Channel = GetZenUpdateChannel($Channel)
-	If $Channel = "twilight" Then Return $ZenTwilightUpdateXml
-	Return $ZenReleaseUpdateXml
-EndFunc   ;==>GetZenUpdateXmlCache
-
-Func SetZenUpdateXml($Channel, $sUpdateXml)
-	$Channel = GetZenUpdateChannel($Channel)
-	If $Channel = "twilight" Then
-		$ZenTwilightUpdateXml = $sUpdateXml
-	Else
-		$ZenReleaseUpdateXml = $sUpdateXml
-	EndIf
-EndFunc   ;==>SetZenUpdateXml
-
-Func GetLatestZenVersion($Channel)
-	Local $sUpdateXml = GetZenUpdateXml($Channel)
-	If @error Or $sUpdateXml = "" Then Return ""
-
-	Local $match = StringRegExp($sUpdateXml, 'displayVersion="([^"]+)"', 1)
-	If @error Then Return ""
-	Return $match[0]
-EndFunc   ;==>GetLatestZenVersion
-
-Func GetLatestZenReleaseTag($Channel)
-	Local $sUpdateXml = GetZenUpdateXml($Channel)
-	If @error Or $sUpdateXml = "" Then Return ""
-
-	Local $match = StringRegExp($sUpdateXml, '/releases/download/([^/]+)/', 1)
-	If @error Then Return ""
-	Return $match[0]
-EndFunc   ;==>GetLatestZenReleaseTag
-
-Func GetZenChannelLabel($Channel)
-	Local $Version = GetLatestZenVersion($Channel)
-	If $Version = "" Then Return $Channel
-	Return $Channel & " (" & $Version & ")"
-EndFunc   ;==>GetZenChannelLabel
-
-Func GetZenUpdateChannel($Channel)
-	If $Channel = "twilight" Then Return "twilight"
-	Return "release"
-EndFunc   ;==>GetZenUpdateChannel
-
-Func CacheFloorpReleaseInfo($Content)
-	$FloorpReleaseInfoLoaded = True
-	$FloorpReleaseTag = ""
-
-	Local $Match = StringRegExp($Content, '(?i)/' & $FloorpRepo & '/releases/tag/([^"#?<>\s]+)', 1)
-	If Not @error Then
-		$FloorpReleaseTag = $Match[0]
-		Return True
-	EndIf
-
-	$Match = StringRegExp($Content, '(?i)Release\s+Floorp\s+([0-9][^<\s]+)', 1)
-	If Not @error Then $FloorpReleaseTag = "v" & $Match[0]
-
-	Return True
-EndFunc   ;==>CacheFloorpReleaseInfo
-
-Func GetLatestFloorpVersion()
-	If $FloorpReleaseTag = "" Then Return ""
-	Return StringRegExpReplace($FloorpReleaseTag, "(?i)^v", "")
-EndFunc   ;==>GetLatestFloorpVersion
-
-Func GetFloorpChannelLabel($Channel)
-	Local $Version = GetLatestFloorpVersion()
-	If $Version = "" Then Return $Channel
-	Return $Channel & " (" & $Version & ")"
-EndFunc   ;==>GetFloorpChannelLabel
-
-Func GetWaterfoxReleasePage()
-	If $WaterfoxReleaseInfoLoaded Then Return True
-
-	Local $Content = BinaryToString(InetRead($WaterfoxDownloadPageUrl, 1), 4)
-	If @error Or $Content = "" Then Return SetError(1, 0, False)
-
-	Return CacheWaterfoxReleaseInfo($Content)
-EndFunc   ;==>GetWaterfoxReleasePage
-
-Func GetWaterfoxReleaseFallback()
-	Local $Content = GetGithubLatestReleaseApi($WaterfoxLatestReleaseApiUrl)
-	If $Content = "" Then Return False
-
-	Local $Match = StringRegExp($Content, '(?i)"tag_name"\s*:\s*"v?([0-9][^"\s]+)"', 1)
-	If @error Or Not IsArray($Match) Then Return False
-	$WaterfoxReleaseVersion = $Match[0]
-	$WaterfoxReleaseInfoLoaded = True
-	Return True
-EndFunc   ;==>GetWaterfoxReleaseFallback
-
-Func CacheWaterfoxReleaseInfo($Content)
-	$WaterfoxReleaseInfoLoaded = False
-	$WaterfoxReleaseVersion = ""
-
-	Local $Match = StringRegExp($Content, '(?i)cdn\.waterfox\.com/waterfox/releases/([0-9][^/"#?<>\s]+)/WINNT_x86_64/Waterfox%20Setup%20[^"#?<>\s]+\.exe', 1)
-	If @error Then $Match = StringRegExp($Content, '(?i)Waterfox%20Setup%20([0-9][^/"#?<>\s]+)\.exe', 1)
-	If @error Then $Match = StringRegExp($Content, '(?i)Waterfox\s+Setup\s+([0-9][^/"#?<>\s]+)\.exe', 1)
-
-	If @error Then Return False
-	$WaterfoxReleaseVersion = $Match[0]
-	$WaterfoxReleaseInfoLoaded = True
-	Return True
-EndFunc   ;==>CacheWaterfoxReleaseInfo
-
-Func GetLatestWaterfoxVersion()
-	If $WaterfoxReleaseVersion = "" Then Return ""
-	Return $WaterfoxReleaseVersion
-EndFunc   ;==>GetLatestWaterfoxVersion
-
-Func GetLibreWolfReleasePage()
-	If $LibreWolfReleaseInfoLoaded Then Return True
-	Local $Content = HttpGetText($LibreWolfLatestReleaseApiUrl, "Mozilla/5.0", "application/json")
-	If @error Or $Content = "" Then Return False
-	Return CacheLibreWolfReleaseInfo($Content)
-EndFunc   ;==>GetLibreWolfReleasePage
-
-Func CacheLibreWolfReleaseInfo($Content)
-	$LibreWolfReleaseInfoLoaded = False
-	$LibreWolfReleaseVersion = ""
-	$LibreWolfDownloadUrl = ""
-
-	; The official page also lists setup and ARM64 files; accept only the x86_64 portable ZIP.
-	Local $Match = StringRegExp($Content, "(?i)https://dl\.librewolf\.net/librewolf/([^/""<>\s]+)/librewolf-([^/""<>\s]+)-windows-x86_64-portable\.zip", 1)
-	If @error Or Not IsArray($Match) Then Return False
-
-	$LibreWolfReleaseVersion = $Match[1]
-	$LibreWolfDownloadUrl = "https://dl.librewolf.net/librewolf/" & $Match[0] & "/librewolf-" & $Match[1] & "-windows-x86_64-portable.zip"
-	$LibreWolfReleaseInfoLoaded = True
-	Return True
-EndFunc   ;==>CacheLibreWolfReleaseInfo
-
-Func GetLatestLibreWolfVersion()
-	If $LibreWolfReleaseVersion = "" Then Return ""
-	Return $LibreWolfReleaseVersion
-EndFunc   ;==>GetLatestLibreWolfVersion
-
-Func GetTurboReleasePage()
-	If $TurboReleaseInfoLoaded Then Return True
-	Local $Content = BinaryToString(InetRead($TurboDownloadInfoUrl, 1), 4)
-	If @error Or $Content = "" Then Return False
-	Return CacheTurboReleaseInfo($Content)
-EndFunc   ;==>GetTurboReleasePage
-
-Func GetTurboReleaseFallback()
-	Local $Content = GetGithubLatestReleaseApi($TurboLatestReleaseApiUrl)
-	If $Content = "" Then Return False
-
-	Local $VersionMatch = StringRegExp($Content, '(?i)"tag_name"\s*:\s*"v?([0-9]+(?:\.[0-9]+)+)"', 1)
-	Local $AssetMatch = StringRegExp($Content, '(?i)"browser_download_url"\s*:\s*"(https://github\.com/' & $TurboRepo & '/releases/download/[^"/]+/(Turbo_([0-9]+(?:\.[0-9]+)+)_portable\.7z))"', 1)
-	If @error Or Not IsArray($VersionMatch) Or Not IsArray($AssetMatch) Or $AssetMatch[2] <> $VersionMatch[0] Then Return False
-
-	$TurboReleaseVersion = $VersionMatch[0]
-	$TurboAssetName = $AssetMatch[1]
-	$TurboDownloadUrl = ""
-	$TurboGithubDownloadUrl = $AssetMatch[0]
-	$TurboReleaseInfoLoaded = True
-	Return True
-EndFunc   ;==>GetTurboReleaseFallback
-
-Func CacheTurboReleaseInfo($Content)
-	$TurboReleaseInfoLoaded = False
-	$TurboReleaseVersion = ""
-	$TurboAssetName = ""
-	$TurboDownloadUrl = ""
-	$TurboGithubDownloadUrl = ""
-
-	Local $VersionMatch = StringRegExp($Content, "(?i)\bver\s*:\s*['""']([0-9]+(?:\.[0-9]+)+)['""']", 1)
-	If @error Or Not IsArray($VersionMatch) Then Return False
-	Local $PortableMatch = StringRegExp($Content, "(?i)\bportable_url\s*:\s*['""'](https://dl\.tbrowser\.cn/download/(Turbo_([0-9]+(?:\.[0-9]+)+)_portable\.7z))['""']", 1)
-	If @error Or Not IsArray($PortableMatch) Or $PortableMatch[2] <> $VersionMatch[0] Then Return False
-
-	$TurboReleaseVersion = $VersionMatch[0]
-	$TurboDownloadUrl = $PortableMatch[0]
-	$TurboAssetName = $PortableMatch[1]
-	$TurboGithubDownloadUrl = "https://github.com/" & $TurboRepo & "/releases/download/" & $TurboReleaseVersion & "/" & $TurboAssetName
-	$TurboReleaseInfoLoaded = True
-	Return True
-EndFunc   ;==>CacheTurboReleaseInfo
-
-Func GetLatestTurboVersion()
-	If $TurboReleaseVersion = "" Then Return ""
-	Return $TurboReleaseVersion
-EndFunc   ;==>GetLatestTurboVersion
-
-Func GetWaterfoxChannelLabel($Channel)
-	Local $Version = GetLatestWaterfoxVersion()
-	If $Version = "" Then Return $Channel
-	Return $Channel & " (" & $Version & ")"
-EndFunc   ;==>GetWaterfoxChannelLabel
-
-Func GetHeliumReleasePage()
-	If $HeliumReleaseInfoLoaded Then Return True
-	Local $Content = GetGithubLatestReleaseApi($HeliumLatestReleaseApiUrl)
-	If $Content = "" Then Return SetError(1, 0, False)
-	Return CacheHeliumReleaseInfo($Content)
-EndFunc   ;==>GetHeliumReleasePage
-
-Func CacheHeliumReleaseInfo($Content)
-	$HeliumReleaseInfoLoaded = False
-	$HeliumReleaseTag = ""
-
-	Local $Match = StringRegExp($Content, '(?i)"tag_name"\s*:\s*"([^"]+)"', 1)
-	If @error Then $Match = StringRegExp($Content, '(?i)/' & $HeliumRepo & '/releases/tag/([^"#?<>\s]+)', 1)
-	If @error Then Return False
-
-	$HeliumReleaseTag = $Match[0]
-	$HeliumReleaseInfoLoaded = True
-	Return True
-EndFunc   ;==>CacheHeliumReleaseInfo
-
-Func GetLatestHeliumVersion()
-	If $HeliumReleaseTag = "" Then Return ""
-	Return StringRegExpReplace($HeliumReleaseTag, "(?i)^v", "")
-EndFunc   ;==>GetLatestHeliumVersion
-
-Func GetHeliumChannelLabel($Channel)
-	Local $Version = GetLatestHeliumVersion()
-	If $Version = "" Then Return $Channel
-	Return $Channel & " (" & $Version & ")"
-EndFunc   ;==>GetHeliumChannelLabel
-
-Func GetCentReleasePage()
-	If $CentReleaseInfoLoaded Then Return True
-
-	Local $Content = BinaryToString(InetRead($CentBrowserDownloadPageUrl, 1), 4)
-	If @error Or $Content = "" Then Return SetError(1, 0, False)
-
-	Return CacheCentReleaseInfo($Content)
-EndFunc   ;==>GetCentReleasePage
-
-Func CacheCentReleaseInfo($Content)
-	$CentReleaseInfoLoaded = False
-	$CentReleaseVersion = ""
-	$CentDownloadUrl = ""
-
-	Local $Match = StringRegExp($Content, '(?is)href="([^"]*centbrowser_([0-9][0-9.]*)_x64_portable\.exe)"', 1)
-	If @error Then $Match = StringRegExp($Content, '(?is)href="([^"]*centbrowser_([0-9][0-9.]*)_x64\.exe)"', 1)
-	If @error Then Return False
-
-	$CentDownloadUrl = NormalizeCentDownloadUrl($Match[0])
-	$CentReleaseVersion = $Match[1]
-	If $CentReleaseVersion = "" Then
-		$Match = StringRegExp($Content, '(?is)Version:\s*([0-9][0-9.]*)', 1)
-		If Not @error Then $CentReleaseVersion = $Match[0]
-	EndIf
-
-	If $CentDownloadUrl = "" Then Return False
-	$CentReleaseInfoLoaded = True
-	Return True
-EndFunc   ;==>CacheCentReleaseInfo
-
-Func NormalizeCentDownloadUrl($Url)
-	$Url = DecodeXmlAttribute(StringStripWS($Url, 3))
-	If $Url = "" Then Return ""
-	If StringLeft($Url, 2) = "//" Then Return "https:" & $Url
-	If StringRegExp($Url, "(?i)^https?://") Then Return $Url
-	If StringLeft($Url, 1) = "/" Then Return "https://www.centbrowser.com" & $Url
-	Return $CentBrowserDownloadPageUrl & $Url
-EndFunc   ;==>NormalizeCentDownloadUrl
-
-Func GetLatestCentVersion()
-	If $CentReleaseVersion = "" Then Return ""
-	Return $CentReleaseVersion
-EndFunc   ;==>GetLatestCentVersion
-
-Func GetCentChannelLabel($Channel)
-	Local $Version = GetLatestCentVersion()
-	If $Version = "" Then Return $Channel
-	Return $Channel & " (" & $Version & ")"
-EndFunc   ;==>GetCentChannelLabel
-
-Func GetVivaldiReleasePage()
-	If $VivaldiReleaseInfoLoaded Then Return True
-
-	Local $Content = BinaryToString(InetRead($VivaldiDownloadPageUrl, 1), 4)
-	If @error Or $Content = "" Then Return SetError(1, 0, False)
-
-	Return CacheVivaldiReleaseInfo($Content)
-EndFunc   ;==>GetVivaldiReleasePage
-
-Func GetVivaldiReleaseFallback()
-	Local $Content = HttpGetText($VivaldiUpdateX64Url, "RunFirefox/" & $AppVersion, "application/xml")
-	If @error Or $Content = "" Then Return False
-
-	Local $Match = StringRegExp($Content, '(?is)<enclosure[^>]+url="(https://downloads\.vivaldi\.com/(?:stable|stable-auto)/Vivaldi\.([0-9][0-9.]*)\.x64\.exe)"', 1)
-	If @error Or Not IsArray($Match) Then Return False
-	$VivaldiDownloadUrl = DecodeXmlAttribute($Match[0])
-	$VivaldiReleaseVersion = $Match[1]
-	$VivaldiReleaseInfoLoaded = True
-	Return True
-EndFunc   ;==>GetVivaldiReleaseFallback
-
-Func CacheVivaldiReleaseInfo($Content)
-	$VivaldiReleaseInfoLoaded = False
-	$VivaldiReleaseVersion = ""
-	$VivaldiDownloadUrl = ""
-
-	Local $Match = StringRegExp($Content, '(?is)(https?://downloads\.vivaldi\.com/stable/Vivaldi\.([0-9][0-9.]*)\.x64\.exe)', 1)
-	If @error Then Return False
-
-	$VivaldiDownloadUrl = DecodeXmlAttribute($Match[0])
-	$VivaldiReleaseVersion = $Match[1]
-	If $VivaldiDownloadUrl = "" Or $VivaldiReleaseVersion = "" Then Return False
-
-	$VivaldiReleaseInfoLoaded = True
-	Return True
-EndFunc   ;==>CacheVivaldiReleaseInfo
-
-Func GetLatestVivaldiVersion()
-	If $VivaldiReleaseVersion = "" Then Return ""
-	Return $VivaldiReleaseVersion
-EndFunc   ;==>GetLatestVivaldiVersion
-
-Func CacheWhaleReleaseInfo($Content)
-	$WhaleReleaseInfoLoaded = False
-	$WhaleReleaseVersion = ""
-
-	Local $Match = StringRegExp($Content, '(?i)"@version"\s*:\s*"([0-9]+(?:\.[0-9]+)+)"', 1)
-	If @error Or Not IsArray($Match) Then Return False
-	$WhaleReleaseVersion = StringStripWS($Match[0], 3)
-	If $WhaleReleaseVersion = "" Then Return False
-	$WhaleReleaseInfoLoaded = True
-	Return True
-EndFunc   ;==>CacheWhaleReleaseInfo
-
-Func GetLatestWhaleVersion()
-	If $WhaleReleaseVersion = "" Then Return ""
-	Return $WhaleReleaseVersion
-EndFunc   ;==>GetLatestWhaleVersion
-
-Func CacheXunleiReleaseInfo($Content)
-	$XunleiReleaseInfoLoaded = False
-	$XunleiDownloadUrl = ""
-
-	; The official homepage exposes the current Windows installer as the pcOnline
-	; constant in its Nuxt bundle. Keep the parser restricted to the official CDN.
-	Local $Match = StringRegExp($Content, '(?i)(https://down\.sandai\.net/[^"''<>\s]+\.exe)', 1)
-	If @error Or Not IsArray($Match) Then
-		Local $BaseMatch = StringRegExp($Content, '(?i)(/browser_pc/[^"''<>\s]+\.exe)', 1)
-		If @error Or Not IsArray($BaseMatch) Then Return False
-		$XunleiDownloadUrl = "https://down.sandai.net" & $BaseMatch[0]
-		$XunleiReleaseInfoLoaded = True
-		Return True
-	EndIf
-	If Not StringRegExp($Match[0], '(?i)^https://down\.sandai\.net/(?:browser_pc|thunder11)/[^"''<>\s]+\.exe$') Then Return False
-	$XunleiDownloadUrl = DecodeXmlAttribute($Match[0])
-	If $XunleiDownloadUrl = "" Then Return False
-	$XunleiReleaseInfoLoaded = True
-	Return True
-EndFunc   ;==>CacheXunleiReleaseInfo
-
-Func GetLatestXunleiVersion()
-	Return ""
-EndFunc   ;==>GetLatestXunleiVersion
-
-Func GetBraveReleasePage()
-	If $BraveReleaseInfoLoaded Then Return True
-	Local $Content = HttpGetText($BraveVersionDataUrl, "RunFirefox/" & $AppVersion, "application/json")
-	If $Content <> "" And CacheBraveReleaseInfo($Content) Then Return True
-	; Keep the API as a last resort; this request itself uses configured GitHub mirrors.
-	$Content = GetGithubLatestReleaseApi($BraveLatestReleaseApiUrl)
-	If $Content = "" Then Return SetError(1, 0, False)
-	Return CacheBraveReleaseInfo($Content)
-EndFunc   ;==>GetBraveReleasePage
-
-Func GetXunleiReleasePage()
-	If $XunleiReleaseInfoLoaded Then Return True
-	Local $Content = BinaryToString(InetRead($XunleiVersionDataUrl, 1), 4)
-	If @error Or $Content = "" Then Return False
-	Return CacheXunleiReleaseInfo($Content)
-EndFunc   ;==>GetXunleiReleasePage
-
-Func CacheBraveReleaseInfo($Content)
-	$BraveReleaseInfoLoaded = False
-	$BraveReleaseTag = ""
-	$BraveDownloadUrl = ""
-
-	Local $TagMatch = StringRegExp($Content, '(?i)"tag_name"\s*:\s*"([^"]+)"', 1)
-	If @error Or Not IsArray($TagMatch) Then $TagMatch = StringRegExp($Content, '(?i)"versions"\s*:\s*\[\s*"([^"]+)"', 1)
-	If @error Or Not IsArray($TagMatch) Then Return False
-	$BraveReleaseTag = $TagMatch[0]
-	Local $AssetMatch = StringRegExp($Content, '(?i)"browser_download_url"\s*:\s*"(https://github\.com/' & $BraveRepo & '/releases/download/[^"/]+/brave-portable-win64-[^"]+\.7z)"', 1)
-	If Not @error And IsArray($AssetMatch) Then
-		$BraveDownloadUrl = $AssetMatch[0]
-	Else
-		$BraveDownloadUrl = "https://github.com/" & $BraveRepo & "/releases/download/" & $BraveReleaseTag & "/brave-portable-win64-" & $BraveReleaseTag & ".7z"
-	EndIf
-	$BraveReleaseInfoLoaded = True
-	Return True
-EndFunc   ;==>CacheBraveReleaseInfo
-
-Func GetLatestBraveVersion()
-	If $BraveReleaseTag = "" Then Return ""
-	Return StringRegExpReplace($BraveReleaseTag, "(?i)^v", "")
-EndFunc   ;==>GetLatestBraveVersion
-
-Func GetUngoogledChromiumReleaseFallback()
-	Local $Content = GetGithubLatestReleaseApi($UngoogledChromiumLatestReleaseApiUrl)
-	If $Content = "" Then Return False
-	Return CacheUngoogledChromiumReleaseInfo($Content)
-EndFunc   ;==>GetUngoogledChromiumReleaseFallback
-
-Func CacheUngoogledChromiumReleaseInfo($Content)
-	$UngoogledChromiumReleaseInfoLoaded = False
-	$UngoogledChromiumReleaseTag = ""
-	Local $Match = StringRegExp($Content, '(?i)(?:tag_name|/releases/tag/|/tags/)["=:>/ ]+([0-9]+[.][0-9]+[.][0-9]+[.][0-9]+-[0-9.]+)', 1)
-	If @error Then $Match = StringRegExp($Content, '(?i)([0-9]+[.][0-9]+[.][0-9]+[.][0-9]+-[0-9.]+)', 1)
-	If @error Or Not IsArray($Match) Then Return False
-	$UngoogledChromiumReleaseTag = $Match[0]
-	$UngoogledChromiumReleaseInfoLoaded = True
-	Return True
-EndFunc   ;==>CacheUngoogledChromiumReleaseInfo
-
-Func GetLatestUngoogledChromiumVersion()
-	If $UngoogledChromiumReleaseTag = "" Then Return ""
-	Return $UngoogledChromiumReleaseTag
-EndFunc   ;==>GetLatestUngoogledChromiumVersion
-
-Func GetVivaldiChannelLabel($Channel)
-	Local $Version = GetLatestVivaldiVersion()
-	If $Version = "" Then Return $Channel
-	Return $Channel & " (" & $Version & ")"
-EndFunc   ;==>GetVivaldiChannelLabel
-
-Func GetChromeChannelLabel($Channel, $LoadVersion = False)
-	$Channel = NormalizeChromeChannel($Channel)
-	Local $Version = ""
-	If $LoadVersion Then $Version = GetChromeVersionCache($Channel)
-	Switch StringLower($Channel)
-		Case "beta"
-			If $Version <> "" Then Return "beta (" & $Version & ")"
-			Return "beta"
-		Case "dev"
-			If $Version <> "" Then Return "dev (" & $Version & ")"
-			Return "dev"
-		Case "canary"
-			If $Version <> "" Then Return "canary (" & $Version & ")"
-			Return "canary"
-	EndSwitch
-	If $Version <> "" Then Return "stable (" & $Version & ")"
-	Return "stable"
-EndFunc   ;==>GetChromeChannelLabel
-
-Func GetLatestFirefoxProduct($Channel)
-	Switch $Channel
-		Case "release", "default"
-			Return "firefox-latest"
-		Case "beta"
-			Return "firefox-beta-latest"
-		Case "esr"
-			Return "firefox-esr-latest"
-		Case "dev"
-			Return "firefox-devedition-latest"
-		Case Else ; nightly
-			Return "firefox-nightly-latest"
-	EndSwitch
-EndFunc   ;==>GetLatestFirefoxProduct
-
-Func GetFirefoxDownloadLanguage()
-	Return GetBrowserLocale("zh-CN")
-EndFunc   ;==>GetFirefoxDownloadLanguage
-
-Func GetBrowserLocale($DefaultLocale = "")
-	Local $lang = StringReplace($LANGUAGE, "_", "-")
-	If $lang = "" Then Return $DefaultLocale
-	If Not StringRegExp($lang, "^[A-Za-z]{2,3}(-[A-Za-z0-9]+)*$") Then Return $DefaultLocale
-	Return $lang
-EndFunc   ;==>GetBrowserLocale
-
-Func BuildFirefoxDownloadUrl($Channel, $os)
-	Local $Version = ""
-	If IsObj($FirefoxVersionsObj) Then $Version = GetLatestFirefoxVersion($Channel)
-	Local $lang = GetFirefoxDownloadLanguage()
-	If $Version = "" Then
-		Return "https://download.mozilla.org/?product=" & GetLatestFirefoxProduct($Channel) & "&os=" & $os & "&lang=" & $lang
-	EndIf
-
-	If $Channel = "dev" Then
-		Return "https://ftp.mozilla.org/pub/devedition/releases/" & $Version & "/" & $os & "/" & $lang & "/Firefox%20Setup%20" & $Version & ".exe"
-	EndIf
-
-	If $Channel = "nightly" Then
-		Local $nightlyOs = "win32"
-		If $os = "win64" Then $nightlyOs = "win64"
-		Return "https://ftp.mozilla.org/pub/firefox/nightly/latest-mozilla-central-l10n/firefox-" & $Version & "." & $lang & "." & $nightlyOs & ".installer.exe"
-	EndIf
-
-	Return "https://ftp.mozilla.org/pub/firefox/releases/" & $Version & "/" & $os & "/" & $lang & "/Firefox%20Setup%20" & $Version & ".exe"
-EndFunc   ;==>BuildFirefoxDownloadUrl
-
-Func BuildZenDownloadUrl($Channel, $os)
-	Local $ReleaseTag = ""
-	If GetZenUpdateXmlCache($Channel) <> "" Then $ReleaseTag = GetLatestZenReleaseTag($Channel)
-	If $ReleaseTag = "" Then Return "https://github.com/zen-browser/desktop/releases/latest/download/zen.installer.exe"
-	Return "https://github.com/zen-browser/desktop/releases/download/" & $ReleaseTag & "/zen.installer.exe"
-EndFunc   ;==>BuildZenDownloadUrl
-
-Func BuildFloorpDownloadUrl($Channel, $os)
-	If $FloorpReleaseTag = "" Then Return "https://github.com/" & $FloorpRepo & "/releases/latest/download/" & $FloorpWindowsX64Asset
-	Return "https://github.com/" & $FloorpRepo & "/releases/download/" & $FloorpReleaseTag & "/" & $FloorpWindowsX64Asset
-EndFunc   ;==>BuildFloorpDownloadUrl
-
-Func BuildWaterfoxDownloadUrl($Channel, $os)
-	Local $Version = GetLatestWaterfoxVersion()
-	If $Version = "" Then
-		If Not GetWaterfoxReleasePage() Then
-			If Not GetWaterfoxReleaseFallback() Then Return SetError(1, 0, "")
-		EndIf
-		$Version = GetLatestWaterfoxVersion()
-	EndIf
-	If $Version = "" Then Return SetError(2, 0, "")
-	Return "https://cdn.waterfox.com/waterfox/releases/" & $Version & "/WINNT_x86_64/Waterfox%20Setup%20" & $Version & ".exe"
-EndFunc   ;==>BuildWaterfoxDownloadUrl
-
-Func BuildLibreWolfDownloadUrl($Channel, $os)
-	If $os <> "win64" Then Return SetError(1, 0, "")
-	If $LibreWolfDownloadUrl = "" Then
-		If Not GetLibreWolfReleasePage() Then Return SetError(1, 0, "")
-	EndIf
-	If $LibreWolfDownloadUrl = "" Or Not StringRegExp($LibreWolfDownloadUrl, "(?i)-windows-x86_64-portable\.zip$") Then Return SetError(2, 0, "")
-	Return $LibreWolfDownloadUrl
-EndFunc   ;==>BuildLibreWolfDownloadUrl
-
-Func BuildTurboDownloadUrl($Channel, $os)
-	If $os <> "win64" Then Return SetError(1, 0, "")
-	If $TurboDownloadUrl = "" And $TurboGithubDownloadUrl = "" Then
-		If Not GetTurboReleasePage() Then
-			If Not GetTurboReleaseFallback() Then Return SetError(1, 0, "")
-		EndIf
-	EndIf
-	If StringRegExp($TurboDownloadUrl, "(?i)^https://dl\.tbrowser\.cn/download/Turbo_[0-9.]+_portable\.7z$") Then Return $TurboDownloadUrl
-	If StringRegExp($TurboGithubDownloadUrl, "(?i)^https://github\.com/" & $TurboRepo & "/releases/download/[^/]+/Turbo_[0-9.]+_portable\.7z$") Then Return $TurboGithubDownloadUrl
-	Return SetError(2, 0, "")
-EndFunc   ;==>BuildTurboDownloadUrl
-
-Func BuildHeliumDownloadUrl($Channel, $os)
-	Local $Version = GetLatestHeliumVersion()
-	If $Version = "" Then
-		If Not GetHeliumReleasePage() Then Return SetError(1, 0, "")
-		$Version = GetLatestHeliumVersion()
-	EndIf
-	If $Version = "" Or $HeliumReleaseTag = "" Then Return SetError(2, 0, "")
-	Return "https://github.com/" & $HeliumRepo & "/releases/download/" & $HeliumReleaseTag & "/helium_" & $Version & "_x64-windows.zip"
-EndFunc   ;==>BuildHeliumDownloadUrl
-
-Func BuildCentDownloadUrl($Channel, $os)
-	If $os <> "win64" Then Return SetError(1, 0, "")
-	If $CentDownloadUrl = "" Then
-		If Not GetCentReleasePage() Then Return SetError(1, 0, "")
-	EndIf
-	If $CentDownloadUrl = "" Then Return SetError(2, 0, "")
-	Return $CentDownloadUrl
-EndFunc   ;==>BuildCentDownloadUrl
-
-Func BuildVivaldiDownloadUrl($Channel, $os)
-	If $os <> "win64" Then Return SetError(1, 0, "")
-	If $VivaldiDownloadUrl = "" Then
-		If Not GetVivaldiReleasePage() Then
-			If Not GetVivaldiReleaseFallback() Then Return SetError(1, 0, "")
-		EndIf
-	EndIf
-	If $VivaldiDownloadUrl = "" Then Return SetError(2, 0, "")
-	Return $VivaldiDownloadUrl
-EndFunc   ;==>BuildVivaldiDownloadUrl
-
-Func BuildBraveDownloadUrl($Channel, $os)
-	If $os <> "win64" Then Return SetError(1, 0, "")
-	If $BraveDownloadUrl = "" Then
-		If Not GetBraveReleasePage() Then Return SetError(1, 0, "")
-	EndIf
-	If Not StringRegExp($BraveDownloadUrl, "(?i)^https://github\.com/" & $BraveRepo & "/releases/download/[^/]+/brave-portable-win64-[^/]+\.7z$") Then Return SetError(2, 0, "")
-	Return $BraveDownloadUrl
-EndFunc   ;==>BuildBraveDownloadUrl
-
-Func BuildXunleiDownloadUrl($Channel, $os)
-	If $os <> "win64" Then Return SetError(1, 0, "")
-	If $XunleiDownloadUrl = "" Then
-		If Not GetXunleiReleasePage() Then Return SetError(1, 0, "")
-	EndIf
-	If Not StringRegExp($XunleiDownloadUrl, '(?i)^https://down\.sandai\.net/(?:browser_pc|thunder11)/[^"''<>\s]+\.exe$') Then Return SetError(2, 0, "")
-	Return $XunleiDownloadUrl
-EndFunc   ;==>BuildXunleiDownloadUrl
-
-Func BuildUngoogledChromiumDownloadUrl($Channel, $os)
-	If Not $UngoogledChromiumReleaseInfoLoaded Then
-		If Not GetUngoogledChromiumReleaseFallback() Then Return SetError(1, 0, "")
-	EndIf
-	If $UngoogledChromiumReleaseTag = "" Then Return SetError(2, 0, "")
-	Local $Arch = StringLower(StringStripWS($os, 3))
-	If $Arch = "win64" Then $Arch = "x64"
-	If $Arch = "win32" Then $Arch = "x86"
-	If $Arch <> "x64" And $Arch <> "x86" And $Arch <> "arm64" Then Return SetError(3, 0, "")
-	Return "https://github.com/" & $UngoogledChromiumRepo & "/releases/download/" & $UngoogledChromiumReleaseTag & "/ungoogled-chromium_" & $UngoogledChromiumReleaseTag & "_windows_" & $Arch & ".zip"
-EndFunc   ;==>BuildUngoogledChromiumDownloadUrl
-
-Func BuildWhaleDownloadUrl($Channel, $os)
-	If $os <> "win64" Then Return SetError(1, 0, "")
-	Return $WhaleStandaloneX64Url
-EndFunc   ;==>BuildWhaleDownloadUrl
-
-Func BuildChromeDownloadUrl($Channel, $os)
-	Local $DownloadUrl = GetChromeDownloadUrlCache($Channel)
-	If $DownloadUrl <> "" Then Return $DownloadUrl
-	If Not LoadChromeUpdateInfo($Channel, $os) Then Return GetChromeStandaloneFallbackUrl($Channel, $os)
-	$DownloadUrl = GetChromeDownloadUrlCache($Channel)
-	If $DownloadUrl = "" Then Return GetChromeStandaloneFallbackUrl($Channel, $os)
-	Return $DownloadUrl
-EndFunc   ;==>BuildChromeDownloadUrl
-
-Func GetChromeStandaloneFallbackUrl($Channel, $os)
-	If $os <> "win64" Then Return SetError(1, 0, "")
-	Switch NormalizeChromeChannel($Channel)
-		Case "stable"
-			Return $ChromeStableStandaloneX64Url
-		Case "beta"
-			Return $ChromeBetaStandaloneX64Url
-		Case "dev"
-			Return $ChromeDevStandaloneX64Url
-	EndSwitch
-	Return SetError(2, 0, "")
-EndFunc   ;==>GetChromeStandaloneFallbackUrl
-
-Func LoadChromeUpdateInfo($Channel, $os)
-	$Channel = NormalizeChromeChannel($Channel)
-	Local $AppId = "{8A69D345-D564-463C-AFF1-A69D9E530F96}"
-	Local $Ap = "x64-stable-multi-chrome"
-	Local $Arch = "x64"
-	If $os <> "win64" Then
-		$Ap = ""
-		$Arch = "x86"
-	EndIf
-
-	Switch StringLower($Channel)
-		Case "beta"
-			If $Arch = "x86" Then
-				$Ap = "1.1-beta"
-			Else
-				$Ap = "x64-beta-multi-chrome"
-			EndIf
-		Case "dev"
-			If $Arch = "x86" Then
-				$Ap = "2.0-dev"
-			Else
-				$Ap = "x64-dev-statsdef_1"
-			EndIf
-		Case "canary"
-			$AppId = "{4EA16AC7-FD5A-47C3-875B-DBF4A2008C20}"
-			If $Arch = "x86" Then
-				$Ap = ""
-			Else
-				$Ap = "x64-canary"
-			EndIf
-	EndSwitch
-
-	Local $RequestXml = BuildChromeUpdateRequest($AppId, $Ap, $Arch)
-	Local $ResponseXml = ChromeUpdatePost($RequestXml)
-	If @error Or $ResponseXml = "" Then Return False
-
-	Local $Version = StringRegExp($ResponseXml, '(?is)<manifest[^>]+version="([^"]+)"', 1)
-	Local $Package = StringRegExp($ResponseXml, '(?is)<package[^>]+name="([^"]+)"', 1)
-	Local $Urls = StringRegExp($ResponseXml, '(?is)<url[^>]+codebase="([^"]+)"', 3)
-	If @error Or Not IsArray($Version) Or Not IsArray($Package) Or Not IsArray($Urls) Then Return False
-
-	Local $BaseUrl = SelectChromeDownloadBaseUrl($Urls)
-	If $BaseUrl = "" Then Return False
-
-	SetChromeUpdateCache($Channel, DecodeXmlAttribute($Version[0]), DecodeXmlAttribute($BaseUrl) & DecodeXmlAttribute($Package[0]))
-	Return True
-EndFunc   ;==>LoadChromeUpdateInfo
-
-Func StartChromeVersionLoadProcess($Channel, $os, $OutputFile)
-	Local $Command = ""
-	If @Compiled Then
-		$Command = '"' & @AutoItExe & '"'
-	Else
-		$Command = '"' & @AutoItExe & '" "' & @ScriptFullPath & '"'
-	EndIf
-	$Command &= ' --load-chrome-version "' & $Channel & '" "' & $os & '" "' & $OutputFile & '"'
-	Return Run($Command, @ScriptDir, @SW_HIDE)
-EndFunc   ;==>StartChromeVersionLoadProcess
-
-Func WriteChromeUpdateInfoFile($Channel, $os, $OutputFile)
-	FileDelete($OutputFile)
-	If LoadChromeUpdateInfo($Channel, $os) Then
-		IniWrite($OutputFile, "Chrome", "Success", 1)
-		IniWrite($OutputFile, "Chrome", "Version", GetChromeVersionCache($Channel))
-		IniWrite($OutputFile, "Chrome", "DownloadUrl", GetChromeDownloadUrlCache($Channel))
-	Else
-		IniWrite($OutputFile, "Chrome", "Success", 0)
-	EndIf
-EndFunc   ;==>WriteChromeUpdateInfoFile
-
-Func LoadChromeUpdateInfoFile($Channel, $OutputFile)
-	If Not FileExists($OutputFile) Then Return False
-	If IniRead($OutputFile, "Chrome", "Success", 0) <> 1 Then Return False
-
-	Local $Version = IniRead($OutputFile, "Chrome", "Version", "")
-	Local $DownloadUrl = IniRead($OutputFile, "Chrome", "DownloadUrl", "")
-	If $Version = "" Or $DownloadUrl = "" Then Return False
-
-	SetChromeUpdateCache($Channel, $Version, $DownloadUrl)
-	Return True
-EndFunc   ;==>LoadChromeUpdateInfoFile
-
-Func NormalizeChromeChannel($Channel)
-	Switch StringLower($Channel)
-		Case "beta", "dev", "canary"
-			Return StringLower($Channel)
-	EndSwitch
-	Return "stable"
-EndFunc   ;==>NormalizeChromeChannel
-
-Func GetChromeVersionCache($Channel)
-	Switch NormalizeChromeChannel($Channel)
-		Case "beta"
-			Return $ChromeBetaVersion
-		Case "dev"
-			Return $ChromeDevVersion
-		Case "canary"
-			Return $ChromeCanaryVersion
-	EndSwitch
-	Return $ChromeStableVersion
-EndFunc   ;==>GetChromeVersionCache
-
-Func GetChromeDownloadUrlCache($Channel)
-	Switch NormalizeChromeChannel($Channel)
-		Case "beta"
-			Return $ChromeBetaDownloadUrl
-		Case "dev"
-			Return $ChromeDevDownloadUrl
-		Case "canary"
-			Return $ChromeCanaryDownloadUrl
-	EndSwitch
-	Return $ChromeStableDownloadUrl
-EndFunc   ;==>GetChromeDownloadUrlCache
-
-Func SetChromeUpdateCache($Channel, $Version, $DownloadUrl)
-	Switch NormalizeChromeChannel($Channel)
-		Case "beta"
-			$ChromeBetaVersion = $Version
-			$ChromeBetaDownloadUrl = $DownloadUrl
-		Case "dev"
-			$ChromeDevVersion = $Version
-			$ChromeDevDownloadUrl = $DownloadUrl
-		Case "canary"
-			$ChromeCanaryVersion = $Version
-			$ChromeCanaryDownloadUrl = $DownloadUrl
-		Case Else
-			$ChromeStableVersion = $Version
-			$ChromeStableDownloadUrl = $DownloadUrl
-	EndSwitch
-EndFunc   ;==>SetChromeUpdateCache
-
-Func BuildChromeUpdateRequest($AppId, $Ap, $Arch)
-	Local $OsVersion = GetChromeOmahaOsVersion()
-	Return '<?xml version="1.0" encoding="UTF-8"?><request protocol="3.0" version="1.3.23.9" shell_version="1.3.21.103" ismachine="0" sessionid="{3597644B-2952-4F92-AE55-D315F45F80A5}" installsource="ondemandcheckforupdate" requestid="{CD7523AD-A40D-49F4-AEEF-8C114B804658}" dedup="cr">' & _
-			'<hw physmemory="12582912" sse="1" sse2="1" sse3="1" ssse3="1" sse41="1" sse42="1" avx="1"/>' & _
-			'<os platform="win" version="' & $OsVersion & '" arch="' & $Arch & '"/>' & _
-			'<app appid="' & $AppId & '" version="" nextversion="" ap="' & $Ap & '" lang="' & GetBrowserLocale("zh-CN") & '"><updatecheck/></app></request>'
-EndFunc   ;==>BuildChromeUpdateRequest
-
-Func GetChromeOmahaOsVersion()
-	Switch @OSVersion
-		Case "WIN_7"
-			Return "6.1.0.0"
-		Case "WIN_8"
-			Return "6.2.0.0"
-		Case "WIN_81"
-			Return "6.3.0.0"
-	EndSwitch
-	Return "10.0.0.0"
-EndFunc   ;==>GetChromeOmahaOsVersion
-
-Func ChromeUpdatePost($RequestXml)
-	Local $oError = ObjEvent("AutoIt.Error", "ChromeComError")
-	Local $oHTTP = ObjCreate("WinHttp.WinHttpRequest.5.1")
-	If @error Or Not IsObj($oHTTP) Then Return SetError(1, 0, "")
-
-	$oHTTP.SetTimeouts(5000, 5000, 15000, 30000)
-	$oHTTP.Open("POST", $ChromeUpdateUrl, False)
-	$oHTTP.SetRequestHeader("User-Agent", $ChromeUpdateUserAgent)
-	$oHTTP.SetRequestHeader("Content-Type", "application/xml")
-	$oHTTP.Send($RequestXml)
-	If @error Then Return SetError(2, 0, "")
-	If $oHTTP.Status < 200 Or $oHTTP.Status >= 300 Then Return SetError(3, 0, "")
-
-	Return $oHTTP.ResponseText
-EndFunc   ;==>ChromeUpdatePost
-
-Func ChromeComError($oError)
-	Return
-EndFunc   ;==>ChromeComError
 
 Func IsChromePlusPatchInstalled($BrowserPath)
 	If Not FileExists($BrowserPath) Then Return False
@@ -4405,7 +3322,7 @@ Func InstallChromePlusPatchInteractive($BrowserPath, $PreferredArch = "")
 			"OS arch: " & @OSArch & @CRLF & _
 			"Cache root: " & $ChromePlusCacheRoot & @CRLF & @CRLF
 
-	ShowDownloadProgress(_t("ChromePlusPatchProgressTitle", "正在准备 Chrome++ 补丁"), _t("PreparingChromePlusPatch", "正在准备 Chrome++ 补丁 ..."), _t("PreparingChromePlusPatchDetail", "正在读取补丁版本信息，请稍候 ..."))
+	_DownloadToolsShowDownloadProgress(_t("ChromePlusPatchProgressTitle", "正在准备 Chrome++ 补丁"), _t("PreparingChromePlusPatch", "正在准备 Chrome++ 补丁 ..."), _t("PreparingChromePlusPatchDetail", "正在读取补丁版本信息，请稍候 ..."), $hSettings, _t("Cancel", "取消"))
 
 	If GetChromePlusReleaseInfo($ReleaseTag, $ArchiveUrl, $InstallLog) Then
 		$InstallLog &= "Release tag: " & $ReleaseTag & @CRLF
@@ -4424,8 +3341,8 @@ Func InstallChromePlusPatchInteractive($BrowserPath, $PreferredArch = "")
 
 			If Not FileExists($ArchivePath) Then
 				If Not DownloadChromePlusArchiveWithProgress($ArchiveUrl, $ArchivePath, $InstallLog) Then
-					If IsDownloadProgressCancelled() Then
-						CloseDownloadProgress()
+					If _DownloadToolsIsDownloadProgressCancelled() Then
+						_DownloadToolsCloseDownloadProgress()
 						If $hStatus Then _GUICtrlStatusBar_SetText($hStatus, _t("ChromePlusPatchInstallCancelled", "已取消 Chrome++ 补丁下载。"))
 						Return False
 					EndIf
@@ -4434,23 +3351,20 @@ Func InstallChromePlusPatchInteractive($BrowserPath, $PreferredArch = "")
 			EndIf
 
 			If $ErrorMessage = "" Then
-				$SevenZipExe = PrepareSevenZipTool($VersionDir)
+				$SevenZipExe = _DownloadToolsPrepareSevenZipTool($VersionDir)
 				If @error Or $SevenZipExe = "" Then
 					$ErrorMessage = _t("FailToExtractChromePlusPatch", "解压或安装 Chrome++ 补丁失败。")
 				Else
 					If FileExists($ExtractDir) Then DirRemove($ExtractDir, 1)
 					If Not FileExists($ExtractDir) Then DirCreate($ExtractDir)
-					SetDownloadProgressBusy(_t("ExtractingChromePlusPatch", "正在安装 Chrome++ 补丁，请稍候 ..."), _t("ExtractingChromePlusPatchDetail", "安装期间请不要关闭 {AppName}。"))
+					_DownloadToolsSetDownloadProgressBusy(_t("ExtractingChromePlusPatch", "正在安装 Chrome++ 补丁，请稍候 ..."), _t("ExtractingChromePlusPatchDetail", "安装期间请不要关闭 {AppName}。"))
 					$ExtractLog = $VersionDir & "\extract.log"
 					$InstallLog &= "Extract log: " & $ExtractLog & @CRLF
-					$ExtractPid = Run(@ComSpec & ' /c ""' & $SevenZipExe & '" x -y -bd -bb1 -o"' & $ExtractDir & '" "' & $ArchivePath & '" > "' & $ExtractLog & '" 2>&1"', $VersionDir, @SW_HIDE)
-					If @error Or Not $ExtractPid Then
-						$InstallLog &= "Failed to start extractor. @error=" & @error & @CRLF
+					$ExtractPid = _DownloadToolsRunArchiveExtraction($SevenZipExe, $ArchivePath, $ExtractDir, $ExtractLog, $VersionDir)
+					If $ExtractPid <> 0 Then
+						$InstallLog &= "Extractor failed. Return code=" & $ExtractPid & @CRLF
 						$ErrorMessage = _t("FailToExtractChromePlusPatch", "解压或安装 Chrome++ 补丁失败。")
 					Else
-						While ProcessExists($ExtractPid)
-							Sleep(150)
-						WEnd
 						$InstallLog &= "Extractor process finished." & @CRLF
 					EndIf
 				EndIf
@@ -4477,7 +3391,7 @@ Func InstallChromePlusPatchInteractive($BrowserPath, $PreferredArch = "")
 		$ErrorMessage = _t("FailToGetChromePlusReleaseInfo", "读取 Chrome++ 发布信息失败。")
 	EndIf
 
-	CloseDownloadProgress()
+	_DownloadToolsCloseDownloadProgress()
 	If $Success Then
 		If $hStatus Then _GUICtrlStatusBar_SetText($hStatus, _t("ChromePlusPatchInstalled", "Chrome++ 补丁已安装。"))
 		Return True
@@ -4527,42 +3441,16 @@ Func DownloadChromePlusArchiveWithProgress($ArchiveUrl, $ArchivePath, ByRef $Ins
 	SplitPath($ArchivePath, $TargetDir, $TargetFile)
 	If Not FileExists($TargetDir) Then DirCreate($TargetDir)
 
-	Local $i, $ret, $hDownload, $DownloadedBytes, $TotalBytes, $Percent, $DetailText
-	For $i = 0 To UBound($aUrls) - 1
-		$InstallLog &= "Trying archive URL: " & $aUrls[$i] & @CRLF
-		FileDelete($ArchivePath)
-		$hDownload = InetGet($aUrls[$i], $ArchivePath, 19, 1)
-		If @error Or $hDownload = 0 Then
-			$InstallLog &= "InetGet failed to start. @error=" & @error & ", handle=" & $hDownload & @CRLF
-			ContinueLoop
-		EndIf
-
-		Do
-			$DownloadedBytes = InetGetInfo($hDownload, 0)
-			$TotalBytes = InetGetInfo($hDownload, 1)
-			If $TotalBytes > 0 Then
-				$Percent = Int($DownloadedBytes * 100 / $TotalBytes)
-				If $Percent > 100 Then $Percent = 100
-				$DetailText = _t("BrowserDownloadProgressKnown", "已下载 {Downloaded} / {Total}")
-				$DetailText = StringReplace($DetailText, "{Downloaded}", FormatBytes($DownloadedBytes))
-				$DetailText = StringReplace($DetailText, "{Total}", FormatBytes($TotalBytes))
-			Else
-				$Percent = Mod(Int($DownloadedBytes / 65536), 100)
-				$DetailText = _t("BrowserDownloadProgressUnknown", "已下载 %s", FormatBytes($DownloadedBytes))
-			EndIf
-			UpdateDownloadProgress(_t("DownloadingChromePlusPatch", "正在下载 Chrome++ 补丁 ..."), $DetailText, $Percent)
-			PumpDownloadProgressEvents()
-			If IsDownloadProgressCancelled() Then ExitLoop
-			Sleep(200)
-		Until InetGetInfo($hDownload, 2)
-
-		$ret = InetGetInfo($hDownload, 3)
-		InetClose($hDownload)
-		If IsDownloadProgressCancelled() Then Return False
-		$InstallLog &= "Download result: " & $ret & ", file exists: " & FileExists($ArchivePath) & ", size: " & FileGetSize($ArchivePath) & @CRLF
-		If $ret And FileExists($ArchivePath) And FileGetSize($ArchivePath) > 0 Then Return True
-	Next
-	Return False
+	Local $TriedUrls = ""
+	Local $DownloadResult = _DownloadToolsDownloadUrls($aUrls, $ArchivePath, _t("DownloadingChromePlusPatch", "正在下载 Chrome++ 补丁 ..."), _t("BrowserDownloadProgressKnown", "已下载 {Downloaded} / {Total}"), _t("BrowserDownloadProgressUnknown", "已下载 %s"), $TriedUrls)
+	If $TriedUrls <> "" Then
+		Local $TriedUrlList = StringSplit($TriedUrls, @CRLF, 2)
+		For $i = 0 To UBound($TriedUrlList) - 1
+			$InstallLog &= "Trying archive URL: " & $TriedUrlList[$i] & @CRLF
+		Next
+	EndIf
+	$InstallLog &= "Download result: " & $DownloadResult & ", file exists: " & FileExists($ArchivePath) & ", size: " & FileGetSize($ArchivePath) & @CRLF
+	Return $DownloadResult And FileExists($ArchivePath) And FileGetSize($ArchivePath) > 0
 EndFunc   ;==>DownloadChromePlusArchiveWithProgress
 
 Func GetChromePlusReleaseInfo(ByRef $ReleaseTag, ByRef $ArchiveUrl, ByRef $InstallLog)
@@ -4584,7 +3472,7 @@ Func GetChromePlusReleaseInfo(ByRef $ReleaseTag, ByRef $ArchiveUrl, ByRef $Insta
 	Local $HttpDiagnostic = "", $sJson = ""
 	Local $ChromePlusApiUrls = _UpgradeBuildGithubDirectUrls($ChromePlusReleasesApiUrl, $GithubDirectMirror)
 	For $i = 0 To UBound($ChromePlusApiUrls) - 1
-		$sJson = HttpGetTextDiagnostic($ChromePlusApiUrls[$i], $ChromePlusApiUserAgent, "application/vnd.github+json", $HttpDiagnostic)
+		$sJson = _DownloadToolsHttpGetTextDiagnostic($ChromePlusApiUrls[$i], $ChromePlusApiUserAgent, "application/vnd.github+json", $HttpDiagnostic)
 		$InstallLog &= $HttpDiagnostic & @CRLF
 		If $sJson <> "" Then ExitLoop
 	Next
@@ -4623,7 +3511,7 @@ Func GetChromePlusReleaseInfo(ByRef $ReleaseTag, ByRef $ArchiveUrl, ByRef $Insta
 		EndIf
 
 		Local $GitCodeDiagnostic = ""
-		Local $GitCodeJson = HttpGetTextDiagnostic($ChromePlusGitCodeTagsApiUrl, $ChromePlusApiUserAgent, "application/json", $GitCodeDiagnostic, $ChromePlusGitCodeTagsUrl)
+		Local $GitCodeJson = _DownloadToolsHttpGetTextDiagnostic($ChromePlusGitCodeTagsApiUrl, $ChromePlusApiUserAgent, "application/json", $GitCodeDiagnostic, $ChromePlusGitCodeTagsUrl)
 		$InstallLog &= "GitCode tags fallback page: " & $ChromePlusGitCodeTagsUrl & @CRLF
 		$InstallLog &= $GitCodeDiagnostic & @CRLF
 		If $GitCodeJson <> "" Then
@@ -4801,123 +3689,9 @@ Func ShowChromePlusPatchInstallFailedDialog($ErrorMessage, $LogPath)
 	Opt("GUIOnEventMode", $PreviousGuiMode)
 EndFunc   ;==>ShowChromePlusPatchInstallFailedDialog
 
-Func HttpGetTextDiagnostic($Url, $UserAgent, $Accept, ByRef $Diagnostic, $Referer = "")
-	$Diagnostic = "GET " & $Url & @CRLF
-	Local $oError = ObjEvent("AutoIt.Error", "ChromeComError")
-	Local $oHTTP = ObjCreate("WinHttp.WinHttpRequest.5.1")
-	If @error Or Not IsObj($oHTTP) Then
-		$Diagnostic &= "Failed to create WinHttpRequest. @error=" & @error & @CRLF
-		Return SetError(1, 0, "")
-	EndIf
 
-	$oHTTP.SetTimeouts(5000, 5000, 15000, 30000)
-	$oHTTP.Open("GET", $Url, False)
-	If $UserAgent <> "" Then $oHTTP.SetRequestHeader("User-Agent", $UserAgent)
-	If $Accept <> "" Then $oHTTP.SetRequestHeader("Accept", $Accept)
-	If $Referer <> "" Then $oHTTP.SetRequestHeader("Referer", $Referer)
-	$oHTTP.Send()
-	If @error Then
-		$Diagnostic &= "HTTP send failed. @error=" & @error & ", @extended=" & @extended & @CRLF
-		Return SetError(2, 0, "")
-	EndIf
 
-	Local $Status = $oHTTP.Status
-	Local $ResponseText = $oHTTP.ResponseText
-	$Diagnostic &= "HTTP status: " & $Status & @CRLF
-	$Diagnostic &= "Response length: " & StringLen($ResponseText) & @CRLF
-	If $Status < 200 Or $Status >= 300 Then
-		$Diagnostic &= "Response preview: " & StringLeft(StringReplace($ResponseText, @CRLF, "\n"), 500) & @CRLF
-		Return SetError(3, $Status, "")
-	EndIf
 
-	Return $ResponseText
-EndFunc   ;==>HttpGetTextDiagnostic
-
-Func HttpGetText($Url, $UserAgent = "", $Accept = "")
-	Local $oError = ObjEvent("AutoIt.Error", "ChromeComError")
-	Local $oHTTP = ObjCreate("WinHttp.WinHttpRequest.5.1")
-	If @error Or Not IsObj($oHTTP) Then Return SetError(1, 0, "")
-
-	$oHTTP.SetTimeouts(5000, 5000, 15000, 30000)
-	$oHTTP.Open("GET", $Url, False)
-	If $UserAgent <> "" Then $oHTTP.SetRequestHeader("User-Agent", $UserAgent)
-	If $Accept <> "" Then $oHTTP.SetRequestHeader("Accept", $Accept)
-	$oHTTP.Send()
-	If @error Then Return SetError(2, 0, "")
-	If $oHTTP.Status < 200 Or $oHTTP.Status >= 300 Then Return SetError(3, 0, "")
-
-	Return $oHTTP.ResponseText
-EndFunc   ;==>HttpGetText
-
-Func GetGithubLatestReleaseApi($ApiUrl)
-	Local $Urls = _UpgradeBuildGithubDirectUrls($ApiUrl, $GithubDirectMirror)
-	For $i = 0 To UBound($Urls) - 1
-		Local $Content = HttpGetText($Urls[$i], "RunFirefox/" & $AppVersion, "application/vnd.github+json")
-		If Not @error And StringRegExp($Content, '(?i)"tag_name"\s*:') Then Return $Content
-	Next
-	Return SetError(1, 0, "")
-EndFunc   ;==>GetGithubLatestReleaseApi
-
-Func SelectChromeDownloadBaseUrl(ByRef $Urls)
-	Local $i, $Url
-	For $i = 0 To UBound($Urls) - 1
-		$Url = DecodeXmlAttribute($Urls[$i])
-		If StringInStr($Url, "https://dl.google.com/") = 1 Then Return $Url
-	Next
-	For $i = 0 To UBound($Urls) - 1
-		$Url = DecodeXmlAttribute($Urls[$i])
-		If StringLeft($Url, 8) = "https://" Then Return $Url
-	Next
-	If UBound($Urls) > 0 Then Return DecodeXmlAttribute($Urls[0])
-	Return ""
-EndFunc   ;==>SelectChromeDownloadBaseUrl
-
-Func DecodeXmlAttribute($Value)
-	$Value = StringReplace($Value, "&amp;", "&")
-	$Value = StringReplace($Value, "&quot;", '"')
-	$Value = StringReplace($Value, "&apos;", "'")
-	$Value = StringReplace($Value, "&lt;", "<")
-	Return StringReplace($Value, "&gt;", ">")
-EndFunc   ;==>DecodeXmlAttribute
-
-Func BuildBrowserDownloadUrl($Value, $Channel, $os)
-	If NormalizeBrowserType($Value) = $BrowserUngoogledChromium Then Return BuildUngoogledChromiumDownloadUrl($Channel, $os)
-	If NormalizeBrowserType($Value) = $BrowserTurbo Then Return BuildTurboDownloadUrl($Channel, $os)
-	If NormalizeBrowserType($Value) = $BrowserHelium Then Return BuildHeliumDownloadUrl($Channel, $os)
-	If NormalizeBrowserType($Value) = $BrowserWhale Then Return BuildWhaleDownloadUrl($Channel, $os)
-	If NormalizeBrowserType($Value) = $BrowserCent Then Return BuildCentDownloadUrl($Channel, $os)
-	If NormalizeBrowserType($Value) = $BrowserVivaldi Then Return BuildVivaldiDownloadUrl($Channel, $os)
-	If NormalizeBrowserType($Value) = $BrowserBrave Then Return BuildBraveDownloadUrl($Channel, $os)
-	If NormalizeBrowserType($Value) = $BrowserXunlei Then Return BuildXunleiDownloadUrl($Channel, $os)
-	If IsChromeBrowser($Value) Then Return BuildChromeDownloadUrl($Channel, $os)
-	If NormalizeBrowserType($Value) = $BrowserZen Then Return BuildZenDownloadUrl($Channel, $os)
-	If NormalizeBrowserType($Value) = $BrowserFloorp Then Return BuildFloorpDownloadUrl($Channel, $os)
-	If NormalizeBrowserType($Value) = $BrowserWaterfox Then Return BuildWaterfoxDownloadUrl($Channel, $os)
-	If NormalizeBrowserType($Value) = $BrowserLibreWolf Then Return BuildLibreWolfDownloadUrl($Channel, $os)
-	Return BuildFirefoxDownloadUrl($Channel, $os)
-EndFunc   ;==>BuildBrowserDownloadUrl
-
-Func BuildBrowserDownloadUrls($Value, $Channel, $os)
-	Local $DownloadUrl = BuildBrowserDownloadUrl($Value, $Channel, $os)
-	If @error Or $DownloadUrl = "" Then Return SetError(1, 0, 0)
-
-	If NormalizeBrowserType($Value) = $BrowserTurbo Then
-		Local $TurboUrls[1], $TurboUrlCount = 0
-		_UpgradeAddUrl($TurboUrls, $TurboUrlCount, $DownloadUrl)
-		Local $GithubUrls = _UpgradeBuildGithubReleaseDownloadUrls($TurboGithubDownloadUrl, $GithubDirectMirror, $GithubJsDelivrMirror)
-		For $i = 0 To UBound($GithubUrls) - 1
-			_UpgradeAddUrl($TurboUrls, $TurboUrlCount, $GithubUrls[$i])
-		Next
-		ReDim $TurboUrls[$TurboUrlCount]
-		Return $TurboUrls
-	EndIf
-
-	If NormalizeBrowserType($Value) = $BrowserUngoogledChromium Or NormalizeBrowserType($Value) = $BrowserZen Or NormalizeBrowserType($Value) = $BrowserFloorp Or NormalizeBrowserType($Value) = $BrowserHelium Or NormalizeBrowserType($Value) = $BrowserBrave Then Return _UpgradeBuildGithubReleaseDownloadUrls($DownloadUrl, $GithubDirectMirror, $GithubJsDelivrMirror)
-
-	Local $aUrls[1]
-	$aUrls[0] = $DownloadUrl
-	Return $aUrls
-EndFunc   ;==>BuildBrowserDownloadUrls
 
 Func ShowCurrentChannel()
 	If IsChromeBrowser(GetSelectedBrowserType()) Then Return
@@ -4949,10 +3723,10 @@ Func DownloadBrowser()
 		Return
 	EndIf
 
-	Local $BrowserDownloadUrls = BuildBrowserDownloadUrls($CurrentBrowserType, $Channel, $os)
+	Local $BrowserDownloadUrls = _BrowserDownloadBuildUrls($CurrentBrowserType, $Channel, $os)
 	If @error Or Not IsArray($BrowserDownloadUrls) Or UBound($BrowserDownloadUrls) = 0 Then
 		If NormalizeBrowserType($CurrentBrowserType) = $BrowserXunlei Then
-			ShellExecute($XunleiBrowserDownloadPageUrl)
+			ShellExecute(_BrowserDownloadGetPageUrl($CurrentBrowserType, $Channel))
 			Return
 		EndIf
 		_GUICtrlStatusBar_SetText($hStatus, _t("BrowserVersionLoadFailed", "读取浏览器版本失败。"))
@@ -4965,12 +3739,12 @@ Func DownloadBrowser()
 	SplitPath($TargetBrowserPath, $TargetDir, $TargetFile)
 	If $TargetDir = "" Or $TargetDir = "." Then $TargetDir = @ScriptDir
 
-	If BrowserExecutableExistsInDir($TargetDir, $CurrentBrowserType) Or IsDirectoryNotEmpty($TargetDir) Then
+	If _BrowserDownloadBrowserExecutableExistsInDir($TargetDir, $CurrentBrowserType) Or _DownloadToolsIsDirectoryNotEmpty($TargetDir) Then
 		Local $ConfirmOverwrite = _t("ConfirmOverwriteBrowserFiles", "目标目录已有浏览器文件或其他文件：\n%s\n\n是否继续下载并覆盖/合并文件？", $TargetDir)
 		If MsgBox(36 + 256, $AppName, $ConfirmOverwrite, 0, $hSettings) <> 6 Then Return
 	EndIf
 
-	Local $DownloadedBrowserPath = DownloadAndExtractBrowser($BrowserDownloadUrls, $TargetDir, $os, $Channel, $CurrentBrowserType)
+	Local $DownloadedBrowserPath = _BrowserDownloadDownloadAndExtract($BrowserDownloadUrls, $TargetDir, $os, $Channel, $CurrentBrowserType, $hSettings)
 	If @error Then
 		Local $ErrorMessage = _t("BrowserDownloadFailed", "浏览器下载或解压失败：\n%s\n\n请检查网络和目标目录权限后重试。", $DownloadedBrowserPath)
 		MsgBox(16, $AppName, $ErrorMessage, 0, $hSettings)
@@ -4991,373 +3765,17 @@ Func DownloadBrowser()
 	If MsgBox(36 + 256, $AppName, $OpenDownloadedBrowserConfirm, 0, $hSettings) = 6 Then ConfirmSettings()
 EndFunc   ;==>DownloadBrowser
 
-Func DownloadAndExtractBrowser($aDownloadUrls, $TargetDir, $os, $Channel, $CurrentBrowserType)
-	Local $TempDir = @TempDir & "\RunFirefox_BrowserDownload"
-	If Not IsArray($aDownloadUrls) Or UBound($aDownloadUrls) = 0 Then Return SetError(1, 0, _t("CannotStartBrowserDownload", "无法开始下载浏览器。"))
-	Local $DownloadUrl
-	$DownloadUrl = $aDownloadUrls[0]
-	Local $InstallerExt = GetUrlFileExtension($DownloadUrl)
-	Local $Installer = $TempDir & "\BrowserSetup_" & NormalizeBrowserType($CurrentBrowserType) & "_" & $Channel & "_" & $os & $InstallerExt
-	Local $ExtractDir = $TempDir & "\extract"
-	Local $TargetBrowserPath = $TargetDir & "\" & GetBrowserExecutableName($CurrentBrowserType)
-	Local $hDownload, $DownloadedBytes, $TotalBytes, $Percent, $DetailText, $ret, $ExtractLog, $SevenZipExe, $i
-	Local $CopiedBrowserFiles = False, $DownloadSuccessful = False, $TriedDownloadUrls = ""
 
-	DirRemove($TempDir, 1)
-	If Not FileExists($TempDir) Then DirCreate($TempDir)
-	If Not FileExists($TempDir) Then Return SetError(1, 0, _t("CannotCreateTempDirectory", "无法创建临时目录。"))
-	If Not FileExists($TargetDir) Then DirCreate($TargetDir)
-	If Not FileExists($TargetDir) Then Return SetError(2, 0, _t("CannotCreateBrowserDirectory", "无法创建浏览器目标目录。"))
 
-	ShowDownloadProgress(_t("BrowserDownloadProgressTitle", "正在准备浏览器"), _t("DownloadingBrowser", "正在下载浏览器 ..."), $DownloadUrl)
 
-	For $i = 0 To UBound($aDownloadUrls) - 1
-		$DownloadUrl = $aDownloadUrls[$i]
-		If $TriedDownloadUrls <> "" Then $TriedDownloadUrls &= @CRLF
-		$TriedDownloadUrls &= $DownloadUrl
-		FileDelete($Installer)
-		UpdateDownloadProgress(_t("DownloadingBrowser", "正在下载浏览器 ..."), $DownloadUrl, 0)
-		$hDownload = InetGet($DownloadUrl, $Installer, 19, 1)
-		If @error Or $hDownload = 0 Then ContinueLoop
 
-		Do
-			$DownloadedBytes = InetGetInfo($hDownload, 0)
-			$TotalBytes = InetGetInfo($hDownload, 1)
-			If $TotalBytes > 0 Then
-				$Percent = Int($DownloadedBytes * 100 / $TotalBytes)
-				If $Percent > 100 Then $Percent = 100
-				$DetailText = _t("BrowserDownloadProgressKnown", "已下载 {Downloaded} / {Total}")
-				$DetailText = StringReplace($DetailText, "{Downloaded}", FormatBytes($DownloadedBytes))
-				$DetailText = StringReplace($DetailText, "{Total}", FormatBytes($TotalBytes))
-			Else
-				$Percent = Mod(Int($DownloadedBytes / 65536), 100)
-				$DetailText = _t("BrowserDownloadProgressUnknown", "已下载 %s", FormatBytes($DownloadedBytes))
-			EndIf
-			UpdateDownloadProgress(_t("DownloadingBrowser", "正在下载浏览器 ..."), $DetailText, $Percent)
-			PumpDownloadProgressEvents()
-			If IsDownloadProgressCancelled() Then ExitLoop
-			Sleep(200)
-		Until InetGetInfo($hDownload, 2)
 
-		$DownloadSuccessful = InetGetInfo($hDownload, 3)
-		InetClose($hDownload)
-		If IsDownloadProgressCancelled() Then ExitLoop
-		If $DownloadSuccessful And FileExists($Installer) Then ExitLoop
-	Next
 
-	If IsDownloadProgressCancelled() Then
-		CloseDownloadProgress()
-		FileDelete($Installer)
-		DirRemove($TempDir, 1)
-		Return SetError(4, 0, _t("BrowserDownloadCancelled", "已取消浏览器下载。"))
-	EndIf
-	If Not $DownloadSuccessful Or Not FileExists($Installer) Then
-		CloseDownloadProgress()
-		DirRemove($TempDir, 1)
-		Return SetError(5, 0, BuildBrowserDownloadFailureDetail(_t("FailToDownloadBrowserInstaller", "下载浏览器安装包失败。"), $TriedDownloadUrls, $Installer))
-	EndIf
 
-	SetDownloadProgressBusy(_t("ExtractingBrowser", "正在解压浏览器，请稍候 ..."), _t("ExtractingBrowserDetail", "解压期间请不要关闭 {AppName}。"))
-	$ExtractLog = $TempDir & "\extract.log"
-	$SevenZipExe = PrepareSevenZipTool($TempDir)
-	If @error Then
-		CloseDownloadProgress()
-		Return SetError(6, 0, _t("FailToExtractBrowserInstaller", "解压浏览器安装包失败。") & @CRLF & @CRLF & _t("BrowserExtractLogKept", "诊断文件已保留在：\n%s", $TempDir))
-	EndIf
-	If Not FileExists($ExtractDir) Then DirCreate($ExtractDir)
-	$ret = RunArchiveExtraction($SevenZipExe, $Installer, $ExtractDir, $ExtractLog, $TempDir)
-	CloseDownloadProgress()
-	If $ret <> 0 Then
-		Return SetError(6, $ret, _t("FailToExtractBrowserInstaller", "解压浏览器安装包失败。") & @CRLF & @CRLF & _t("BrowserExtractLogKept", "诊断文件已保留在：\n%s", $TempDir))
-	EndIf
 
-	; Xunlei's payload contains browser-internal ZIP resources (for example
-	; Extensions\xblock.zip); never treat those files as installer wrappers.
-	If NormalizeBrowserType($CurrentBrowserType) <> $BrowserXunlei Then _
-		ExtractNestedBrowserArchives($SevenZipExe, $ExtractDir, $TempDir)
-	Local $ExtractedBrowserPath = FindBrowserExecutableForType($ExtractDir, $CurrentBrowserType)
-	If $ExtractedBrowserPath Then
-		Local $ExtractedBrowserDir, $ExtractedBrowserFile
-		SplitPath($ExtractedBrowserPath, $ExtractedBrowserDir, $ExtractedBrowserFile)
-		$CopiedBrowserFiles = DirCopy($ExtractedBrowserDir, $TargetDir, 1)
-		$TargetBrowserPath = $TargetDir & "\" & $ExtractedBrowserFile
-	EndIf
 
-	If Not $CopiedBrowserFiles Or Not FileExists($TargetBrowserPath) Then
-		Return SetError(6, 0, _t("FailToExtractBrowserInstaller", "解压浏览器安装包失败。") & @CRLF & @CRLF & _t("BrowserExtractLogKept", "诊断文件已保留在：\n%s", $TempDir))
-	EndIf
 
-	FileDelete($Installer)
-	DirRemove($TempDir, 1)
-	Return $TargetBrowserPath
-EndFunc   ;==>DownloadAndExtractBrowser
 
-Func BuildBrowserDownloadFailureDetail($BaseMessage, $TriedDownloadUrls, $Installer)
-	Local $Detail = $BaseMessage
-	If $TriedDownloadUrls <> "" Then
-		$Detail &= @CRLF & @CRLF & _t("TriedDownloadUrls", "尝试下载地址：") & @CRLF & $TriedDownloadUrls
-	EndIf
-	If $Installer <> "" Then
-		$Detail &= @CRLF & @CRLF & _t("BrowserInstallerSavePath", "安装包保存路径：") & @CRLF & $Installer
-	EndIf
-	Return $Detail
-EndFunc   ;==>BuildBrowserDownloadFailureDetail
-
-Func ShowDownloadProgress($TitleText, $StatusText, $DetailText)
-	If $hDownloadProgress Then CloseDownloadProgress()
-	$DownloadProgressPreviousGuiMode = Opt("GUIOnEventMode", 0)
-	$DownloadProgressCancelled = 0
-	$DownloadProgressCanCancel = 1
-	$hDownloadProgress = GUICreate($TitleText, 420, 135, -1, -1, BitOR($WS_CAPTION, $WS_SYSMENU), -1, $hSettings)
-	GUISetOnEvent($GUI_EVENT_CLOSE, "CancelDownloadProgress")
-	$idDownloadProgressStatus = GUICtrlCreateLabel($StatusText, 15, 15, 390, 20)
-	$idDownloadProgressDetail = GUICtrlCreateLabel($DetailText, 15, 42, 390, 36)
-	$idDownloadProgressBar = GUICtrlCreateProgress(15, 82, 390, 18)
-	$idDownloadProgressCancel = GUICtrlCreateButton(_t("Cancel", "取消"), 170, 108, 80, 22)
-	GUICtrlSetOnEvent(-1, "CancelDownloadProgress")
-	GUISetState(@SW_SHOW, $hDownloadProgress)
-	WinSetOnTop($hDownloadProgress, "", 1)
-EndFunc   ;==>ShowDownloadProgress
-
-Func UpdateDownloadProgress($StatusText, $DetailText, $Percent)
-	If Not $hDownloadProgress Then Return
-	GUICtrlSetData($idDownloadProgressStatus, $StatusText)
-	GUICtrlSetData($idDownloadProgressDetail, $DetailText)
-	GUICtrlSetData($idDownloadProgressBar, $Percent)
-EndFunc   ;==>UpdateDownloadProgress
-
-Func SetDownloadProgressBusy($StatusText, $DetailText)
-	If Not $hDownloadProgress Then Return
-	$DownloadProgressCanCancel = 0
-	GUICtrlSetState($idDownloadProgressCancel, $GUI_DISABLE)
-	UpdateDownloadProgress($StatusText, $DetailText, 100)
-EndFunc   ;==>SetDownloadProgressBusy
-
-Func CloseDownloadProgress()
-	If Not $hDownloadProgress Then Return
-	GUIDelete($hDownloadProgress)
-	$hDownloadProgress = 0
-	$DownloadProgressCanCancel = 0
-	If $DownloadProgressPreviousGuiMode <> -1 Then
-		Opt("GUIOnEventMode", $DownloadProgressPreviousGuiMode)
-		$DownloadProgressPreviousGuiMode = -1
-	EndIf
-EndFunc   ;==>CloseDownloadProgress
-
-Func CancelDownloadProgress()
-	If $DownloadProgressCanCancel Then $DownloadProgressCancelled = 1
-EndFunc   ;==>CancelDownloadProgress
-
-Func IsDownloadProgressCancelled()
-	Return $DownloadProgressCancelled
-EndFunc   ;==>IsDownloadProgressCancelled
-
-Func PumpDownloadProgressEvents()
-	If Not $hDownloadProgress Then Return
-
-	Local $aMsg
-	Do
-		$aMsg = GUIGetMsg(1)
-		If Not IsArray($aMsg) Then Return
-		If $aMsg[0] = 0 Then Return
-		If $DownloadProgressCanCancel And $aMsg[1] = $hDownloadProgress And ($aMsg[0] = $idDownloadProgressCancel Or $aMsg[0] = $GUI_EVENT_CLOSE) Then
-			$DownloadProgressCancelled = 1
-			Return
-		EndIf
-	Until False
-EndFunc   ;==>PumpDownloadProgressEvents
-
-Func RunArchiveExtraction($SevenZipExe, $Archive, $OutDir, $LogFile, $WorkingDir, $TimeoutMs = 900000, $AppendLog = False)
-	Local $Redirect = " > "
-	If $AppendLog Then $Redirect = " >> "
-	Local $Command = @ComSpec & ' /c ""' & $SevenZipExe & '" x -y -bd -bb1 -o"' & $OutDir & '" "' & $Archive & '"' & $Redirect & '"' & $LogFile & '" 2>&1"'
-	Local $Pid = Run($Command, $WorkingDir, @SW_HIDE)
-	If @error Or $Pid = 0 Then Return 1
-
-	Local $Timer = TimerInit()
-	While ProcessExists($Pid)
-		PumpDownloadProgressEvents()
-		If TimerDiff($Timer) >= $TimeoutMs Then
-			ProcessClose($Pid)
-			FileWrite($LogFile, @CRLF & "Extraction timed out after " & Int($TimeoutMs / 1000) & " seconds." & @CRLF)
-			Return 2
-		EndIf
-		Sleep(200)
-	WEnd
-	Return 0
-EndFunc   ;==>RunArchiveExtraction
-
-Func FormatBytes($Bytes)
-	If $Bytes >= 1048576 Then Return Round($Bytes / 1048576, 1) & " MB"
-	Return Round($Bytes / 1024) & " KB"
-EndFunc   ;==>FormatBytes
-
-Func GetUrlFileExtension($Url)
-	Local $Path = StringRegExpReplace($Url, "[?#].*$", "")
-	If StringRegExp($Path, "(?i)\.msi$") Then Return ".msi"
-	If StringRegExp($Path, "(?i)\.zip$") Then Return ".zip"
-	If StringRegExp($Path, "(?i)\.7z$") Then Return ".7z"
-	Return ".exe"
-EndFunc   ;==>GetUrlFileExtension
-
-Func PrepareSevenZipTool($TempDir)
-	Local $ToolDir = $TempDir & "\7z"
-	If Not FileExists($ToolDir) Then DirCreate($ToolDir)
-	If @Compiled Then
-		FileInstall("libs\7z\7z.exe", $ToolDir & "\7z.exe", 1)
-		FileInstall("libs\7z\7z.dll", $ToolDir & "\7z.dll", 1)
-	Else
-		FileCopy(@ScriptDir & "\libs\7z\7z.exe", $ToolDir & "\7z.exe", 9)
-		FileCopy(@ScriptDir & "\libs\7z\7z.dll", $ToolDir & "\7z.dll", 9)
-	EndIf
-	If Not FileExists($ToolDir & "\7z.exe") Or Not FileExists($ToolDir & "\7z.dll") Then Return SetError(1, 0, "")
-	Return $ToolDir & "\7z.exe"
-EndFunc   ;==>PrepareSevenZipTool
-
-Func IsDirectoryNotEmpty($Dir)
-	If Not FileExists($Dir) Then Return False
-	Local $hSearch = FileFindFirstFile($Dir & "\*")
-	If $hSearch = -1 Then Return False
-	FileClose($hSearch)
-	Return True
-EndFunc   ;==>IsDirectoryNotEmpty
-
-Func BrowserExecutableExistsInDir($Dir, $BrowserTypeValue)
-	Local $Candidates = StringSplit(GetBrowserExecutableCandidates($BrowserTypeValue), "|", 2)
-	For $i = 0 To UBound($Candidates) - 1
-		If FileExists($Dir & "\" & $Candidates[$i]) Then Return True
-	Next
-	Return False
-EndFunc   ;==>BrowserExecutableExistsInDir
-
-Func ExtractNestedBrowserArchives($SevenZipExe, $RootDir, $TempDir, $Depth = 2)
-	If $Depth <= 0 Then Return
-
-	Local $ArchiveList = FindNestedBrowserArchives($RootDir)
-	If Not IsArray($ArchiveList) Then Return
-
-	Local $i, $Archive, $OutDir, $LogFile
-	For $i = 1 To $ArchiveList[0]
-		$Archive = $ArchiveList[$i]
-		$OutDir = $RootDir & "\__nested_" & $Depth & "_" & $i
-		$LogFile = $TempDir & "\nested_extract.log"
-		If Not FileExists($OutDir) Then DirCreate($OutDir)
-		RunArchiveExtraction($SevenZipExe, $Archive, $OutDir, $LogFile, $TempDir, 900000, True)
-		ExtractNestedBrowserArchives($SevenZipExe, $OutDir, $TempDir, $Depth - 1)
-	Next
-EndFunc   ;==>ExtractNestedBrowserArchives
-
-Func FindNestedBrowserArchives($Dir, $Depth = 4)
-	If $Depth <= 0 Then Return 0
-
-	Local $Archives[1] = [0]
-	CollectNestedBrowserArchives($Dir, $Depth, $Archives)
-	If $Archives[0] = 0 Then Return 0
-	Return $Archives
-EndFunc   ;==>FindNestedBrowserArchives
-
-Func CollectNestedBrowserArchives($Dir, $Depth, ByRef $Archives)
-	If $Depth <= 0 Then Return
-	; Browser payloads commonly contain extension/resource ZIPs. They are not
-	; installer wrappers and extracting them can add minutes to a download.
-	If StringRegExp($Dir, "(?i)\\(extensions|resources|locales|widevinecdm)(\\|$)") Then Return
-
-	Local $hSearch = FileFindFirstFile($Dir & "\*")
-	If $hSearch = -1 Then Return
-
-	Local $Name, $Path, $Attrib
-	While 1
-		$Name = FileFindNextFile($hSearch)
-		If @error Then ExitLoop
-		$Path = $Dir & "\" & $Name
-		$Attrib = FileGetAttrib($Path)
-		If StringInStr($Attrib, "D") Then
-			CollectNestedBrowserArchives($Path, $Depth - 1, $Archives)
-		ElseIf StringRegExp($Name, "(?i)\.(7z|zip)$") Then
-			$Archives[0] += 1
-			ReDim $Archives[$Archives[0] + 1]
-			$Archives[$Archives[0]] = $Path
-		EndIf
-	WEnd
-
-	FileClose($hSearch)
-EndFunc   ;==>CollectNestedBrowserArchives
-
-Func FindBrowserExecutable($Dir, $ExecutableName, $Depth = 6)
-	If FileExists($Dir & "\" & $ExecutableName) Then Return $Dir & "\" & $ExecutableName
-	If $Depth <= 0 Then Return ""
-
-	Local $hSearch = FileFindFirstFile($Dir & "\*")
-	If $hSearch = -1 Then Return ""
-
-	Local $Name, $Path, $Found
-	While 1
-		$Name = FileFindNextFile($hSearch)
-		If @error Then ExitLoop
-		$Path = $Dir & "\" & $Name
-		If StringInStr(FileGetAttrib($Path), "D") Then
-			$Found = FindBrowserExecutable($Path, $ExecutableName, $Depth - 1)
-			If $Found Then
-				FileClose($hSearch)
-				Return $Found
-			EndIf
-		EndIf
-	WEnd
-
-	FileClose($hSearch)
-	Return ""
-EndFunc   ;==>FindBrowserExecutable
-
-Func FindCentBrowserExecutable($Dir)
-	Local $Found = FindCentBrowserExecutableWithMarker($Dir)
-	If $Found Then Return $Found
-	Return FindBrowserExecutable($Dir, "chrome.exe")
-EndFunc   ;==>FindCentBrowserExecutable
-
-Func FindCentBrowserExecutableWithMarker($Dir, $Depth = 6)
-	If FileExists($Dir & "\chrome.exe") And IsCentBrowserExtractDir($Dir) Then Return $Dir & "\chrome.exe"
-	If $Depth <= 0 Then Return ""
-
-	Local $hSearch = FileFindFirstFile($Dir & "\*")
-	If $hSearch = -1 Then Return ""
-
-	Local $Name, $Path, $Found
-	While 1
-		$Name = FileFindNextFile($hSearch)
-		If @error Then ExitLoop
-		$Path = $Dir & "\" & $Name
-		If StringInStr(FileGetAttrib($Path), "D") Then
-			$Found = FindCentBrowserExecutableWithMarker($Path, $Depth - 1)
-			If $Found Then
-				FileClose($hSearch)
-				Return $Found
-			EndIf
-		EndIf
-	WEnd
-
-	FileClose($hSearch)
-	Return ""
-EndFunc   ;==>FindCentBrowserExecutableWithMarker
-
-Func IsCentBrowserExtractDir($Dir)
-	If FileExists($Dir & "\safemode.bat") Then Return True
-
-	Local $Identity = GetExecutableIdentityText($Dir & "\chrome.exe")
-	If StringInStr($Identity, "cent browser") Or StringInStr($Identity, "centbrowser") Then Return True
-	Return False
-EndFunc   ;==>IsCentBrowserExtractDir
-
-Func FindBrowserExecutableForType($Dir, $BrowserTypeValue)
-	If NormalizeBrowserType($BrowserTypeValue) = $BrowserCent Then Return FindCentBrowserExecutable($Dir)
-
-	Local $Candidates = StringSplit(GetBrowserExecutableCandidates($BrowserTypeValue), "|", 2)
-	Local $Found
-	For $i = 0 To UBound($Candidates) - 1
-		$Found = FindBrowserExecutable($Dir, $Candidates[$i])
-		If $Found Then Return $Found
-	Next
-	Return ""
-EndFunc   ;==>FindBrowserExecutableForType
 
 Func ImportChromiumGoogleApi()
 	If Not HasChromiumGoogleApi() Then
@@ -5598,7 +4016,7 @@ Func ApplySettings()
 		Local $Channel = StringRegExpReplace($ChannelString, " -.*", "")
 		Local $UpdateChannel = $Channel
 		If $BrowserType = $BrowserZen Then
-			$UpdateChannel = GetZenUpdateChannel($Channel)
+			$UpdateChannel = _BrowserDownloadGetZenUpdateChannel($Channel)
 		ElseIf $UpdateChannel = "dev" Then
 			; Firefox Developer Edition still uses aurora as the internal update channel.
 			$UpdateChannel = "aurora"

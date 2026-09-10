@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- Split browser version lookup, URL construction, and installer extraction into browser-download and shared download-tool libraries while preserving existing sources, mirror fallback, and UI behavior.
+
 ## [2.8.17] - 2026-09-10
 
 - 2026.09.09 Added Xunlei Browser to the settings screen with official-site parsing and Windows x64 installer download.

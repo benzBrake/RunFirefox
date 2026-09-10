@@ -16,7 +16,10 @@
 - 提交前用下面的 PowerShell 片段检查 `_t` key 与 `Lang.ini` section key 是否一致；如果输出缺失项，先补齐再提交：
 
 ```powershell
-$code = Get-Content .\RunFirefox.au3 -Raw
+$codeFiles = @('.\RunFirefox.au3') + (Get-ChildItem .\libs -Filter '*.au3' -File | ForEach-Object { $_.FullName })
+$code = [string]::Join("`n", ($codeFiles | ForEach-Object {
+    Get-Content $_ | Where-Object { $_ -notmatch '^\s*;' }
+}))
 $codeKeys = [regex]::Matches($code, '_t\("([^"]+)"') |
     ForEach-Object { $_.Groups[1].Value } |
     Sort-Object -Unique

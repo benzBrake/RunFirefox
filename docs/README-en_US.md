@@ -15,6 +15,10 @@ Features:
 
 **[View the full changelog](CHANGELOG-en_US.md)**
 
+### Chrome++ for Brave / Whale
+
+The Chrome++ tab retains optional installation and tab settings. Brave and Whale use bundled custom DLLs, installed offline according to the browser EXE's x86/x64 architecture regardless of launcher bitness; ARM64 is unsupported. The tab shows installed and bundled versions and allows manual replacement when files differ, without checking upstream updates. Installation uses RunFirefox defaults and preserves custom configurations; `libs/chrome_plus/chrome++.ini` is a reference only.
+
 ### Extracting an icon from a browser EXE
 
 Drop a browser EXE or DLL onto `scripts\extract-exe-icon.cmd` to create a same-named ICO in the current directory. The tool copies the original multi-size icon resources directly, without resizing or re-encoding the image frames.

@@ -18,6 +18,10 @@ RunFirefox 从 MyFirefox 演进而来，是支持 Gecko 与 Chromium 系浏览�
 
 **[查看完整更新日志](CHANGELOG.md)**
 
+### Brave / Whale 的 Chrome++
+
+Chrome++ 标签页保留可选安装和标签操作设置。Brave、Whale 使用内置自编译 DLL，按浏览器 EXE 的实际 x86/x64 架构离线安装，与启动器位数无关；不支持 ARM64。页面显示已安装版本和内置版本，文件不一致时可手动替换为内置版，无需查询上游更新。配置沿用 RunFirefox 默认值并保留用户自定义配置，`libs/chrome_plus/chrome++.ini` 仅作参考。
+
 ### 如何自定义图标构建
 
 1. 克隆此项目

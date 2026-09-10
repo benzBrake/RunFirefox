@@ -3,7 +3,7 @@
 ## [Unreleased]
 
 - Clarified that Chrome++ installation is optional and highlighted features such as right-clicking to close tabs and opening bookmarks in new tabs.
-- Removed Chrome++ support for Whale due to compatibility issues.
+- Added optional offline installation of bundled custom Chrome++ for Brave and Whale, selected by browser x86/x64 architecture. The tab retains its settings, displays the bundled version, and offers replacement based on file contents.
 - Split browser version lookup, URL construction, and installer extraction into browser-download and shared download-tool libraries while preserving existing sources, mirror fallback, and UI behavior.
 
 ## [2.8.17] - 2026-09-10

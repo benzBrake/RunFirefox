@@ -42,6 +42,7 @@
 #include <FileConstants.au3>
 #include <Array.au3>
 #include <Misc.au3>
+#include <Crypt.au3>
 #include "libs\_String.au3"
 #include "libs\AppUserModelId.au3"
 #include "libs\JumpList.au3"
@@ -129,6 +130,7 @@ Global $idBossKeyEnabled, $idBossKey, $idBossKeyHideToTray, $BossKeyCaptureValue
 Global $aBrowserStartApps, $aBrowserExitApps, $aBrowserStartAppPids[2]
 #include "libs\DownloadTools.au3"
 #include "libs\BrowserDownload.au3"
+#include "libs\ChromePlusBundled.au3"
 
 Func GetBrowserLocale($DefaultLocale = "")
 	Local $Locale = StringReplace($LANGUAGE, "_", "-")
@@ -1764,9 +1766,9 @@ Func Settings()
 	$idChromePlusDownloadPatch = GUICtrlCreateButton(_t("DownloadChromePlusPatch", "下载并安装 Chrome++"), 325, 123, 155, 22)
 	GUICtrlSetOnEvent(-1, "DownloadChromePlusPatchFromSettings")
 
-	GUICtrlCreateLabel(_t("CurrentVersion", "当前版本："), 20, 158, 115, 20)
+	$idChromePlusCurrentCaption = GUICtrlCreateLabel(_t("CurrentVersion", "当前版本："), 20, 158, 115, 20)
 	$idChromePlusCurrentVersion = GUICtrlCreateLabel("-", 145, 158, 170, 20)
-	GUICtrlCreateLabel(_t("LatestVersion", "最新版本："), 250, 158, 80, 20)
+	$idChromePlusLatestCaption = GUICtrlCreateLabel(_t("LatestVersion", "最新版本："), 250, 158, 80, 20)
 	$idChromePlusLatestVersion = GUICtrlCreateLabel("-", 335, 158, 145, 20)
 
 	$idChromePlusDoubleClickClose = GUICtrlCreateCheckbox(_t("ChromePlusDoubleClickClose", "双击关闭标签页"), 20, 198, 200, 20)
@@ -2490,7 +2492,7 @@ EndFunc   ;==>IsGoogleChromeBrowser
 
 Func IsChromePlusSupportedBrowser($Value)
 	Local $Normalized = NormalizeBrowserType($Value)
-	Return $Normalized = $BrowserChrome Or $Normalized = $BrowserUngoogledChromium Or $Normalized = $BrowserHelium
+	Return $Normalized = $BrowserChrome Or $Normalized = $BrowserUngoogledChromium Or $Normalized = $BrowserHelium Or $Normalized = $BrowserBrave Or $Normalized = $BrowserWhale
 EndFunc   ;==>IsChromePlusSupportedBrowser
 
 Func IsBossKeySupportedBrowser($Value)
@@ -2725,7 +2727,7 @@ EndFunc   ;==>GetCurrentSettingsBrowserPath
 
 Func IsChromePlusSupportedExecutable($BrowserExe)
 	$BrowserExe = StringLower($BrowserExe)
-	Return $BrowserExe = "chrome.exe" Or $BrowserExe = "helium.exe" Or $BrowserExe = "whale.exe"
+	Return $BrowserExe = "chrome.exe" Or $BrowserExe = "helium.exe" Or $BrowserExe = "whale.exe" Or $BrowserExe = "brave.exe"
 EndFunc   ;==>IsChromePlusSupportedExecutable
 
 Func GetChromePlusConfigPath($BrowserPath)
@@ -2798,7 +2800,8 @@ Func NormalizeChromePlusHoverTabDelay($Value)
 EndFunc   ;==>NormalizeChromePlusHoverTabDelay
 
 Func IsChromePlusHoverTabSupported($BrowserPath)
-	Local $Version = GetChromePlusInstalledVersion($BrowserPath)
+	If UsesBundledChromePlus($BrowserPath) And IsBundledChromePlusInstalled($BrowserPath) Then Return True
+	Local $Version = NormalizeChromePlusVersionText(GetChromePlusInstalledVersion($BrowserPath))
 	Return $Version <> "" And VersionCompare($Version, "1.18.0") >= 0
 EndFunc   ;==>IsChromePlusHoverTabSupported
 
@@ -2806,7 +2809,7 @@ Func RefreshChromePlusHoverTabDelayState()
 	If Not $idChromePlusHoverTabDelay Then Return
 
 	Local $Version = GetChromePlusInstalledVersion(GetCurrentSettingsBrowserPath())
-	Local $FeatureSupported = $Version <> "" And VersionCompare($Version, "1.18.0") >= 0
+	Local $FeatureSupported = IsChromePlusHoverTabSupported(GetCurrentSettingsBrowserPath())
 	Local $Tooltip = _t("ChromePlusHoverTabDelayTooltip", "鼠标需在标签页上停留多久才会激活，范围为 0-5000 毫秒；无效值会使用 400 毫秒。")
 	If Not $FeatureSupported Then
 		If $Version = "" Then $Version = _t("BrowserVersionUnavailable", "获取失败")
@@ -2896,6 +2899,9 @@ EndFunc   ;==>DownloadChromePlusPatchFromSettings
 
 Func UpdateChromePlusVersionLabels($Unavailable = False)
 	If Not $idChromePlusCurrentVersion Or Not $idChromePlusLatestVersion Then Return
+	If UpdateBundledChromePlusLabels() Then Return
+	GUICtrlSetData($idChromePlusCurrentCaption, _t("CurrentVersion", "当前版本："))
+	GUICtrlSetData($idChromePlusLatestCaption, _t("LatestVersion", "最新版本："))
 
 	Local $BrowserPath = GetCurrentSettingsBrowserPath()
 	Local $CurrentVersion = ""
@@ -2972,6 +2978,11 @@ EndFunc   ;==>GetChromePlusVersionLoadSpinner
 
 Func BeginChromePlusVersionLoad()
 	If Not $idChromePlusLatestVersion Then Return
+	If UsesBundledChromePlus(GetCurrentSettingsBrowserPath()) Then
+		CancelChromePlusVersionLoad()
+		UpdateChromePlusVersionLabels()
+		Return
+	EndIf
 	If Not IsChromePlusSupportedBrowser(GetSelectedBrowserType()) Then Return
 	If $ChromePlusReleaseInfoLoaded Then
 		UpdateChromePlusVersionLabels()
@@ -3284,6 +3295,7 @@ Func GetChromePlusInstalledVersion($BrowserPath)
 		$Version = FileGetVersion($PatchPath)
 		If @error Then $Version = ""
 	EndIf
+	If UsesBundledChromePlus($BrowserPath) Then Return StringStripWS($Version, 3)
 	Return NormalizeChromePlusVersionText($Version)
 EndFunc   ;==>GetChromePlusInstalledVersion
 
@@ -3302,6 +3314,7 @@ EndFunc   ;==>GetChromePlusVersionFromTag
 
 Func InstallChromePlusPatchInteractive($BrowserPath, $PreferredArch = "")
 	If Not FileExists($BrowserPath) Then Return False
+	If UsesBundledChromePlus($BrowserPath) Then Return InstallBundledChromePlus($BrowserPath)
 	If DetectBrowserTypeFromPath($BrowserPath) = $BrowserCent Then Return False
 
 	Local $BrowserDir, $BrowserExe
@@ -3756,6 +3769,7 @@ Func DownloadBrowser()
 	OnBrowserPathChange()
 	If IsChromePlusSupportedBrowser($CurrentBrowserType) And Not IsChromePlusPatchInstalled($DownloadedBrowserPath) Then
 		Local $InstallChromePlusConfirm = _t("InstallChromePlusPatchAfterDownloadConfirm", "浏览器已下载并解压完成。\n\nChrome++ 为可选补丁，非必须安装。安装后可提供右键关闭标签页、书签在新标签页打开等功能。\n\n是否下载并安装 Chrome++ 补丁？")
+		If UsesBundledChromePlus($DownloadedBrowserPath) Then $InstallChromePlusConfirm = _t("InstallBundledChromePlusConfirm", "浏览器已下载并解压完成。\n\nChrome++ 为可选补丁，可提供右键关闭标签页、书签在新标签页打开等功能。\n\n是否安装内置自编译版 Chrome++？无需联网下载。")
 		If MsgBox(36 + 256, $AppName, $InstallChromePlusConfirm, 0, $hSettings) = 6 Then _
 			InstallChromePlusPatchInteractive($DownloadedBrowserPath, $os)
 	EndIf

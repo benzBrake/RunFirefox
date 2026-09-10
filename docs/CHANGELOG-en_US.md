@@ -2,6 +2,7 @@
 
 ## [Unreleased]
 
+- Removed Chrome++ support for Whale due to compatibility issues.
 - Split browser version lookup, URL construction, and installer extraction into browser-download and shared download-tool libraries while preserving existing sources, mirror fallback, and UI behavior.
 
 ## [2.8.17] - 2026-09-10

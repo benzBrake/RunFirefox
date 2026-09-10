@@ -2490,7 +2490,7 @@ EndFunc   ;==>IsGoogleChromeBrowser
 
 Func IsChromePlusSupportedBrowser($Value)
 	Local $Normalized = NormalizeBrowserType($Value)
-	Return $Normalized = $BrowserChrome Or $Normalized = $BrowserUngoogledChromium Or $Normalized = $BrowserHelium Or $Normalized = $BrowserWhale
+	Return $Normalized = $BrowserChrome Or $Normalized = $BrowserUngoogledChromium Or $Normalized = $BrowserHelium
 EndFunc   ;==>IsChromePlusSupportedBrowser
 
 Func IsBossKeySupportedBrowser($Value)

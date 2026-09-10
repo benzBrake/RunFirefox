@@ -118,6 +118,7 @@ Global $idChromePlusHint, $idChromePlusDownloadPatch, $idChromePlusConfigPath, $
 Global $idChromePlusWheelTab, $idChromePlusWheelTabWhenPressRButton, $idChromePlusOpenUrlNewTab, $idChromePlusOpenBookmarkNewTab
 Global $idChromePlusHoverTab, $idChromePlusHoverTabDelay, $idChromePlusHoverTabDelayLabel
 Global $idChromePlusNewTabDisable, $idChromePlusNewTabDisableName, $idChromePlusNewTabDisableNameLabel
+Global $idChromePlusSuppressFalseUpgradeNotification
 Global $idChromiumGoogleApiImport, $idChromiumGoogleApiSuppress, $idChromiumGoogleApiClear
 Global $idChromiumDebugPortEnabled, $idChromiumDebugPort, $idChromiumDebugPortLabel
 Global $LANG_DATA, $LANGUAGE, $LANGUAGES
@@ -380,7 +381,9 @@ EndIf
 
 ;~ Start browser
 $BaseParams = BuildBrowserLaunchParams($BrowserType)
-$AppPID = Run('"' & $BrowserPath & '" ' & $BaseParams & $Params , $BrowserDirectory)
+$LaunchParams = $BaseParams & $Params
+If NeedsOutdatedBuildDetectorParam() Then $LaunchParams = AppendOutdatedBuildDetectorParam($LaunchParams)
+$AppPID = Run('"' & $BrowserPath & '" ' & $LaunchParams , $BrowserDirectory)
 If IsMozillaBrowser($BrowserType) Then WaitAndDeleteMozillaLaunchOnLoginEntry($BrowserPath)
 
 FileChangeDir(@ScriptDir)
@@ -1771,23 +1774,27 @@ Func Settings()
 	$idChromePlusLatestCaption = GUICtrlCreateLabel(_t("LatestVersion", "最新版本："), 250, 158, 80, 20)
 	$idChromePlusLatestVersion = GUICtrlCreateLabel("-", 335, 158, 145, 20)
 
-	$idChromePlusDoubleClickClose = GUICtrlCreateCheckbox(_t("ChromePlusDoubleClickClose", "双击关闭标签页"), 20, 198, 200, 20)
-	$idChromePlusRightClickClose = GUICtrlCreateCheckbox(_t("ChromePlusRightClickClose", "右键关闭标签页"), 250, 198, 200, 20)
-	$idChromePlusKeepLastTab = GUICtrlCreateCheckbox(_t("ChromePlusKeepLastTab", "保留最后一个标签页"), 20, 228, 200, 20)
-	$idChromePlusWheelTab = GUICtrlCreateCheckbox(_t("ChromePlusWheelTab", "滚轮切换标签页"), 250, 228, 200, 20)
-	$idChromePlusWheelTabWhenPressRButton = GUICtrlCreateCheckbox(_t("ChromePlusWheelTabWhenPressRButton", "按住右键时滚轮切换标签页"), 20, 258, 220, 20)
-	$idChromePlusOpenUrlNewTab = GUICtrlCreateCheckbox(_t("ChromePlusOpenUrlNewTab", "地址栏输入在新标签页打开"), 250, 258, 210, 20)
-	$idChromePlusOpenBookmarkNewTab = GUICtrlCreateCheckbox(_t("ChromePlusOpenBookmarkNewTab", "书签在新标签页打开"), 20, 288, 200, 20)
-	$idChromePlusNewTabDisable = GUICtrlCreateCheckbox(_t("ChromePlusDisableNewTab", "新标签页时禁用上两项"), 250, 288, 200, 20)
+	$idChromePlusDoubleClickClose = GUICtrlCreateCheckbox(_t("ChromePlusDoubleClickClose", "双击关闭标签页"), 20, 190, 200, 20)
+	$idChromePlusRightClickClose = GUICtrlCreateCheckbox(_t("ChromePlusRightClickClose", "右键关闭标签页"), 250, 190, 200, 20)
+	$idChromePlusKeepLastTab = GUICtrlCreateCheckbox(_t("ChromePlusKeepLastTab", "保留最后一个标签页"), 20, 214, 200, 20)
+	$idChromePlusWheelTab = GUICtrlCreateCheckbox(_t("ChromePlusWheelTab", "滚轮切换标签页"), 250, 214, 200, 20)
+	$idChromePlusWheelTabWhenPressRButton = GUICtrlCreateCheckbox(_t("ChromePlusWheelTabWhenPressRButton", "按住右键时滚轮切换标签页"), 20, 238, 220, 20)
+	$idChromePlusOpenUrlNewTab = GUICtrlCreateCheckbox(_t("ChromePlusOpenUrlNewTab", "地址栏输入在新标签页打开"), 250, 238, 210, 20)
+	$idChromePlusOpenBookmarkNewTab = GUICtrlCreateCheckbox(_t("ChromePlusOpenBookmarkNewTab", "书签在新标签页打开"), 20, 262, 200, 20)
+	$idChromePlusNewTabDisable = GUICtrlCreateCheckbox(_t("ChromePlusDisableNewTab", "新标签页时禁用上两项"), 250, 262, 200, 20)
 	GUICtrlSetOnEvent($idChromePlusNewTabDisable, "RefreshChromePlusNewTabDisableNameState")
-	$idChromePlusHoverTab = GUICtrlCreateCheckbox(_t("ChromePlusHoverTab", "鼠标悬停激活标签页"), 20, 318, 230, 20)
+	$idChromePlusHoverTab = GUICtrlCreateCheckbox(_t("ChromePlusHoverTab", "鼠标悬停激活标签页"), 20, 286, 230, 20)
 	GUICtrlSetOnEvent($idChromePlusHoverTab, "RefreshChromePlusHoverTabDelayState")
-	$idChromePlusHoverTabDelayLabel = GUICtrlCreateLabel(_t("ChromePlusHoverTabDelay", "延迟（毫秒）"), 270, 323, 80, 20)
-	$idChromePlusHoverTabDelay = GUICtrlCreateEdit("400", 355, 318, 125, 20, BitOR($ES_NUMBER, $ES_AUTOHSCROLL))
+	$idChromePlusHoverTabDelayLabel = GUICtrlCreateLabel(_t("ChromePlusHoverTabDelay", "延迟（毫秒）"), 270, 291, 80, 20)
+	$idChromePlusHoverTabDelay = GUICtrlCreateEdit("400", 355, 286, 125, 20, BitOR($ES_NUMBER, $ES_AUTOHSCROLL))
 	GUICtrlSetTip($idChromePlusHoverTabDelay, _t("ChromePlusHoverTabDelayTooltip", "鼠标需在标签页上停留多久才会激活，范围为 0-5000 毫秒；无效值会使用 400 毫秒。"))
 
-	$idChromePlusNewTabDisableNameLabel = GUICtrlCreateLabel(_t("ChromePlusDisableNewTabName", "额外匹配标题"), 20, 368, 115, 20)
-	$idChromePlusNewTabDisableName = GUICtrlCreateEdit("", 145, 363, 335, 20, $ES_AUTOHSCROLL)
+	$idChromePlusSuppressFalseUpgradeNotification = GUICtrlCreateCheckbox(_t("ChromePlusSuppressFalseUpgradeNotification", "抑制错误的“已过期”升级提示"), 20, 314, 260, 20)
+	GUICtrlCreateLabel(_t("ChromePlusSuppressFalseUpgradeNotificationHelp", "便携版浏览器没有更新组件，会被误报无法通过重启消除的“已过期 / 重新启动”提示；仅移除该错误提示，不影响真实的更新通知。\n未安装 Chrome++ 的 Chromium 系浏览器启动时将自动追加 --disable-features=OutdatedBuildDetector 并与自定义参数去重。"), 20, 338, 460, 30)
+	GUICtrlSetColor(-1, 0x666666)
+
+	$idChromePlusNewTabDisableNameLabel = GUICtrlCreateLabel(_t("ChromePlusDisableNewTabName", "额外匹配标题"), 20, 372, 115, 20)
+	$idChromePlusNewTabDisableName = GUICtrlCreateEdit("", 145, 367, 335, 20, $ES_AUTOHSCROLL)
 	GUICtrlSetTip($idChromePlusNewTabDisableName, _t("ChromePlusDisableNewTabNameTooltip", '对应 chrome++.ini 的 new_tab_disable_name 原始值；这些标题会被额外视为新标签页。可填写多个标题，并保留英文双引号与逗号，例如 "about:blank","新建标签"'))
 	GUICtrlCreateLabel(_t("ChromePlusNewTabDisableHelp", "说明：勾选后，如果当前标签页被识别为新标签页，Chrome++ 会临时禁用上面的“地址栏输入在新标签页打开”和“书签在新标签页打开”。这样在新标签页里输入地址或打开书签时，会使用当前新标签页，而不会再额外新建标签页。\n“额外匹配标题”用于补充 Chrome++ 的内置识别列表，匹配到这些标题时也按新标签页处理。"), 20, 398, 460, 62)
 	GUICtrlSetColor(-1, 0x666666)
@@ -2663,6 +2670,22 @@ Func HasCustomCdpParameter($Value)
 	Return StringRegExp($Value, "(?i)(^|\s)--remote-debugging-(?:port(?:=|\s|$)|pipe(?:\s|$))")
 EndFunc   ;==>HasCustomCdpParameter
 
+Func NeedsOutdatedBuildDetectorParam()
+	If Not IsChromeBrowser($BrowserType) Then Return False
+	If IsChromePlusSupportedBrowser($BrowserType) And IsChromePlusPatchInstalled($BrowserPath) Then Return False
+	Return True
+EndFunc   ;==>NeedsOutdatedBuildDetectorParam
+
+Func AppendOutdatedBuildDetectorParam($Params)
+	Local $Result = StringStripWS($Params, 2)
+	If StringRegExp($Result, '(?i)--disable-features=[^\s]*\bOutdatedBuildDetector\b') Then Return $Result
+	; Chromium 对重复开关只取最后一次的值，携带既有值合并追加，避免覆盖用户已禁用的特性
+	Local $Features = StringRegExp($Result, '(?i)--disable-features=([^\s]+)', 3)
+	Local $Merged = "OutdatedBuildDetector"
+	If Not @error Then $Merged = $Features[UBound($Features) - 1] & ",OutdatedBuildDetector"
+	Return $Result & " --disable-features=" & $Merged
+EndFunc   ;==>AppendOutdatedBuildDetectorParam
+
 Func GetWhaleCommandLineLocale($Value)
 	If NormalizeBrowserType($Value) <> $BrowserWhale Then Return ""
 
@@ -2766,6 +2789,7 @@ Func SetChromePlusTabControlsState($Enabled)
 	GUICtrlSetState($idChromePlusOpenBookmarkNewTab, $State)
 	GUICtrlSetState($idChromePlusNewTabDisable, $State)
 	GUICtrlSetState($idChromePlusHoverTab, $State)
+	GUICtrlSetState($idChromePlusSuppressFalseUpgradeNotification, $State)
 	If Not $Enabled Then
 		GUICtrlSetState($idChromePlusHoverTabDelay, $GUI_DISABLE)
 		GUICtrlSetState($idChromePlusHoverTabDelayLabel, $GUI_DISABLE)
@@ -2786,6 +2810,7 @@ Func LoadChromePlusTabsSettings($ConfigPath)
 	SetCheckboxStateByValue($idChromePlusHoverTab, IniRead($ConfigPath, "tabs", "hover_tab", "0"))
 	GUICtrlSetData($idChromePlusHoverTabDelay, NormalizeChromePlusHoverTabDelay(IniRead($ConfigPath, "tabs", "hover_tab_delay", "400")))
 	GUICtrlSetData($idChromePlusNewTabDisableName, ReadIniTextValue($ConfigPath, "tabs", "new_tab_disable_name", '"about:blank","新建标签"'))
+	SetCheckboxStateByValue($idChromePlusSuppressFalseUpgradeNotification, IniRead($ConfigPath, "general", "suppress_false_upgrade_notification", "0"))
 	RefreshChromePlusHoverTabDelayState()
 	RefreshChromePlusNewTabDisableNameState()
 EndFunc   ;==>LoadChromePlusTabsSettings
@@ -2851,7 +2876,7 @@ Func RefreshChromePlusTabState()
 	Local $CanInstallPatch = $IsChrome And FileExists($BrowserPath) And GetChromePlusConfigPath($BrowserPath) <> ""
 
 	If $HasPatch Then
-		GUICtrlSetData($idChromePlusHint, _t("ChromePlusTabsReady", "已检测到 Chrome++ 补丁，以下设置将写入当前目录的 chrome++.ini [tabs]。"))
+		GUICtrlSetData($idChromePlusHint, _t("ChromePlusTabsReady", "已检测到 Chrome++ 补丁，以下设置将写入当前目录的 chrome++.ini。"))
 		GUICtrlSetData($idChromePlusConfigPath, GetChromePlusConfigPath($BrowserPath))
 		GUICtrlSetData($idChromePlusDownloadPatch, _t("UpdateChromePlusPatch", "更新 Chrome++"))
 		GUICtrlSetState($idChromePlusDownloadPatch, $GUI_SHOW)
@@ -3092,6 +3117,7 @@ Func SaveChromePlusTabsSettings($BrowserPath)
 		If IniWrite($ConfigPath, "tabs", "hover_tab_delay", NormalizeChromePlusHoverTabDelay(GUICtrlRead($idChromePlusHoverTabDelay))) = 0 Then Return False
 	EndIf
 	If Not WriteIniTextValue($ConfigPath, "tabs", "new_tab_disable_name", StringStripWS(GUICtrlRead($idChromePlusNewTabDisableName), 3)) Then Return False
+	If IniWrite($ConfigPath, "general", "suppress_false_upgrade_notification", GetCheckboxIniValue($idChromePlusSuppressFalseUpgradeNotification)) = 0 Then Return False
 	Return True
 EndFunc   ;==>SaveChromePlusTabsSettings
 
@@ -3598,6 +3624,7 @@ Func BuildChromePlusManagedConfig($ConfigPath)
 			"show_password=0" & @CRLF & _
 			"win32k=0" & @CRLF & _
 			"ignore_policies=0" & @CRLF & _
+			"suppress_false_upgrade_notification=1" & @CRLF & _
 			@CRLF & _
 			"[tabs]" & @CRLF & _
 			"double_click_close=0" & @CRLF & _

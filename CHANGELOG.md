@@ -4,8 +4,7 @@
 
 - 语言数据内嵌进程序：默认文案编译自 `Lang.ini`（经由 `scripts/update-langdata.ps1` 生成 `libs/LangData.au3`），运行时不再在 exe 同目录释放 `Lang.ini`；exe 目录的 `LangCustom.ini` 按 key 覆盖合并到内嵌数据之上。
 - 浏览器自动更新的下载等待增加整体超时（单地址 10 分钟），避免下载源不可达时长时间卡住；更新包下载失败时的提示会列出已尝试的下载地址，便于定位网络问题。
-- 浏览器自动更新扩展支持 Brave 和 Naver Whale：后台检查最新版本、下载暂存、下次启动自动应用，与 Chrome 一致；Brave 本地版本号会自动规范化后再与远端比较。
-- 新增由 RunFirefox 托管的浏览器自动更新（当前支持 Chrome 原版绿色版，后续扩展其他 Chromium）：按更新频率静默检查最新版本，发现新版弹窗确认后下载到本地暂存目录（.part 原子写入并通过解压校验），下次启动 RunFirefox、浏览器未运行时自动应用更新；Chrome++ 配置与补丁文件在合并覆盖时保留。Chrome 的“自动更新”复选框与“检查浏览器更新”频率选项随之启用，设置的更新通道会持久化用于后台检查。
+- 新增由 RunFirefox 托管的浏览器自动更新（Chrome 原版绿色版，并扩展支持 Brave 和 Naver Whale）：按更新频率静默检查最新版本，发现新版弹窗确认后下载到本地暂存目录（.part 原子写入并通过解压校验），下次启动 RunFirefox、浏览器未运行时自动应用更新；Chrome++ 配置与补丁文件在合并覆盖时保留。Chrome 的“自动更新”复选框与“检查浏览器更新”频率选项随之启用，设置的更新通道会持久化用于后台检查；Brave 本地版本号会自动规范化后再与远端比较。
 - Chrome++ 页的标签页选项改为更紧凑的排列，并新增“抑制错误的‘已过期’升级提示”选项，对应 chrome++.ini 的 suppress_false_upgrade_notification；新建托管 chrome++.ini（新装 Chrome++）默认开启，已有配置保持原状。设置窗口相应加高，“额外匹配标题”移至新标签页选项之后，升级提示选项移至页尾，说明文字完整显示。
 - 未安装 Chrome++ 的 Chromium 系浏览器启动时自动追加 --disable-features=OutdatedBuildDetector 参数，并与自动及自定义命令行参数去重、合并 --disable-features 值，避免覆盖用户已禁用的特性。
 - 完善 Chrome++ 安装提示，说明补丁非必须安装，并介绍右键关闭标签页、书签在新标签页打开等功能。

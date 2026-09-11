@@ -130,9 +130,18 @@ Func _ALFlow(ByRef $items, $iLeft, $iTop, $iRight, ByRef $aIds, ByRef $iFirstRow
 	Return $y + $iRowH - $iTop
 EndFunc   ;==>_ALFlow
 
-; 长文案复选框：超宽时两行自动换行，返回控件 id（$iRowY 为该行顶部）
+; 长文案复选框：超宽时两行自动换行，返回控件 id（$iTop 为该行顶部）
 Func _ALCreateWrapCheckbox($sText, $iLeft, $iTop, $iWidth)
 	Local $iH = 20
 	If _ALMeasure($sText) + 20 > $iWidth Then $iH = 34
-	Return GUICtrlCreateCheckbox($sText, $iLeft, $iTop, $iWidth, $iH, BitOR($BS_AUTOCHECKBOX, $BS_MULTILINE))
+	Local $id = GUICtrlCreateCheckbox($sText, $iLeft, $iTop, $iWidth, $iH, BitOR($BS_AUTOCHECKBOX, $BS_MULTILINE))
+	Return $id
 EndFunc   ;==>_ALCreateWrapCheckbox
+
+; 长文案标签：超宽时在固定宽度内换两行并按行垂直居中，返回控件 id（$iRowY 为同行输入框顶部）
+Func _ALCreateWrapLabel($sText, $iLeft, $iRowY, $iWidth)
+	If _ALMeasure($sText) <= $iWidth Then
+		Return GUICtrlCreateLabel($sText, $iLeft, $iRowY + 5, $iWidth, 17)
+	EndIf
+	Return GUICtrlCreateLabel($sText, $iLeft, $iRowY - 7, $iWidth, 32)
+EndFunc   ;==>_ALCreateWrapLabel

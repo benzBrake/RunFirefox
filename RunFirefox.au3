@@ -1771,28 +1771,33 @@ Func Settings()
 	; 高级
 	GUICtrlCreateTabItem(_t("Advanced", "高级"))
 	GUICtrlCreateGroup(_t("CacheSettings", "缓存设置"), 10, 80, 480, 120)
-	GUICtrlCreateLabel(_t("PluginsDirectory", "插件目录"), 20, 108, 120, 20)
+	_ALCreateWrapLabel(_t("PluginsDirectory", "插件目录"), 20, 103, 116)
 	$idCustomPluginsDir = GUICtrlCreateEdit($CustomPluginsDir, 140, 103, 270, 20, $ES_AUTOHSCROLL)
 	GUICtrlSetTip(-1, _t("PluginsDirectoryTooltip", "浏览器插件目录\n空白=默认位置"))
 	$idGetPluginsDir = GUICtrlCreateButton(_t("Browse", "浏览"), 420, 103, 60, 22)
 	GUICtrlSetTip(-1, _t("SpecifyPluginsDirectoryTooltip", "选择浏览器插件目录"))
 	GUICtrlSetOnEvent(-1, "GetPluginsDir")
 
-	GUICtrlCreateLabel(_t("CacheDirectory", "缓存位置"), 20, 138, 120, 20)
+	_ALCreateWrapLabel(_t("CacheDirectory", "缓存位置"), 20, 133, 116)
 	$idCustomCacheDir = GUICtrlCreateEdit($CustomCacheDir, 140, 133, 270, 20, $ES_AUTOHSCROLL)
 	GUICtrlSetTip(-1, _t("CacheDirectoryTooltip", "浏览器缓存位置\n空白=默认位置"))
 	$idGetCacheDir = GUICtrlCreateButton(_t("Browse", "浏览"), 420, 133, 60, 22)
 	GUICtrlSetTip(-1, _t("SpecifyCacheDirectoryTooltip", "选择浏览器缓存文件夹"))
 	GUICtrlSetOnEvent(-1, "GetCacheDir")
 
-	GUICtrlCreateLabel(_t("CacheSize", "缓存大小"), 20, 168, 120, 20)
+	_ALCreateWrapLabel(_t("CacheSize", "缓存大小"), 20, 163, 116)
 	$idCacheSize = GUICtrlCreateEdit($CacheSize, 140, 163, 60, 20, BitOR($ES_NUMBER, $ES_AUTOHSCROLL))
 	GUICtrlSetTip(-1, _t("CacheSizeTooltip", "缓存大小\n空白=默认大小"))
 	GUICtrlCreateLabel("MB", 215, 168, 35, 20)
-	$idCacheSizeSmart = GUICtrlCreateCheckbox(_t("CacheSizeControl", " 自动控制缓存大小"), 250, 163, -1, 20)
+	$idCacheSizeSmart = _ALCreateWrapCheckbox(_t("CacheSizeControl", " 自动控制缓存大小"), 250, 156, 225)
 	If $CacheSizeSmart Then GUICtrlSetState(-1, $GUI_CHECKED)
 
-	GUICtrlCreateGroup(_t("ChromiumSettings", "Chromium设置"), 10, 210, 480, 125)
+	; CDP 帮助文案按实测宽度计算行数：字母语言可能需要 3 行
+	Local $iCdpHelpH = Ceiling((_ALMeasure(_t("ChromiumDebugPortConflictHelp", "启用后会自动添加 CDP 参数，请勿在下方命令行参数中重复设置调试端口或调试管道。")) + 459) / 460) * 14
+	If $iCdpHelpH < 28 Then $iCdpHelpH = 28
+
+	; CDP 帮助文案换三行时，Chromium 设置分组框同步加高
+	GUICtrlCreateGroup(_t("ChromiumSettings", "Chromium设置"), 10, 210, 480, 125 + $iCdpHelpH - 28)
 	$idChromiumGoogleApiImport = GUICtrlCreateButton(_t("ImportGoogleApi", "导入GoogleAPI"), 20, 233, 140, 22)
 	GUICtrlSetOnEvent(-1, "ImportChromiumGoogleApi")
 	GUICtrlSetTip(-1, _t("ImportGoogleApiTooltip", "导入GoogleAPI密钥后，Chromium 才能登录 Google 账号"))
@@ -1808,11 +1813,11 @@ Func Settings()
 	$idChromiumDebugPortLabel = GUICtrlCreateLabel(_t("ChromiumDebugPort", "端口"), 275, 273, 45, 20)
 	$idChromiumDebugPort = GUICtrlCreateInput($ChromiumDebugPort, 325, 268, 80, 20, BitOR($ES_NUMBER, $ES_AUTOHSCROLL))
 	GUICtrlSetTip(-1, _t("ChromiumDebugPortTooltip", "CDP 远程调试端口，范围为 1-65535。"))
-	GUICtrlCreateLabel(_t("ChromiumDebugPortConflictHelp", "启用后会自动添加 CDP 参数，请勿在下方命令行参数中重复设置调试端口或调试管道。"), 20, 298, 460, 28)
+	GUICtrlCreateLabel(_t("ChromiumDebugPortConflictHelp", "启用后会自动添加 CDP 参数，请勿在下方命令行参数中重复设置调试端口或调试管道。"), 20, 298, 460, $iCdpHelpH)
 	GUICtrlSetColor(-1, 0x666666)
 
-	GUICtrlCreateLabel(_t("CommandLineArguments", "命令行参数"), 20, 345, -1, 20)
-	$idParams = GUICtrlCreateEdit("", 20, 365, 460, 50, BitOR($ES_WANTRETURN, $WS_VSCROLL, $ES_AUTOVSCROLL))
+	GUICtrlCreateLabel(_t("CommandLineArguments", "命令行参数"), 20, 345 + $iCdpHelpH - 28, -1, 20)
+	$idParams = GUICtrlCreateEdit("", 20, 365 + $iCdpHelpH - 28, 460, 50, BitOR($ES_WANTRETURN, $WS_VSCROLL, $ES_AUTOVSCROLL))
 	If $Params <> "" Then
 		GUICtrlSetData(-1, StringReplace($Params, " -", @CRLF & "-"))
 	EndIf

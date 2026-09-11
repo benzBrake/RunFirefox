@@ -120,11 +120,11 @@ Func _DownloadToolsPumpDownloadProgressEvents()
 	Until False
 EndFunc   ;==>PumpDownloadProgressEvents
 
-Func _DownloadToolsDownloadUrls($Urls, $Destination, $StatusText, $KnownProgressTemplate, $UnknownProgressTemplate, ByRef $TriedUrls)
+Func _DownloadToolsDownloadUrls($Urls, $Destination, $StatusText, $KnownProgressTemplate, $UnknownProgressTemplate, ByRef $TriedUrls, $TimeoutMs = 600000)
 	$TriedUrls = ""
 	If Not IsArray($Urls) Or UBound($Urls) = 0 Then Return SetError(1, 0, False)
 
-	Local $i, $Url, $hDownload, $DownloadedBytes, $TotalBytes, $Percent, $DetailText, $DownloadSuccessful = False
+	Local $i, $Url, $hDownload, $DownloadedBytes, $TotalBytes, $Percent, $DetailText, $DownloadSuccessful = False, $Timer
 	For $i = 0 To UBound($Urls) - 1
 		$Url = $Urls[$i]
 		If $TriedUrls <> "" Then $TriedUrls &= @CRLF
@@ -133,6 +133,7 @@ Func _DownloadToolsDownloadUrls($Urls, $Destination, $StatusText, $KnownProgress
 		_DownloadToolsUpdateDownloadProgress($StatusText, $Url, 0)
 		$hDownload = InetGet($Url, $Destination, 19, 1)
 		If @error Or $hDownload = 0 Then ContinueLoop
+		$Timer = TimerInit()
 
 		Do
 			$DownloadedBytes = InetGetInfo($hDownload, 0)
@@ -149,6 +150,9 @@ Func _DownloadToolsDownloadUrls($Urls, $Destination, $StatusText, $KnownProgress
 			_DownloadToolsUpdateDownloadProgress($StatusText, $DetailText, $Percent)
 			_DownloadToolsPumpDownloadProgressEvents()
 			If _DownloadToolsIsDownloadProgressCancelled() Then ExitLoop
+			; An unreachable source must not stall the whole download flow, so a
+			; single URL never keeps the loop busy beyond the overall timeout.
+			If TimerDiff($Timer) >= $TimeoutMs Then ExitLoop
 			Sleep(200)
 		Until InetGetInfo($hDownload, 2)
 

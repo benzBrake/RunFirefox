@@ -2148,7 +2148,7 @@ Func BrowserAutoUpdateCheck()
 	_BrowserAutoUpdateCleanPartialDownloads()
 
 	Local $Pending = _BrowserAutoUpdateGetPendingUpdate()
-	Local $LocalVersion = _BrowserAutoUpdateGetLocalVersion($BrowserPath)
+	Local $LocalVersion = _BrowserAutoUpdateGetLocalVersion($BrowserPath, $BrowserType)
 	If IsArray($Pending) Then
 		; A staged update is already waiting for the next launch. Drop it only
 		; when the installed browser is no longer older (for example a manual
@@ -2157,40 +2157,69 @@ Func BrowserAutoUpdateCheck()
 		Return
 	EndIf
 
-	Local $Channel = _BrowserDownloadNormalizeChromeChannel($BrowserUpdateChannel)
-	Local $OutputFile = @TempDir & "\RunFirefox_BrowserAutoUpdate_" & @AutoItPID & ".tmp"
-	FileDelete($OutputFile)
-	Local $VersionPid = _BrowserDownloadStartChromeVersionLoadProcess($Channel, "win64", $OutputFile)
-	If Not $VersionPid Then Return
+	Local $Channel = $BrowserUpdateChannel
+	If IsGoogleChromeBrowser($BrowserType) Then $Channel = _BrowserDownloadNormalizeChromeChannel($BrowserUpdateChannel)
+	Local $LatestVersion = BrowserAutoUpdateResolveLatestVersion($BrowserType, $Channel)
+	If $LatestVersion = "" Then Return
 
-	Local $Timer = TimerInit()
-	While ProcessExists($VersionPid)
-		If TimerDiff($Timer) > 60000 Then
-			ProcessClose($VersionPid)
-			ExitLoop
-		EndIf
-		Sleep(200)
-	WEnd
-	Local $Loaded = _BrowserDownloadLoadChromeUpdateInfoFile($Channel, $OutputFile)
-	FileDelete($OutputFile)
-	If Not $Loaded Then Return
-
-	Local $LatestVersion = _BrowserDownloadGetChromeVersionCache($Channel)
-	If Not _BrowserAutoUpdateVersionIsNewer($LatestVersion, _BrowserAutoUpdateGetLocalVersion($BrowserPath)) Then Return
+	If Not _BrowserAutoUpdateVersionIsNewer($LatestVersion, _BrowserAutoUpdateGetLocalVersion($BrowserPath, $BrowserType)) Then Return
 
 	Local $UpdateConfirm = _t("BrowserAutoUpdateAvailable", "发现浏览器新版本：%s\n\n是否下载更新？下载完成后将在下次启动浏览器时自动应用。", $LatestVersion)
 	If MsgBox(36 + 256, $AppName, $UpdateConfirm) <> 6 Then Return
 
 	Local $Urls = _BrowserDownloadBuildUrls($BrowserType, $Channel, "win64")
 	If @error Or Not IsArray($Urls) Or UBound($Urls) = 0 Then Return
-	Local $Staged = _BrowserAutoUpdateStageUpdate($BrowserType, $Channel, $LatestVersion, $Urls)
+	Local $TriedUrls = ""
+	Local $Staged = _BrowserAutoUpdateStageUpdate($BrowserType, $Channel, $LatestVersion, $Urls, $TriedUrls)
 	If Not $Staged Then
 		If @error = 2 Then Return ; user cancelled the download
-		MsgBox(16, $AppName, _t("BrowserUpdateStageFailed", "浏览器更新包下载失败，下次检查时将重试。"))
+		Local $StageFailedDetail = _t("BrowserUpdateStageFailed", "浏览器更新包下载失败，下次检查时将重试。")
+		If $TriedUrls <> "" Then $StageFailedDetail &= @CRLF & @CRLF & _t("BrowserUpdateStageFailedUrls", "已尝试的下载地址：\n%s", $TriedUrls)
+		MsgBox(16, $AppName, $StageFailedDetail)
 		Return
 	EndIf
 	MsgBox(64, $AppName, _t("BrowserUpdateStaged", "更新包已下载完成：%s\n\n下次启动浏览器时将自动应用更新。", $LatestVersion))
 EndFunc   ;==>BrowserAutoUpdateCheck
+
+;~ Resolve the latest browser version for auto-update. Chrome uses a dedicated
+;~ child process (POST request to Omaha), while Brave/Whale reuse the generic
+;~ InetGet-based version loader used by the settings dialog.
+Func BrowserAutoUpdateResolveLatestVersion($BrowserType, $Channel)
+	If IsGoogleChromeBrowser($BrowserType) Then
+		Local $OutputFile = @TempDir & "\RunFirefox_BrowserAutoUpdate_" & @AutoItPID & ".tmp"
+		FileDelete($OutputFile)
+		Local $VersionPid = _BrowserDownloadStartChromeVersionLoadProcess($Channel, "win64", $OutputFile)
+		If Not $VersionPid Then Return ""
+		Local $Timer = TimerInit()
+		While ProcessExists($VersionPid)
+			If TimerDiff($Timer) > 60000 Then
+				ProcessClose($VersionPid)
+				ExitLoop
+			EndIf
+			Sleep(200)
+		WEnd
+		Local $Loaded = _BrowserDownloadLoadChromeUpdateInfoFile($Channel, $OutputFile)
+		FileDelete($OutputFile)
+		If Not $Loaded Then Return ""
+		Return _BrowserDownloadGetChromeVersionCache($Channel)
+	EndIf
+
+	If Not _BrowserDownloadStartVersionLoad($BrowserType, $Channel, "win64") Then Return ""
+	Local $Timer = TimerInit()
+	Local $Result = -1
+	While 1
+		Local $LoadedBrowserType = "", $LoadedChannel = ""
+		$Result = _BrowserDownloadPollVersionLoad($LoadedBrowserType, $LoadedChannel)
+		If $Result <> 0 Then ExitLoop
+		If TimerDiff($Timer) > 60000 Then
+			_BrowserDownloadCancelVersionLoad()
+			Return ""
+		EndIf
+		Sleep(200)
+	WEnd
+	If $Result <> 1 Then Return ""
+	Return _BrowserDownloadGetLatestVersion($BrowserType, $Channel)
+EndFunc   ;==>BrowserAutoUpdateResolveLatestVersion
 
 Func UpdateBrowserDownloadLabels($LoadVersion, $Unavailable = False)
 	If Not $idBrowserDownloadLink Then Return
@@ -4152,7 +4181,7 @@ Func ApplySettings()
 			FileDelete($ChannelPath)
 			FileWrite($ChannelPath, $ChannelPrefs)
 		EndIf
-	ElseIf _BrowserAutoUpdateIsSupported($BrowserType) Then
+	ElseIf IsGoogleChromeBrowser($BrowserType) Then
 		; Remember the channel so the startup update check queries the same one.
 		Local $ChromeChannelString = GUICtrlRead($idChannel)
 		$BrowserUpdateChannel = _BrowserDownloadNormalizeChromeChannel(StringRegExpReplace($ChromeChannelString, " -.*", ""))

@@ -13,7 +13,8 @@ EndFunc
 ; Only browsers whose latest version + download url can be resolved reliably
 ; are supported for now. Extend this list to bring more Chromiums on board.
 Func _BrowserAutoUpdateIsSupported($BrowserType)
-	Return NormalizeBrowserType($BrowserType) = $BrowserChrome
+	Local $Normalized = NormalizeBrowserType($BrowserType)
+	Return $Normalized = $BrowserChrome Or $Normalized = $BrowserBrave Or $Normalized = $BrowserWhale
 EndFunc
 
 Func _BrowserAutoUpdateGetStagingDir()
@@ -47,10 +48,11 @@ Func _BrowserAutoUpdateVersionIsNewer($NewVersion, $CurrentVersion)
 	Return False
 EndFunc
 
-Func _BrowserAutoUpdateGetLocalVersion($BrowserPath)
+Func _BrowserAutoUpdateGetLocalVersion($BrowserPath, $BrowserType = "")
 	If Not FileExists($BrowserPath) Then Return ""
 	Local $Version = ReadExecutableVersionField($BrowserPath, "FileVersion")
 	If $Version = "" Then $Version = ReadExecutableVersionField($BrowserPath, "ProductVersion")
+	If NormalizeBrowserType($BrowserType) = $BrowserBrave Then $Version = NormalizeBraveVersionText($Version)
 	Return $Version
 EndFunc
 
@@ -90,7 +92,7 @@ EndFunc
 
 ; Downloads the update package atomically: *.part first, integrity check,
 ; then rename + metadata. Returns True when the update is staged.
-Func _BrowserAutoUpdateStageUpdate($BrowserType, $Channel, $Version, $Urls, $Parent = 0)
+Func _BrowserAutoUpdateStageUpdate($BrowserType, $Channel, $Version, $Urls, ByRef $TriedUrlsOut, $Parent = 0)
 	If Not IsArray($Urls) Or UBound($Urls) = 0 Then Return SetError(1, 0, False)
 
 	Local $StagingDir = _BrowserAutoUpdateGetStagingDir()
@@ -115,6 +117,7 @@ Func _BrowserAutoUpdateStageUpdate($BrowserType, $Channel, $Version, $Urls, $Par
 		Return SetError(2, 0, False)
 	EndIf
 	If Not $DownloadResult Or Not FileExists($PartPath) Then
+		$TriedUrlsOut = $TriedUrls
 		_DownloadToolsCloseDownloadProgress()
 		FileDelete($PartPath)
 		Return SetError(3, 0, False)
@@ -161,7 +164,7 @@ Func _BrowserAutoUpdateApplyPending($BrowserPath, $BrowserType, $Parent = 0)
 	Local $Pending = _BrowserAutoUpdateGetPendingUpdate()
 	If Not IsArray($Pending) Then Return SetError(1, 0, "")
 
-	Local $LocalVersion = _BrowserAutoUpdateGetLocalVersion($BrowserPath)
+	Local $LocalVersion = _BrowserAutoUpdateGetLocalVersion($BrowserPath, $BrowserType)
 	If Not _BrowserAutoUpdateVersionIsNewer($Pending[0], $LocalVersion) Then
 		; Already up to date (or newer); drop the stale package.
 		_BrowserAutoUpdateCleanStaging()

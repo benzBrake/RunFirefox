@@ -1878,40 +1878,52 @@ Func Settings()
 	; 辅助
 	GUICtrlCreateTabItem(_t("Auxiliary", "辅助"))
 	GUICtrlCreateLabel(_t("RunOnBrowserStart", "浏览器启动时运行"), 20, 90, -1, 20)
-	$idCloseStartAppsAfterBrowserExit = GUICtrlCreateCheckbox(_t("AutoCloseAfterBrowserExit", " #浏览器退出后自动关闭"), 240, 85, -1, 20)
+	; 自动关闭复选框换行时，下方内容整体下移一行
+	Local $iAuxWrapExtra = 0
+	If _ALMeasure(_t("AutoCloseAfterBrowserExit", " #浏览器退出后自动关闭")) + 20 > 240 Then $iAuxWrapExtra = 14
+	$idCloseStartAppsAfterBrowserExit = _ALCreateWrapCheckbox(_t("AutoCloseAfterBrowserExit", " #浏览器退出后自动关闭"), 240, 85, 240)
 	If $CloseStartAppsAfterBrowserExit = 1 Then
 		GUICtrlSetState($idCloseStartAppsAfterBrowserExit, $GUI_CHECKED)
 	EndIf
-	$idBrowserStartApps = GUICtrlCreateEdit("", 20, 110, 410, 50, BitOR($ES_WANTRETURN, $WS_VSCROLL, $ES_AUTOVSCROLL))
+	$idBrowserStartApps = GUICtrlCreateEdit("", 20, 110 + $iAuxWrapExtra, 410, 50, BitOR($ES_WANTRETURN, $WS_VSCROLL, $ES_AUTOVSCROLL))
 	If $BrowserStartApps <> "" Then
 		GUICtrlSetData(-1, StringReplace($BrowserStartApps, "||", @CRLF) & @CRLF)
 	EndIf
 	GUICtrlSetTip(-1, _t("RunOnBrowserStartTooltip", "浏览器启动时运行的外部程序，支持批处理、vbs文件等\n如需启动参数，可添加在程序路径之后"))
-	GUICtrlCreateButton(_t("Add", "添加"), 440, 109, 40, 22)
+	GUICtrlCreateButton(_t("Add", "添加"), 440, 109 + $iAuxWrapExtra, 40, 22)
 	GUICtrlSetTip(-1, _t("SelectExtraApp", "选择外部程序"))
 	GUICtrlSetOnEvent(-1, "AddBrowserStartApp")
 
-	GUICtrlCreateLabel(_t("RunAfterBrowserExit", "浏览器退出后运行"), 20, 190, -1, 20)
-	$idBrowserExitApps = GUICtrlCreateEdit("", 20, 210, 410, 50, BitOR($ES_WANTRETURN, $WS_VSCROLL, $ES_AUTOVSCROLL))
+	GUICtrlCreateLabel(_t("RunAfterBrowserExit", "浏览器退出后运行"), 20, 190 + $iAuxWrapExtra, -1, 20)
+	$idBrowserExitApps = GUICtrlCreateEdit("", 20, 210 + $iAuxWrapExtra, 410, 50, BitOR($ES_WANTRETURN, $WS_VSCROLL, $ES_AUTOVSCROLL))
 	If $BrowserExitApps <> "" Then
 		GUICtrlSetData(-1, StringReplace($BrowserExitApps, "||", @CRLF) & @CRLF)
 	EndIf
 	GUICtrlSetTip(-1, _t("RunAfterBrowserExitTooltip", "浏览器退出后运行的外部程序，支持批处理、vbs文件等\n如需启动参数，可添加在程序路径之后"))
-	GUICtrlCreateButton(_t("Add", "添加"), 440, 209, 40, 22)
+	GUICtrlCreateButton(_t("Add", "添加"), 440, 209 + $iAuxWrapExtra, 40, 22)
 	GUICtrlSetTip(-1, _t("SelectExtraApp", "选择外部程序"))
 	GUICtrlSetOnEvent(-1, "AddBrowserExitApp")
 
-	GUICtrlCreateGroup(_t("BossKeySettings", "Bosskey"), 10, 285, 480, 95)
-	$idBossKeyEnabled = GUICtrlCreateCheckbox(_t("EnableBossKey", " 启用 Bosskey"), 20, 310, 130, 20)
+	; Bosskey 说明按实测宽度计算行数，托盘复选框换行时整体下移，分组框高度随之伸缩
+	Local $sBossKeyHelp = _t("BossKeyDescription", "按快捷键隐藏浏览器；再次按快捷键或点击托盘图标还原。")
+	Local $iBossKeyHelpH = 0
+	For $sHelpLine In StringSplit($sBossKeyHelp, @CRLF, 3)
+		$iBossKeyHelpH += Ceiling((_ALMeasure($sHelpLine) + 459) / 460) * 14
+	Next
+	If $iBossKeyHelpH < 20 Then $iBossKeyHelpH = 20
+	Local $iBossKeyTrayExtra = 0
+	If _ALMeasure(_t("BossKeyHideToTray", " 隐藏到系统托盘")) + 20 > 135 Then $iBossKeyTrayExtra = 14
+	GUICtrlCreateGroup(_t("BossKeySettings", "Bosskey"), 10, 285 + $iAuxWrapExtra, 480, 67 + $iBossKeyTrayExtra + $iBossKeyHelpH)
+	$idBossKeyEnabled = GUICtrlCreateCheckbox(_t("EnableBossKey", " 启用 Bosskey"), 20, 310 + $iAuxWrapExtra, 130, 20)
 	GUICtrlSetOnEvent(-1, "RefreshBossKeyControlsState")
 	If $BossKeyEnabled Then GUICtrlSetState($idBossKeyEnabled, $GUI_CHECKED)
-	GUICtrlCreateLabel(_t("BossKeyHotkey", "快捷键"), 170, 313, 60, 20)
+	GUICtrlCreateLabel(_t("BossKeyHotkey", "快捷键"), 170, 313 + $iAuxWrapExtra, 60, 20)
 	$BossKeyCaptureValue = $BossKey
-	$idBossKey = GUICtrlCreateInput(BossKeyToDisplay($BossKey), 235, 308, 100, 20)
+	$idBossKey = GUICtrlCreateInput(BossKeyToDisplay($BossKey), 235, 308 + $iAuxWrapExtra, 100, 20)
 	GUICtrlSetTip(-1, _t("BossKeyHotkeyTooltip", "点击后直接按组合键；Backspace 或 Delete 清空"))
-	$idBossKeyHideToTray = GUICtrlCreateCheckbox(_t("BossKeyHideToTray", " 隐藏到系统托盘"), 345, 310, 135, 20)
+	$idBossKeyHideToTray = _ALCreateWrapCheckbox(_t("BossKeyHideToTray", " 隐藏到系统托盘"), 345, 310 + $iAuxWrapExtra, 135)
 	If $BossKeyHideToTray Then GUICtrlSetState($idBossKeyHideToTray, $GUI_CHECKED)
-	GUICtrlCreateLabel(_t("BossKeyDescription", "按快捷键隐藏浏览器；再次按快捷键或点击托盘图标还原。"), 20, 342, 460, 20)
+	GUICtrlCreateLabel($sBossKeyHelp, 20, 342 + $iAuxWrapExtra + $iBossKeyTrayExtra, 460, $iBossKeyHelpH)
 	SetupBossKeyHotkeyCapture()
 	RefreshBossKeyControlsState()
 

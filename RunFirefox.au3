@@ -1826,14 +1826,14 @@ Func Settings()
 	; Chrome++
 	GUICtrlCreateTabItem(_t("ChromePlusTab", "Chrome++"))
 	$idChromePlusHint = GUICtrlCreateLabel("", 20, 82, 460, 34)
-	GUICtrlCreateLabel(_t("ChromePlusConfigFile", "配置文件"), 20, 122, 115, 20)
+	$idChromePlusConfigFileCaption = _ALCreateWrapLabel(_t("ChromePlusConfigFile", "配置文件"), 20, 117, 115)
 	$idChromePlusConfigPath = GUICtrlCreateEdit("", 145, 117, 170, 20, BitOR($ES_AUTOHSCROLL, $ES_READONLY))
 	$idChromePlusDownloadPatch = GUICtrlCreateButton(_t("DownloadChromePlusPatch", "下载并安装 Chrome++"), 325, 117, 155, 22)
 	GUICtrlSetOnEvent(-1, "DownloadChromePlusPatchFromSettings")
 
-	$idChromePlusCurrentCaption = GUICtrlCreateLabel(_t("CurrentVersion", "当前版本："), 20, 146, 115, 20)
+	$idChromePlusCurrentCaption = _ALCreateWrapLabel(_t("CurrentVersion", "当前版本："), 20, 146, 115)
 	$idChromePlusCurrentVersion = GUICtrlCreateLabel("-", 145, 146, 170, 20)
-	$idChromePlusLatestCaption = GUICtrlCreateLabel(_t("LatestVersion", "最新版本："), 250, 146, 80, 20)
+	$idChromePlusLatestCaption = _ALCreateWrapLabel(_t("LatestVersion", "最新版本："), 250, 146, 80)
 	$idChromePlusLatestVersion = GUICtrlCreateLabel("-", 335, 146, 145, 20)
 
 	$idChromePlusDoubleClickClose = GUICtrlCreateCheckbox(_t("ChromePlusDoubleClickClose", "双击关闭标签页"), 20, 178, 200, 20)
@@ -1851,14 +1851,28 @@ Func Settings()
 	$idChromePlusHoverTabDelay = GUICtrlCreateEdit("400", 355, 274, 125, 20, BitOR($ES_NUMBER, $ES_AUTOHSCROLL))
 	GUICtrlSetTip($idChromePlusHoverTabDelay, _t("ChromePlusHoverTabDelayTooltip", "鼠标需在标签页上停留多久才会激活，范围为 0-5000 毫秒；无效值会使用 400 毫秒。"))
 
-	$idChromePlusNewTabDisableNameLabel = GUICtrlCreateLabel(_t("ChromePlusDisableNewTabName", "额外匹配标题"), 20, 307, 115, 20)
+	$idChromePlusNewTabDisableNameLabel = _ALCreateWrapLabel(_t("ChromePlusDisableNewTabName", "额外匹配标题"), 20, 302, 115)
 	$idChromePlusNewTabDisableName = GUICtrlCreateEdit("", 145, 302, 335, 20, $ES_AUTOHSCROLL)
 	GUICtrlSetTip($idChromePlusNewTabDisableName, _t("ChromePlusDisableNewTabNameTooltip", '对应 chrome++.ini 的 new_tab_disable_name 原始值；这些标题会被额外视为新标签页。可填写多个标题，并保留英文双引号与逗号，例如 "about:blank","新建标签"'))
-	GUICtrlCreateLabel(_t("ChromePlusNewTabDisableHelp", "说明：勾选后，如果当前标签页被识别为新标签页，Chrome++ 会临时禁用上面的“地址栏输入在新标签页打开”和“书签在新标签页打开”。这样在新标签页里输入地址或打开书签时，会使用当前新标签页，而不会再额外新建标签页。\n“额外匹配标题”用于补充 Chrome++ 的内置识别列表，匹配到这些标题时也按新标签页处理。"), 20, 332, 460, 62)
+	; 新标签页说明按实测宽度计算行数，字母语言需要更多行
+	Local $sChromePlusNewTabDisableHelp = _t("ChromePlusNewTabDisableHelp", "说明：勾选后，如果当前标签页被识别为新标签页，Chrome++ 会临时禁用上面的“地址栏输入在新标签页打开”和“书签在新标签页打开”。这样在新标签页里输入地址或打开书签时，会使用当前新标签页，而不会再额外新建标签页。\n“额外匹配标题”用于补充 Chrome++ 的内置识别列表，匹配到这些标题时也按新标签页处理。")
+	Local $iChromePlusNewTabHelpH = 0
+	For $sHelpLine In StringSplit($sChromePlusNewTabDisableHelp, @CRLF, 3)
+		$iChromePlusNewTabHelpH += Ceiling((_ALMeasure($sHelpLine) + 459) / 460) * 14
+	Next
+	If $iChromePlusNewTabHelpH < 62 Then $iChromePlusNewTabHelpH = 62
+	GUICtrlCreateLabel($sChromePlusNewTabDisableHelp, 20, 332, 460, $iChromePlusNewTabHelpH)
 	GUICtrlSetColor(-1, 0x666666)
 
-	$idChromePlusSuppressFalseUpgradeNotification = GUICtrlCreateCheckbox(_t("ChromePlusSuppressFalseUpgradeNotification", "抑制错误的“已过期”升级提示"), 20, 402, 260, 20)
-	GUICtrlCreateLabel(_t("ChromePlusSuppressFalseUpgradeNotificationHelp", "便携版浏览器没有更新组件，会被误报无法通过重启消除的“已过期 / 重新启动”提示；仅移除该错误提示，不影响真实的更新通知。\n未安装 Chrome++ 的 Chromium 系浏览器启动时将自动追加 --disable-features=OutdatedBuildDetector 并与自定义参数去重。"), 20, 426, 460, 58)
+	; 升级提示说明按实测宽度计算行数，并整体上移收紧页尾
+	Local $sChromePlusSuppressHelp = _t("ChromePlusSuppressFalseUpgradeNotificationHelp", "便携版浏览器没有更新组件，会被误报无法通过重启消除的“已过期 / 重新启动”提示；仅移除该错误提示，不影响真实更新通知。\n未安装 Chrome++ 的浏览器启动时会自动追加 --disable-features=OutdatedBuildDetector 参数。")
+	Local $iChromePlusSuppressHelpH = 0
+	For $sHelpLine In StringSplit($sChromePlusSuppressHelp, @CRLF, 3)
+		$iChromePlusSuppressHelpH += Ceiling((_ALMeasure($sHelpLine) + 459) / 460) * 14
+	Next
+	If $iChromePlusSuppressHelpH < 44 Then $iChromePlusSuppressHelpH = 44
+	$idChromePlusSuppressFalseUpgradeNotification = GUICtrlCreateCheckbox(_t("ChromePlusSuppressFalseUpgradeNotification", "抑制错误的“已过期”升级提示"), 20, 396 + $iChromePlusNewTabHelpH - 62, 260, 20)
+	GUICtrlCreateLabel($sChromePlusSuppressHelp, 20, 418 + $iChromePlusNewTabHelpH - 62, 460, $iChromePlusSuppressHelpH)
 	GUICtrlSetColor(-1, 0x666666)
 
 	; 辅助

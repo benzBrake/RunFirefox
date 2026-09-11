@@ -145,6 +145,12 @@ Func LoadIniDictionaryFromTextFile($Path)
 	Local $Content = ReadTextFileAuto($Path)
 	If @error Then Return $Data
 
+	Return LoadIniDictionaryFromText($Content)
+EndFunc   ;==>LoadIniDictionaryFromTextFile
+
+Func LoadIniDictionaryFromText($Content)
+	Local $Data = _InitDictionary()
+
 	$Content = StringRegExpReplace($Content, "^\x{FEFF}+", "")
 	$Content = StringReplace($Content, @CRLF, @LF)
 	$Content = StringReplace($Content, @CR, @LF)
@@ -189,3 +195,26 @@ Func ReadIniCacheValue($Data, $SectionName, $Key, $Default = "")
 	If Not IsObj($SectionData) Or Not _ItemExists($SectionData, $Key) Then Return $Default
 	Return _Item($SectionData, $Key)
 EndFunc   ;==>ReadIniCacheValue
+
+; 将 $Override 中的 section/key 逐项覆盖写入 $Base（$Base 中已有的 key 被替换，新增 key 被追加）
+Func MergeIniDictionary(ByRef $Base, $Override)
+	If Not IsObj($Base) Or Not IsObj($Override) Then Return
+
+	Local $Sections = $Override.Keys
+	For $i = 0 To UBound($Sections) - 1
+		Local $SectionName = $Sections[$i]
+		Local $OverrideSection = _Item($Override, $SectionName)
+
+		If Not _ItemExists($Base, $SectionName) Then _AddItem($Base, $SectionName, _InitDictionary())
+		Local $BaseSection = _Item($Base, $SectionName)
+
+		Local $Keys = $OverrideSection.Keys
+		For $j = 0 To UBound($Keys) - 1
+			If _ItemExists($BaseSection, $Keys[$j]) Then
+				_ChangeItem($BaseSection, $Keys[$j], _Item($OverrideSection, $Keys[$j]))
+			Else
+				_AddItem($BaseSection, $Keys[$j], _Item($OverrideSection, $Keys[$j]))
+			EndIf
+		Next
+	Next
+EndFunc   ;==>MergeIniDictionary

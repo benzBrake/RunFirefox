@@ -2,6 +2,7 @@
 
 ## [Unreleased]
 
+- Language data is now embedded in the executable: default translations are compiled from `Lang.ini` (via `scripts/update-langdata.ps1` into `libs/LangData.au3`), so `Lang.ini` is no longer extracted next to the exe; a user-provided `LangCustom.ini` is merged on top of the embedded data key by key.
 - Added an overall timeout (10 minutes per URL) to the auto-update download wait so an unreachable source can no longer stall the flow, and the update-package failure dialog now lists the download URLs attempted to help diagnose network issues.
 - Extended RunFirefox-managed browser auto update to Brave and Naver Whale: background version check, staged download, and apply-on-next-launch now work the same as Chrome; Brave's local version is normalized before comparing with the remote tag.
 - Added a RunFirefox-managed browser auto update (currently Chrome official portable; more Chromium browsers later): the latest version is checked silently according to the update frequency, and after confirmation the update package is downloaded into a local staging directory (atomic .part write verified by extraction) and applied automatically on the next RunFirefox launch while the browser is not running, Firefox style; Chrome++ config and patch files survive the merge overwrite. The "Auto update" checkbox and the "Check browser update" frequency options are now enabled for Chrome, and the configured update channel is persisted for the background check.

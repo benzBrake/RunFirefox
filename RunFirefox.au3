@@ -54,6 +54,7 @@
 #include "libs\UpgradeHelper.au3"
 #include "libs\PathUtils.au3"
 #include "libs\TextIni.au3"
+#include "libs\LangData.au3"
 #include "libs\MozLz4.au3"
 
 Opt("GUIOnEventMode", 1)
@@ -237,8 +238,7 @@ $BossKeyHideToTray = IniRead($inifile, "Settings", "BossKeyHideToTray", 0) * 1
 $LastPlatformDir = IniRead($inifile, "Settings", "LastPlatformDir", "")
 $LastProfileDir = IniRead($inifile, "Settings", "LastProfileDir", "")
 $LANGUAGE = IniRead($inifile, "Settings", "Language", "")
-$LANG_FILE = GetLangFile()
-$LANG_DATA = LoadIniDictionaryFromTextFile($LANG_FILE)
+$LANG_DATA = LoadLangData()
 $LANGUAGES = GetLanguages()
 If Not $LANGUAGE Then
 	$LANGUAGE = GetAutoLanguage()
@@ -4516,16 +4516,16 @@ Func ChangeAutoUpdateStatus()
 
 EndFunc
 
-; 语言检测
-Func GetLangFile()
-	Local $filePath = @ScriptDir & "\" & "Lang.ini"
-	Local $fileCustomPath = @ScriptDir & "\" & "LangCustom.ini"
-	FileInstall("Lang.ini", $filePath, 1)
+; 语言数据：内嵌 LangData.au3 为基底，exe 目录存在 LangCustom.ini 时按 key 覆盖合并
+Func LoadLangData()
+	Local $Data = LoadIniDictionaryFromText($g_sLangDataIni)
+	Local $fileCustomPath = @ScriptDir & "\LangCustom.ini"
 	If FileExists($fileCustomPath) Then
-		$filePath = $fileCustomPath
+		Local $CustomData = LoadIniDictionaryFromTextFile($fileCustomPath)
+		MergeIniDictionary($Data, $CustomData)
 	EndIf
-	Return $filePath
-EndFunc   ;==>GetLangFile
+	Return $Data
+EndFunc   ;==>LoadLangData
 
 Func NormalizeLanguageName($sLanguage)
 	$sLanguage = StringStripWS(StringReplace($sLanguage, "_", "-"), 3)

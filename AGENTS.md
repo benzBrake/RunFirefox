@@ -2,13 +2,16 @@
 如果 `AGENTS.local.md` 文件存在，请优先遵循该文件中的约定。
 
 ## 多语言文本变更
-这个项目的界面文本集中维护在 `Lang.ini`，AutoIt 代码通过 `_t("Key", "默认文本")` 读取。
+这个项目的界面文本源头集中在 `Lang.ini`，AutoIt 代码通过 `_t("Key", "默认文本")` 读取。
+`Lang.ini` 不会随 exe 释放到磁盘：编译前需用 `pwsh -File .\scripts\update-langdata.ps1` 把它生成到 `libs\LangData.au3` 内嵌进程序。
+运行时若 exe 目录存在 `LangCustom.ini`，其中的 key 会覆盖内嵌数据的同名 key（按 key 合并，不是整体替换）。
 凡是新增语言、增加/修改用户可见文本，必须同步处理多语言，避免只改一种语言。
 
 约定如下：
 
 - 新增用户可见文本时，优先新增或复用 `_t("Key", "默认文本")`，不要在界面、弹窗、提示、菜单等位置直接写死单一语言文本。
 - 每新增一个 `_t` key，必须在 `Lang.ini` 的所有语言 section 中补齐同名 key；暂时无法准确翻译时，也要先填入可接受的英文或中文占位译文，不要缺 key。
+- 每次修改 `Lang.ini` 后，必须重新运行 `pwsh -File .\scripts\update-langdata.ps1` 再提交（`libs/LangData.au3` 是生成物，不要手工编辑）；如果只改了 `Lang.ini` 而忘记重新生成，编译出的 exe 仍是旧文案。
 - 修改已有文案时，要同步检查 `Lang.ini` 所有语言 section 的同名 key，保持含义一致。
 - 文案里的占位符必须跨语言保持一致，例如 `{AppName}`、`{Version}`、`%s`、`%i`、`\n`，不能漏删或改名。
 - 新增语言时，必须新增完整的语言 section，至少包含 `LangTitle`、`LangSupportAuthor`、`LangSupportUrl`，并补齐当前所有已有翻译 key；语言名优先使用 Firefox/Mozilla 下载链接可识别的语言代码格式，例如 `en-US`、`zh-CN`。

@@ -8,7 +8,7 @@
 #AutoIt3Wrapper_UseX64=y
 #AutoIt3Wrapper_Res_Comment=Portable Browser Launcher
 #AutoIt3Wrapper_Res_Description=Portable Browser Launcher
-#AutoIt3Wrapper_Res_Fileversion=2.8.17.0
+#AutoIt3Wrapper_Res_Fileversion=2.8.18.0
 #AutoIt3Wrapper_Res_LegalCopyright=Ryan <github-benzBrake@woai.ru>
 #AutoIt3Wrapper_Res_Language=2052
 #AutoIt3Wrapper_Res_requestedExecutionLevel=None
@@ -62,7 +62,7 @@ Opt("GUIOnEventMode", 1)
 Opt("WinTitleMatchMode", 4)
 
 Global Const $AppName = "RunFirefox"
-Global Const $AppVersion = "2.8.17"
+Global Const $AppVersion = "2.8.18"
 Global Const $ChromePlusRepo = "Bush2021/chrome_plus"
 Global Const $ChromePlusReleasesApiUrl = "https://api.github.com/repos/" & $ChromePlusRepo & "/releases?per_page=30"
 Global Const $ChromePlusJsDelivrVersionsUrl = "https://data.jsdelivr.com/v1/package/gh/" & $ChromePlusRepo

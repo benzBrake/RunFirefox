@@ -54,6 +54,7 @@
 #include "libs\UpgradeHelper.au3"
 #include "libs\PathUtils.au3"
 #include "libs\TextIni.au3"
+#include "libs\AdaptiveLayout.au3"
 #include "libs\LangData.au3"
 #include "libs\MozLz4.au3"
 
@@ -114,7 +115,7 @@ Global $idCopyProfile, $idCustomPluginsDir, $idGetPluginsDir
 Global $idCustomCacheDir, $idGetCacheDir, $idCacheSize, $idCacheSizeSmart
 Global $idParams, $hStatus, $SettingsConfirmed
 Global $idAllowBrowserUpdate, $idAppUpdateCheckEnabled, $idBackgroundModeEnabled, $idBrowserType, $idChannel, $idBrowserDownloadLink, $BrowserDownloadUrl
-Global $idBrowserBitness, $idBrowserUpdateCheckMode, $idCurrentBrowserVersion, $idWaterfoxVersionHint, $idBrowserDownloadNow
+Global $idBrowserBitness, $idBrowserUpdateCheckMode, $idCurrentBrowserVersion, $idBrowserDownloadNow
 Global $idChromePlusHint, $idChromePlusDownloadPatch, $idChromePlusConfigPath, $idChromePlusCurrentVersion, $idChromePlusLatestVersion, $idChromePlusDoubleClickClose, $idChromePlusRightClickClose, $idChromePlusKeepLastTab
 Global $idChromePlusWheelTab, $idChromePlusWheelTabWhenPressRButton, $idChromePlusOpenUrlNewTab, $idChromePlusOpenBookmarkNewTab
 Global $idChromePlusHoverTab, $idChromePlusHoverTabDelay, $idChromePlusHoverTabDelayLabel
@@ -1633,75 +1634,118 @@ Func Settings()
 	GUICtrlSetTip(-1, _t("ClickToOpenOriginalPage", "点击打开甲壳虫原版主页"))
 	GUICtrlSetOnEvent(-1, "OriginalWebsite")
 
-	;常规
+	;常规（自适应流式布局：按文案实测宽度排布，字母语言长文案自动换行）
 	GUICtrlCreateTab(5, 50, 490, 470)
 	GUICtrlCreateTabItem(_t("General", "常规"))
+	_ALInit($hSettings)
 
-	GUICtrlCreateGroup(_t("BrowserFiles", "浏览器程序文件"), 10, 80, 480, 180)
-	GUICtrlCreateLabel(_t("BrowserPath", "浏览器路径"), 20, 108, 120, 20)
-	$idBrowserPath = GUICtrlCreateEdit($BrowserPath, 140, 103, 270, 20, $ES_AUTOHSCROLL)
-	GUICtrlSetTip(-1, _t("BrowserExecutablePath", "浏览器主程序路径"))
-	GUICtrlSetOnEvent(-1, "OnBrowserPathChange")
-	GUICtrlCreateButton(_t("Browse", "浏览"), 420, 102, 60, 22)
-	GUICtrlSetTip(-1, _t("ChoosePortableBrowser", "选择便携版浏览器主程序"))
-	GUICtrlSetOnEvent(-1, "SelectBrowserExecutable")
+	Local $iContentLeft = 20, $iContentRight = 475, $yGeneral = 80
 
-	GUICtrlCreateLabel(_t("BrowserType", "浏览器"), 20, 138, 55, 20)
-	$idBrowserType = GUICtrlCreateCombo("", 80, 133, 105, 20, $CBS_DROPDOWNLIST)
+	Local $grpBrowserFiles = GUICtrlCreateGroup(_t("BrowserFiles", "浏览器程序文件"), 10, $yGeneral, 480, 24)
+	Local $aIt1[10]
+	$aIt1[0] = _ALIt($AL_LABEL, _t("BrowserPath", "浏览器路径"))
+	$aIt1[1] = _ALIt($AL_EDIT, $BrowserPath, 240)
+	$aIt1[2] = _ALIt($AL_BUTTON, _t("Browse", "浏览"))
+	$aIt1[3] = _ALIt($AL_NEWLINE)
+	$aIt1[4] = _ALIt($AL_LABEL, _t("BrowserType", "浏览器"))
+	$aIt1[5] = _ALIt($AL_COMBO, "", 150)
+	$aIt1[6] = _ALIt($AL_NEWLINE)
+	$aIt1[7] = _ALIt($AL_LABEL, _t("UpdateChannel", "更新通道"))
+	$aIt1[8] = _ALIt($AL_COMBO, "", 120)
+	$aIt1[9] = _ALIt($AL_CHECK, _t("BrowserAutoUpdate", " 自动更新"))
+	Local $aId1[0]
+	Local $iRow1End = 0
+	Local $hGen1 = _ALFlow($aIt1, $iContentLeft, $yGeneral + 18, $iContentRight, $aId1, $iRow1End)
+
+	$idBrowserPath = $aId1[1]
+	GUICtrlSetTip($idBrowserPath, _t("BrowserExecutablePath", "浏览器主程序路径"))
+	GUICtrlSetOnEvent($idBrowserPath, "OnBrowserPathChange")
+	GUICtrlSetTip($aId1[2], _t("ChoosePortableBrowser", "选择便携版浏览器主程序"))
+	GUICtrlSetOnEvent($aId1[2], "SelectBrowserExecutable")
+
+	$idBrowserType = $aId1[5]
 	GUICtrlSetData($idBrowserType, GetBrowserTypeComboData(), GetBrowserTypeLabel($BrowserType))
-	GUICtrlSetOnEvent(-1, "ChangeBrowserType")
+	GUICtrlSetOnEvent($idBrowserType, "ChangeBrowserType")
 
-	GUICtrlCreateLabel(_t("UpdateChannel", "更新通道"), 200, 138, 70, 20)
-	$idChannel = GUICtrlCreateCombo("", 275, 133, 80, 20, $CBS_DROPDOWNLIST)
-	GUICtrlSetOnEvent(-1, "ChangeChannel")
+	$idChannel = $aId1[8]
+	GUICtrlSetOnEvent($idChannel, "ChangeChannel")
 
-	$idAllowBrowserUpdate = GUICtrlCreateCheckbox(_t("BrowserAutoUpdate", " 自动更新"), 365, 133, -1, 20)
+	$idAllowBrowserUpdate = $aId1[9]
 	If $AllowBrowserUpdate Then
-		GUICtrlSetState(-1, $GUI_CHECKED)
+		GUICtrlSetState($idAllowBrowserUpdate, $GUI_CHECKED)
 	EndIf
 
-;~ 	$idLegacyBrowserDownloadLink = GUICtrlCreateLabel("去下载 " & GUICtrlRead($idChannel), 300, 130, 180, 20)
-;~ 	GUICtrlSetCursor(-1, 0)
-;~ 	GUICtrlSetColor(-1, 0x0000FF)
-;~ 	GUICtrlSetTip(-1, "去下载 Firefox")
-;~ 	GUICtrlSetOnEvent(-1, "DownloadBrowser")
+	Local $aIt1b[5]
+	$aIt1b[0] = _ALIt($AL_LABEL, _t("BrowserBitness", "浏览器位数："))
+	$aIt1b[1] = _ALIt($AL_COMBO, "", 120)
+	$aIt1b[2] = _ALIt($AL_NEWLINE)
+	$aIt1b[3] = _ALIt($AL_LABEL, _t("CheckBrowserUpdate", "检查浏览器更新："))
+	$aIt1b[4] = _ALIt($AL_COMBO, "", 130)
+	Local $aId1b[0]
+	Local $yGen1b = $yGeneral + 18 + $hGen1 + 6
+	Local $iRow1bEnd = 0
+	Local $hGen1b = _ALFlow($aIt1b, $iContentLeft, $yGen1b, $iContentRight, $aId1b, $iRow1bEnd)
 
-	GUICtrlCreateLabel(_t("BrowserBitness", "浏览器位数："), 20, 168, 120, 20)
-	$idBrowserBitness = GUICtrlCreateCombo("", 140, 163, 120, 20, $CBS_DROPDOWNLIST)
+	; 立即下载：位数行行尾右对齐（位数行只有位数一组控件，各语言下右端都有空位）
+	Local $iDownloadNowW = _ALMeasure(_t("DownloadNow", "立即下载")) + 24
+	$idBrowserDownloadNow = GUICtrlCreateButton(_t("DownloadNow", "立即下载"), $iContentRight - $iDownloadNowW, $yGen1b + 1, $iDownloadNowW, 24)
+	GUICtrlSetOnEvent($idBrowserDownloadNow, "DownloadBrowser")
+	GUICtrlSetState($idBrowserDownloadNow, $GUI_HIDE)
+
+	$idBrowserBitness = $aId1b[1]
 	GUICtrlSetData($idBrowserBitness, "x64|x86|arm64", "x64")
 	GUICtrlSetState($idBrowserBitness, $GUI_DISABLE)
 
-	GUICtrlCreateLabel(_t("LatestVersion", "最新版本："), 280, 168, 80, 20)
-	$idBrowserDownloadLink = GUICtrlCreateLabel(_t("BrowserDownloadAddress", "下载地址"), 365, 168, 115, 20)
-	GUICtrlSetCursor(-1, 0)
-	GUICtrlSetColor(-1, 0x0000FF)
-	GUICtrlSetOnEvent(-1, "DownloadBrowser")
-
-	GUICtrlCreateLabel(_t("CheckBrowserUpdate", "检查浏览器更新："), 20, 198, 120, 20)
-	$idBrowserUpdateCheckMode = GUICtrlCreateCombo("", 140, 193, 120, 20, $CBS_DROPDOWNLIST)
+	$idBrowserUpdateCheckMode = $aId1b[4]
 	GUICtrlSetData($idBrowserUpdateCheckMode, GetBrowserUpdateCheckModeComboData(), GetBrowserUpdateCheckModeLabel($BrowserUpdateCheckMode))
-	GUICtrlSetOnEvent(-1, "ChangeBrowserUpdateCheckMode")
+	GUICtrlSetOnEvent($idBrowserUpdateCheckMode, "ChangeBrowserUpdateCheckMode")
 
-	GUICtrlCreateLabel(_t("CurrentVersion", "当前版本："), 280, 198, 80, 20)
-	$idCurrentBrowserVersion = GUICtrlCreateLabel("-", 365, 198, 115, 20)
-	$idWaterfoxVersionHint = GUICtrlCreateLabel(_t("WaterfoxCurrentVersionUnsupported", "Waterfox 本地版本号读取不准确"), 140, 228, 220, 20)
-	GUICtrlSetColor(-1, 0xFF0000)
-	GUICtrlSetState($idWaterfoxVersionHint, $GUI_HIDE)
-	$idBrowserDownloadNow = GUICtrlCreateButton(_t("DownloadNow", "立即下载"), 365, 224, 90, 22)
-	GUICtrlSetOnEvent(-1, "DownloadBrowser")
-	GUICtrlSetState($idBrowserDownloadNow, $GUI_HIDE)
+	; 版本行：最新版本 / 当前版本 各占一半行宽
+	Local $iHalfW = Int(($iContentRight - $iContentLeft) / 2)
+	Local $yVerRow = $yGen1b + $hGen1b + 2
+	Local $sLatestLabel = _t("LatestVersion", "最新版本：")
+	Local $iLatestLabelW = _ALMeasure($sLatestLabel)
+	GUICtrlCreateLabel($sLatestLabel, $iContentLeft, $yVerRow + 5, $iLatestLabelW + 2, 17)
+	$idBrowserDownloadLink = GUICtrlCreateLabel(_t("BrowserDownloadAddress", "下载地址"), $iContentLeft + $iLatestLabelW + 4, $yVerRow + 5, $iHalfW - $iLatestLabelW - 8, 17)
+	GUICtrlSetColor($idBrowserDownloadLink, 0x0000FF)
+	GUICtrlSetCursor($idBrowserDownloadLink, 0)
+	GUICtrlSetOnEvent($idBrowserDownloadLink, "DownloadBrowser")
+	Local $sCurrentLabel = _t("CurrentVersion", "当前版本：")
+	Local $iCurrentLabelW = _ALMeasure($sCurrentLabel)
+	$idCurrentVersionCaption = GUICtrlCreateLabel($sCurrentLabel, $iContentLeft + $iHalfW, $yVerRow + 5, $iCurrentLabelW + 2, 17)
+	$idCurrentBrowserVersion = GUICtrlCreateLabel("-", $iContentLeft + $iHalfW + $iCurrentLabelW + 4, $yVerRow + 5, $iHalfW - $iCurrentLabelW - 8, 17)
+	Local $hGen1c = $hGen1b + 2 + 28
 
-	GUICtrlCreateGroup(_t("ProfileFiles", "浏览器用户数据文件"), 10, 270, 480, 90)
-	GUICtrlCreateLabel(_t("ProfileDirectory", "配置文件夹"), 20, 300, 120, 20)
-	$idProfileDir = GUICtrlCreateEdit($ProfileDir, 140, 295, 270, 20, $ES_AUTOHSCROLL)
-	GUICtrlSetTip(-1, _t("ProfileDirectoryTooltip", "浏览器配置文件夹"))
-	GUICtrlCreateButton(_t("Browse", "浏览"), 420, 294, 60, 22)
-	GUICtrlSetTip(-1, _t("ChooseProfileDirectory", "指定浏览器配置文件夹"))
-	GUICtrlSetOnEvent(-1, "GetProfileDir")
-	$idCopyProfile = GUICtrlCreateCheckbox(_t("ExtractProfileFromSystem", " 从系统中提取浏览器配置文件"), 20, 328, -1, 20)
+	GUICtrlSetPos($grpBrowserFiles, 10, $yGeneral, 480, 18 + $hGen1 + 6 + $hGen1c + 12)
 
-	GUICtrlCreateLabel(_t("UILanguage", "显示语言/Language"), 20, 385, 120, 20)
-	$idLanguage = GUICtrlCreateCombo("", 140, 380, 100, 20, $CBS_DROPDOWNLIST)
+	; 浏览器用户数据文件
+	Local $yProfile = $yGeneral + 18 + $hGen1 + 6 + $hGen1c + 12 + 10
+	Local $grpProfileFiles = GUICtrlCreateGroup(_t("ProfileFiles", "浏览器用户数据文件"), 10, $yProfile, 480, 24)
+	Local $aIt2[3]
+	$aIt2[0] = _ALIt($AL_LABEL, _t("ProfileDirectory", "配置文件夹"))
+	$aIt2[1] = _ALIt($AL_EDIT, $ProfileDir, 240)
+	$aIt2[2] = _ALIt($AL_BUTTON, _t("Browse", "浏览"))
+	Local $aId2[0]
+	Local $iRow2End = 0
+	Local $hGen2 = _ALFlow($aIt2, $iContentLeft, $yProfile + 18, $iContentRight, $aId2, $iRow2End)
+	$idProfileDir = $aId2[1]
+	GUICtrlSetTip($idProfileDir, _t("ProfileDirectoryTooltip", "浏览器配置文件夹"))
+	GUICtrlSetTip($aId2[2], _t("ChooseProfileDirectory", "指定浏览器配置文件夹"))
+	GUICtrlSetOnEvent($aId2[2], "GetProfileDir")
+	Local $yExtract = $yProfile + 18 + $hGen2 + 2
+	$idCopyProfile = GUICtrlCreateCheckbox(_t("ExtractProfileFromSystem", " 从系统中提取浏览器配置文件"), $iContentLeft, $yExtract, $iContentRight - $iContentLeft, 20)
+	GUICtrlSetPos($grpProfileFiles, 10, $yProfile, 480, 18 + $hGen2 + 2 + 22 + 8)
+
+	; 语言与运行选项
+	Local $yLang = $yProfile + 18 + $hGen2 + 2 + 22 + 8 + 10
+	Local $grpGeneral = GUICtrlCreateGroup(_t("RunFirefoxSettingsGroup", "RunFirefox 设置"), 10, $yLang, 480, 24)
+	Local $aIt3[2]
+	$aIt3[0] = _ALIt($AL_LABEL, _t("UILanguage", "显示语言/Language"))
+	$aIt3[1] = _ALIt($AL_COMBO, "", 110)
+	Local $aId3[0]
+	Local $iRow3End = 0
+	Local $hGen3 = _ALFlow($aIt3, $iContentLeft, $yLang + 14, $iContentRight, $aId3, $iRow3End)
+	$idLanguage = $aId3[1]
 	$sLang = '简体中文'
 	If _ItemExists($LANGUAGES, $LANGUAGE) Then
 		$sLang = _Item($LANGUAGES, $LANGUAGE)
@@ -1710,15 +1754,19 @@ Func Settings()
 	GUICtrlSetData(-1, $sLangEnum, $slang)
 	GUICtrlSetOnEvent(-1, "ChangeLanguage")
 
-	$idAppUpdateCheckEnabled = GUICtrlCreateCheckbox(_t("NoticeMeWhenNewVersionPublished", " {AppName} 发布新版时通知我"), 20, 415)
+	Local $yNotify = $yLang + 14 + $hGen3 + 2
+	$idAppUpdateCheckEnabled = GUICtrlCreateCheckbox(_t("NoticeMeWhenNewVersionPublished", " {AppName} 发布新版时通知我"), $iContentLeft, $yNotify, $iContentRight - $iContentLeft, 20)
 	If $AppUpdateCheckEnabled Then
-		GUICtrlSetState(-1, $GUI_CHECKED)
+		GUICtrlSetState($idAppUpdateCheckEnabled, $GUI_CHECKED)
 	EndIf
-	$idBackgroundModeEnabled = GUICtrlCreateCheckbox(_t("KeepRunFirefoxRunning", " {AppName} 在后台运行直至浏览器退出"), 20, 440)
-	GUICtrlSetOnEvent(-1, "OnBackgroundModeChange")
+	$idBackgroundModeEnabled = _ALCreateWrapCheckbox(_t("KeepRunFirefoxRunning", " {AppName} 在后台运行直至浏览器退出"), $iContentLeft, $yNotify + 24, $iContentRight - $iContentLeft)
+	GUICtrlSetOnEvent($idBackgroundModeEnabled, "OnBackgroundModeChange")
 	If $BackgroundModeEnabled Then
 		GUICtrlSetState($idBackgroundModeEnabled, $GUI_CHECKED)
 	EndIf
+	Local $hGen3b = 24 + 20 ; 间距 + 复选框单行高度
+	If _ALMeasure(_t("KeepRunFirefoxRunning", " {AppName} 在后台运行直至浏览器退出")) + 20 > $iContentRight - $iContentLeft Then $hGen3b = 24 + 34
+	GUICtrlSetPos($grpGeneral, 10, $yLang, 480, 14 + $hGen3 + 2 + $hGen3b + 10)
 
 	; 高级
 	GUICtrlCreateTabItem(_t("Advanced", "高级"))
@@ -2269,7 +2317,7 @@ Func UpdateCurrentBrowserVersionLabel()
 			If $CurrentVersion = "" Then $CurrentVersion = GetApplicationIniVersion($BrowserPath)
 			If $CurrentVersion = "" Then $CurrentVersion = ReadExecutableVersionField($BrowserPath, "FileVersion")
 		ElseIf NormalizeBrowserType(GetSelectedBrowserType()) = $BrowserWaterfox Then
-			$CurrentVersion = "-"
+			$CurrentVersion = _t("BrowserVersionUnavailable", "获取失败") ; Waterfox 本地版本号读取不准确，直接复用短提示
 		ElseIf NormalizeBrowserType(GetSelectedBrowserType()) = $BrowserBrave Then
 			$CurrentVersion = ReadExecutableVersionField($BrowserPath, "ProductVersion")
 			If $CurrentVersion = "" Then $CurrentVersion = ReadExecutableVersionField($BrowserPath, "FileVersion")
@@ -2281,18 +2329,8 @@ Func UpdateCurrentBrowserVersionLabel()
 	EndIf
 	If $CurrentVersion = "" Then $CurrentVersion = "-"
 	GUICtrlSetData($idCurrentBrowserVersion, $CurrentVersion)
-	UpdateWaterfoxVersionHintState()
 	UpdateBrowserDownloadNowState()
 EndFunc   ;==>UpdateCurrentBrowserVersionLabel
-
-Func UpdateWaterfoxVersionHintState()
-	If Not $idWaterfoxVersionHint Then Return
-	If NormalizeBrowserType(GetSelectedBrowserType()) = $BrowserWaterfox Then
-		GUICtrlSetState($idWaterfoxVersionHint, $GUI_SHOW)
-	Else
-		GUICtrlSetState($idWaterfoxVersionHint, $GUI_HIDE)
-	EndIf
-EndFunc   ;==>UpdateWaterfoxVersionHintState
 
 Func UpdateBrowserDownloadNowState()
 	If Not $idBrowserDownloadNow Or Not $idBrowserDownloadLink Or Not $idCurrentBrowserVersion Then Return

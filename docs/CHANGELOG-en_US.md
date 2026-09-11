@@ -2,6 +2,7 @@
 
 ## [Unreleased]
 
+- Reworked the General tab of the settings window into an adaptive layout: controls flow according to the measured width of the current language's texts and wrap automatically, so alphabetic languages (English, Spanish, etc.) no longer suffer overlapping labels or covered version numbers; "Browser" now sits on its own row with a wider combo, the "Download now" button is right-aligned at the end of the architecture row, latest/current versions split the row in half, long checkboxes wrap onto two lines, and the language/run options group gained a "RunFirefox Settings" title; Waterfox now shows the short "unavailable" hint directly in the local version value instead of a separate hint row.
 - Added a `LangCustom.ini` custom-language template to the repo (with a complete Spanish `[es-ES]` example); copying it next to the exe overrides built-in texts or adds new languages, and the README now documents custom languages.
 - Language data is now embedded in the executable: default translations are compiled from `Lang.ini` (via `scripts/update-langdata.ps1` into `libs/LangData.au3`), so `Lang.ini` is no longer extracted next to the exe; a user-provided `LangCustom.ini` is merged on top of the embedded data key by key.
 - Added an overall timeout (10 minutes per URL) to the auto-update download wait so an unreachable source can no longer stall the flow, and the update-package failure dialog now lists the download URLs attempted to help diagnose network issues.

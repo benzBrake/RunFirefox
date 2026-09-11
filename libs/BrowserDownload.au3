@@ -28,6 +28,8 @@ Global Const $WhaleLatestVersionUrl = "https://cv.whale.naver.com/version/latest
 Global Const $CentBrowserDownloadPageUrl = "https://www.centbrowser.com/"
 Global Const $VivaldiDownloadPageUrl = "https://vivaldi.com/download/"
 Global Const $VivaldiUpdateX64Url = "https://update.vivaldi.com/update/1.0/public/appcast.x64.xml"
+Global Const $OperaDesktopFtpBaseUrl = "https://get.opera.com/ftp/pub"
+Global Const $OperaDownloadPageUrl = "https://www.opera.com/download"
 Global Const $BraveRepo = "portapps/brave-portable"
 Global Const $BraveLatestReleaseApiUrl = "https://api.github.com/repos/" & $BraveRepo & "/releases/latest"
 Global Const $UngoogledChromiumRepo = "ungoogled-software/ungoogled-chromium-windows"
@@ -50,6 +52,7 @@ Global $TurboReleaseInfoLoaded = False, $TurboReleaseVersion = "", $TurboAssetNa
 Global $HeliumReleaseInfoLoaded = False, $HeliumReleaseTag = ""
 Global $CentReleaseInfoLoaded = False, $CentReleaseVersion = "", $CentDownloadUrl = ""
 Global $VivaldiReleaseInfoLoaded = False, $VivaldiReleaseVersion = "", $VivaldiDownloadUrl = ""
+Global $OperaStableInfoLoaded = False, $OperaStableVersion = "", $OperaBetaInfoLoaded = False, $OperaBetaVersion = "", $OperaDevInfoLoaded = False, $OperaDevVersion = ""
 Global $WhaleReleaseInfoLoaded = False, $WhaleReleaseVersion = ""
 Global $BraveReleaseInfoLoaded = False, $BraveReleaseTag = "", $BraveDownloadUrl = ""
 Global $XunleiReleaseInfoLoaded = False, $XunleiDownloadUrl = ""
@@ -79,6 +82,7 @@ Func _BrowserDownloadGetLatestVersion($BrowserType, $Channel)
 	If $BrowserType = $BrowserBrave Then Return _BrowserDownloadGetLatestBraveVersion()
 	If $BrowserType = $BrowserXunlei Then Return ""
 	If $BrowserType = $BrowserUngoogledChromium Then Return _BrowserDownloadGetLatestUngoogledChromiumVersion()
+	If $BrowserType = $BrowserOpera Then Return _BrowserDownloadGetLatestOperaVersion($Channel)
 	If IsChromeBrowser($BrowserType) Then Return _BrowserDownloadGetChromeVersionCache($Channel)
 	Return _BrowserDownloadGetLatestFirefoxVersion($Channel)
 EndFunc
@@ -93,6 +97,7 @@ Func _BrowserDownloadIsVersionCached($BrowserType, $Channel)
 	If $BrowserType = $BrowserBrave Then Return $BraveReleaseInfoLoaded
 	If $BrowserType = $BrowserXunlei Then Return $XunleiReleaseInfoLoaded
 	If $BrowserType = $BrowserUngoogledChromium Then Return $UngoogledChromiumReleaseInfoLoaded
+	If $BrowserType = $BrowserOpera Then Return _BrowserDownloadIsOperaInfoLoaded($Channel)
 	If $BrowserType = $BrowserZen Then Return _BrowserDownloadGetZenUpdateXmlCache($Channel) <> ""
 	If $BrowserType = $BrowserFloorp Then Return $FloorpReleaseInfoLoaded
 	If $BrowserType = $BrowserWaterfox Then Return $WaterfoxReleaseInfoLoaded
@@ -117,6 +122,8 @@ Func _BrowserDownloadGetPageUrl($BrowserType, $Channel)
 			Return $LibreWolfDownloadPageUrl
 		Case $BrowserCent
 			Return $CentBrowserDownloadPageUrl
+		Case $BrowserOpera
+			Return $OperaDownloadPageUrl
 		Case $BrowserXunlei
 			Return $XunleiBrowserDownloadPageUrl
 		Case $BrowserChrome
@@ -166,6 +173,9 @@ Func _BrowserDownloadStartVersionLoad($BrowserType, $Channel, $Os = "win64")
 	ElseIf $BrowserType = $BrowserUngoogledChromium Then
 		$BD_LoadKind = "inet"
 		$BD_LoadHandle = InetGet($UngoogledChromiumGitCodeTagsUrl, $BD_LoadFile, 1, 1)
+	ElseIf $BrowserType = $BrowserOpera Then
+		$BD_LoadKind = "inet"
+		$BD_LoadHandle = InetGet(_BrowserDownloadGetOperaListingUrl($Channel), $BD_LoadFile, 1, 1)
 	ElseIf IsChromeBrowser($BrowserType) Then
 		$BD_LoadKind = "chrome"
 		$BD_LoadHandle = _BrowserDownloadStartChromeVersionLoadProcess($Channel, $Os, $BD_LoadFile)
@@ -240,6 +250,8 @@ Func _BrowserDownloadPollVersionLoad(ByRef $BrowserType, ByRef $Channel)
 				$Loaded = _BrowserDownloadCacheXunleiReleaseInfo($Content)
 			ElseIf $BrowserType = $BrowserUngoogledChromium Then
 				$Loaded = _BrowserDownloadCacheUngoogledChromiumReleaseInfo($Content)
+			ElseIf $BrowserType = $BrowserOpera Then
+				$Loaded = _BrowserDownloadCacheOperaReleaseInfo($Channel, $Content)
 			Else
 				$Loaded = _BrowserDownloadCacheFirefoxVersions($Content)
 			EndIf
@@ -677,6 +689,98 @@ Func _BrowserDownloadGetLatestVivaldiVersion()
 	If $VivaldiReleaseVersion = "" Then Return ""
 	Return $VivaldiReleaseVersion
 EndFunc   ;==>GetLatestVivaldiVersion
+
+Func _BrowserDownloadNormalizeOperaChannel($Channel)
+	Switch StringLower($Channel)
+		Case "beta"
+			Return "beta"
+		Case "dev"
+			Return "dev"
+	EndSwitch
+	Return "stable"
+EndFunc   ;==>NormalizeOperaChannel
+
+Func _BrowserDownloadGetOperaChannelDir($Channel)
+	Switch _BrowserDownloadNormalizeOperaChannel($Channel)
+		Case "beta"
+			Return "opera-beta"
+		Case "dev"
+			Return "opera-developer"
+	EndSwitch
+	Return "opera"
+EndFunc   ;==>GetOperaChannelDir
+
+Func _BrowserDownloadGetOperaListingUrl($Channel)
+	Return $OperaDesktopFtpBaseUrl & "/" & _BrowserDownloadGetOperaChannelDir($Channel) & "/desktop/"
+EndFunc   ;==>GetOperaListingUrl
+
+Func _BrowserDownloadIsOperaInfoLoaded($Channel)
+	Switch _BrowserDownloadNormalizeOperaChannel($Channel)
+		Case "beta"
+			Return $OperaBetaInfoLoaded
+		Case "dev"
+			Return $OperaDevInfoLoaded
+	EndSwitch
+	Return $OperaStableInfoLoaded
+EndFunc   ;==>IsOperaInfoLoaded
+
+Func _BrowserDownloadGetOperaReleasePage($Channel)
+	If _BrowserDownloadIsOperaInfoLoaded($Channel) Then Return True
+	Local $Content = BinaryToString(InetRead(_BrowserDownloadGetOperaListingUrl($Channel), 1), 4)
+	If @error Or $Content = "" Then Return SetError(1, 0, False)
+	Return _BrowserDownloadCacheOperaReleaseInfo($Channel, $Content)
+EndFunc   ;==>GetOperaReleasePage
+
+Func _BrowserDownloadCacheOperaReleaseInfo($Channel, $Content)
+	$Channel = _BrowserDownloadNormalizeOperaChannel($Channel)
+
+	; The FTP listing is sorted lexicographically, so 99.x sorts after 100.x;
+	; compare version folders numerically to find the newest release.
+	Local $Versions = StringRegExp($Content, '(?i)href="([0-9]+(?:\.[0-9]+)+)/"', 3)
+	If @error Or Not IsArray($Versions) Then Return False
+
+	Local $Latest = ""
+	For $i = 0 To UBound($Versions) - 1
+		If $Latest = "" Or VersionCompare($Versions[$i], $Latest) > 0 Then $Latest = $Versions[$i]
+	Next
+	If $Latest = "" Then Return False
+
+	Switch $Channel
+		Case "beta"
+			$OperaBetaVersion = $Latest
+			$OperaBetaInfoLoaded = True
+		Case "dev"
+			$OperaDevVersion = $Latest
+			$OperaDevInfoLoaded = True
+		Case Else
+			$OperaStableVersion = $Latest
+			$OperaStableInfoLoaded = True
+	EndSwitch
+	Return True
+EndFunc   ;==>CacheOperaReleaseInfo
+
+Func _BrowserDownloadGetLatestOperaVersion($Channel)
+	Switch _BrowserDownloadNormalizeOperaChannel($Channel)
+		Case "beta"
+			If Not $OperaBetaInfoLoaded Then Return ""
+			Return $OperaBetaVersion
+		Case "dev"
+			If Not $OperaDevInfoLoaded Then Return ""
+			Return $OperaDevVersion
+	EndSwitch
+	If Not $OperaStableInfoLoaded Then Return ""
+	Return $OperaStableVersion
+EndFunc   ;==>GetLatestOperaVersion
+
+Func _BrowserDownloadBuildOperaDownloadUrl($Channel, $os)
+	If $os <> "win64" Then Return SetError(1, 0, "")
+	If Not _BrowserDownloadIsOperaInfoLoaded($Channel) Then
+		If Not _BrowserDownloadGetOperaReleasePage($Channel) Then Return SetError(1, 0, "")
+	EndIf
+	Local $Version = _BrowserDownloadGetLatestOperaVersion($Channel)
+	If $Version = "" Then Return SetError(2, 0, "")
+	Return _BrowserDownloadGetOperaListingUrl($Channel) & $Version & "/win/Opera_" & $Version & "_Setup_x64.exe"
+EndFunc   ;==>BuildOperaDownloadUrl
 
 Func _BrowserDownloadCacheWhaleReleaseInfo($Content)
 	$WhaleReleaseInfoLoaded = False
@@ -1165,6 +1269,7 @@ Func _BrowserDownloadBuildBrowserDownloadUrl($Value, $Channel, $os)
 	If NormalizeBrowserType($Value) = $BrowserWhale Then Return _BrowserDownloadBuildWhaleDownloadUrl($Channel, $os)
 	If NormalizeBrowserType($Value) = $BrowserCent Then Return _BrowserDownloadBuildCentDownloadUrl($Channel, $os)
 	If NormalizeBrowserType($Value) = $BrowserVivaldi Then Return _BrowserDownloadBuildVivaldiDownloadUrl($Channel, $os)
+	If NormalizeBrowserType($Value) = $BrowserOpera Then Return _BrowserDownloadBuildOperaDownloadUrl($Channel, $os)
 	If NormalizeBrowserType($Value) = $BrowserBrave Then Return _BrowserDownloadBuildBraveDownloadUrl($Channel, $os)
 	If NormalizeBrowserType($Value) = $BrowserXunlei Then Return _BrowserDownloadBuildXunleiDownloadUrl($Channel, $os)
 	If IsChromeBrowser($Value) Then Return _BrowserDownloadBuildChromeDownloadUrl($Channel, $os)

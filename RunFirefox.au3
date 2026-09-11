@@ -391,7 +391,7 @@ If _BrowserAutoUpdateIsSupported($BrowserType) And Not $BrowserIsRunning Then Br
 $BaseParams = BuildBrowserLaunchParams($BrowserType)
 $LaunchParams = $BaseParams & $Params
 If NeedsOutdatedBuildDetectorParam() Then $LaunchParams = AppendOutdatedBuildDetectorParam($LaunchParams)
-$AppPID = Run('"' & $BrowserPath & '" ' & $LaunchParams , $BrowserDirectory)
+$AppPID = RunBrowserProcess($LaunchParams)
 If IsMozillaBrowser($BrowserType) Then WaitAndDeleteMozillaLaunchOnLoginEntry($BrowserPath)
 
 FileChangeDir(@ScriptDir)
@@ -2846,6 +2846,18 @@ Func BuildBrowserLaunchParams($Value)
 	Return $MozillaParams
 EndFunc   ;==>BuildBrowserLaunchParams
 
+Func RunBrowserProcess($LaunchParams)
+	; Preserve RunFirefox's %APP% command-line placeholder without leaking the
+	; same-named environment variable into Chrome++, where %app% means the
+	; directory containing the browser executable.
+	Local $ExpandedLaunchParams = StringReplace($LaunchParams, "%APP%", @ScriptDir)
+	Local $RunFirefoxApp = EnvGet("APP")
+	EnvSet("APP")
+	Local $PID = Run('"' & $BrowserPath & '" ' & $ExpandedLaunchParams, $BrowserDirectory)
+	EnvSet("APP", $RunFirefoxApp)
+	Return $PID
+EndFunc   ;==>RunBrowserProcess
+
 Func HasCustomCdpParameter($Value)
 	Return StringRegExp($Value, "(?i)(^|\s)--remote-debugging-(?:port(?:=|\s|$)|pipe(?:\s|$))")
 EndFunc   ;==>HasCustomCdpParameter
@@ -3807,7 +3819,10 @@ Func WriteChromePlusManagedConfig($ConfigPath)
 	EndIf
 
 	FileDelete($ConfigPath)
-	Return FileWrite($ConfigPath, BuildChromePlusManagedConfig($ConfigPath)) > 0
+	Local $PreviousExpandEnvStrings = Opt("ExpandEnvStrings", 0)
+	Local $Result = FileWrite($ConfigPath, BuildChromePlusManagedConfig($ConfigPath)) > 0
+	Opt("ExpandEnvStrings", $PreviousExpandEnvStrings)
+	Return $Result
 EndFunc   ;==>WriteChromePlusManagedConfig
 
 Func BuildChromePlusManagedConfig($ConfigPath)
@@ -3843,9 +3858,11 @@ Func BuildChromePlusManagedConfig($ConfigPath)
 EndFunc   ;==>BuildChromePlusManagedConfig
 
 Func WriteChromePlusPortablePaths($ConfigPath)
-	If IniWrite($ConfigPath, "general", "data_dir", GetChromePlusPortablePath($ProfileDir, $ConfigPath)) = 0 Then Return False
-	If IniWrite($ConfigPath, "general", "cache_dir", GetChromePlusCachePath($ConfigPath)) = 0 Then Return False
-	Return True
+	Local $PreviousExpandEnvStrings = Opt("ExpandEnvStrings", 0)
+	Local $Result = IniWrite($ConfigPath, "general", "data_dir", GetChromePlusPortablePath($ProfileDir, $ConfigPath)) <> 0
+	If $Result Then $Result = IniWrite($ConfigPath, "general", "cache_dir", GetChromePlusCachePath($ConfigPath)) <> 0
+	Opt("ExpandEnvStrings", $PreviousExpandEnvStrings)
+	Return $Result
 EndFunc   ;==>WriteChromePlusPortablePaths
 
 Func GetChromePlusCachePath($ConfigPath)

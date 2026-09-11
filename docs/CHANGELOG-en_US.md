@@ -2,6 +2,7 @@
 
 ## [Unreleased]
 
+- Fixed RunFirefox's `%APP%` environment variable overriding Chrome++'s same-named `%app%` placeholder both while writing `chrome++.ini` and when launching the browser; profile and cache locations now resolve to the correct portable paths relative to the browser directory.
 - Added Opera download support: the latest stable/beta/dev version is resolved from Opera's official FTP and the Windows x64 offline installer is downloaded and extracted automatically; `opera.exe` is detected as Opera and profile import recognizes the Opera Software channel data directories.
 - Long labels and checkboxes on the Advanced, Chrome++, and Utilities tabs of the settings window now wrap onto two lines based on the measured text width of the current language, help texts size their heights from the measured width, and neighbouring controls and group boxes shift accordingly, so alphabetic languages are no longer clipped or overlapping.
 - The General tab of the settings window was reworked into an adaptive layout: controls flow by the measured width of the current language's texts and wrap automatically, long checkboxes wrap onto two lines, the "Download now" button is right-aligned at the end of the architecture row, and the language/run options group gained a "RunFirefox Settings" title; Waterfox now shows the short "unavailable" hint directly in the local version value.

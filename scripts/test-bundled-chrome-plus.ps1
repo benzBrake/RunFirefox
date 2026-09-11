@@ -8,6 +8,9 @@ $tests = @'
 #include <String.au3>
 Global $TestFailures = 0, $TestError = ""
 Global $TestDir = $CmdLine[1]
+EnvSet("APP", $TestDir & "\expanded-app")
+Opt("ExpandEnvStrings", 1)
+Global $ChromePlusAppPlaceholder = Chr(37) & "app" & Chr(37)
 $ProfileDir = $TestDir & "\profile"
 $CustomCacheDir = ""
 $BrowserType = $BrowserBrave
@@ -19,8 +22,20 @@ $idChromePlusCurrentVersion = GUICtrlCreateLabel("", 0, 60)
 $idChromePlusLatestVersion = GUICtrlCreateLabel("", 0, 80)
 $idChromePlusHint = GUICtrlCreateLabel("", 0, 100)
 $idChromePlusDownloadPatch = GUICtrlCreateButton("", 0, 120)
+Local $OriginalBrowserPath = $BrowserPath, $OriginalBrowserDirectory = $BrowserDirectory
+Local $ChildEnvOutput = $TestDir & "\child-env.txt"
+$BrowserPath = @ComSpec
+$BrowserDirectory = $TestDir
+Local $ChildPID = RunBrowserProcess('/d /c "if defined APP (echo inherited) else (echo clean)>' & $ChildEnvOutput & '"')
+ProcessWaitClose($ChildPID, 5)
+TestAssert(StringStripWS(FileRead($ChildEnvOutput), 3) = "clean", "browser child does not inherit RunFirefox APP")
+TestAssert(EnvGet("APP") = $TestDir & "\expanded-app", "browser launch restores RunFirefox APP")
+FileDelete($ChildEnvOutput)
+$BrowserPath = $OriginalBrowserPath
+$BrowserDirectory = $OriginalBrowserDirectory
 For $TestArch In StringSplit("x86|x64", "|", 2)
     Local $Source = PrepareBundledChromePlus($TestArch)
+    Local $ExpectedBundledVersion = ReadExecutableVersionField($Source, "ProductVersion")
     TestAssert($Source <> "", "resource " & $TestArch)
     TestAssert(GetChromePlusPEArch($Source) = $TestArch, "PE " & $TestArch)
     For $TestBrowser In StringSplit("brave|whale", "|", 2)
@@ -32,13 +47,21 @@ For $TestArch In StringSplit("x86|x64", "|", 2)
         TestAssert(UsesBundledChromePlus($Browser), "route " & $TestBrowser)
         TestAssert(InstallChromePlusPatchInteractive($Browser, "arm64"), "install using actual PE architecture")
         TestAssert(IsBundledChromePlusInstalled($Browser), "installed hash")
-        TestAssert(GetChromePlusInstalledVersion($Browser) = "alpha-240777f", "raw version")
+        TestAssert(GetChromePlusInstalledVersion($Browser) = $ExpectedBundledVersion, "raw version")
         TestAssert(IsChromePlusHoverTabSupported($Browser), "hover capability")
         TestAssert(IniRead($Dir & "\chrome++.ini", "tabs", "right_click_close", "") = "1", "launcher defaults")
+        Local $ExpansionWasRestored = Opt("ExpandEnvStrings", 0) = 1
+        Local $ManagedConfig = FileRead($Dir & "\chrome++.ini")
+        Local $ManagedPlaceholderPreserved = StringInStr($ManagedConfig, "data_dir=" & $ChromePlusAppPlaceholder & "\") > 0
+        Local $ManagedPlaceholderExpanded = StringInStr($ManagedConfig, $TestDir & "\expanded-app") > 0
+        Opt("ExpandEnvStrings", 1)
+        TestAssert($ManagedPlaceholderPreserved, "managed config preserves Chrome++ app placeholder")
+        TestAssert(Not $ManagedPlaceholderExpanded, "managed config does not expand RunFirefox APP")
+        TestAssert($ExpansionWasRestored, "managed config restores environment expansion")
         UpdateChromePlusVersionLabels()
         BeginChromePlusVersionLoad()
         TestAssert($ChromePlusVersionLoadHandle = 0, "no upstream process")
-        TestAssert(GUICtrlRead($idChromePlusLatestVersion) = "alpha-240777f", "bundled version label")
+        TestAssert(GUICtrlRead($idChromePlusLatestVersion) = $ExpectedBundledVersion, "bundled version label")
         TestAssert(BitAND(GUICtrlGetState($idChromePlusDownloadPatch), $GUI_DISABLE) <> 0, "identical disabled")
         FileWrite($Dir & "\version.dll", "different build")
         TestAssert(Not IsBundledChromePlusInstalled($Browser), "same version different bytes")
@@ -47,6 +70,13 @@ For $TestArch In StringSplit("x86|x64", "|", 2)
         TestAssert(BitAND(GUICtrlGetState($idChromePlusDownloadPatch), $GUI_ENABLE) <> 0, "replacement enabled")
         FileDelete($Dir & "\chrome++.ini")
         FileWrite($Dir & "\chrome++.ini", "[tabs]" & @LF & "right_click_close=0" & @LF & "custom=retained")
+        TestAssert(WriteChromePlusPortablePaths($Dir & "\chrome++.ini"), "update portable paths")
+        $ExpansionWasRestored = Opt("ExpandEnvStrings", 0) = 1
+        Local $UpdatedConfig = FileRead($Dir & "\chrome++.ini")
+        Local $UpdatedPlaceholderPreserved = StringInStr($UpdatedConfig, "data_dir=" & $ChromePlusAppPlaceholder & "\") > 0
+        Opt("ExpandEnvStrings", 1)
+        TestAssert($UpdatedPlaceholderPreserved, "updated config preserves Chrome++ app placeholder")
+        TestAssert($ExpansionWasRestored, "portable path update restores environment expansion")
         TestAssert(InstallChromePlusPatchInteractive($Browser), "replace")
         TestAssert(IniRead($Dir & "\chrome++.ini", "tabs", "custom", "") = "retained", "custom config retained")
         Local $Lock = DllCall("kernel32.dll", "handle", "CreateFileW", "wstr", $Dir & "\version.dll", "dword", 0x80000000, "dword", 0, "ptr", 0, "dword", 3, "dword", 0, "ptr", 0)
@@ -71,7 +101,7 @@ GUICtrlSetData($idBrowserPath, $TestDir & "\brave-x64\brave.exe")
 $ChromePlusReleaseInfoLoaded = True
 $ChromePlusReleaseTag = "v99.0.0"
 UpdateChromePlusVersionLabels()
-TestAssert(GUICtrlRead($idChromePlusLatestVersion) = "alpha-240777f", "upstream cache cannot override bundled label")
+TestAssert(GUICtrlRead($idChromePlusLatestVersion) = ReadExecutableVersionField(PrepareBundledChromePlus("x64"), "ProductVersion"), "upstream cache cannot override bundled label")
 GUICtrlSetData($idBrowserPath, $TestDir & "\chrome.exe")
 $BrowserType = $BrowserChrome
 UpdateChromePlusVersionLabels()
@@ -97,6 +127,9 @@ EndFunc
 try {
     New-Item -ItemType Directory -Path $temp | Out-Null
     $source = [IO.File]::ReadAllText((Join-Path $root 'RunFirefox.au3'))
+    # The generated language string is large enough to overflow Au3Check's parser stack;
+    # these tests exercise fallback texts only, so omit it from the temporary harness.
+    $source = $source.Replace('#include "libs\LangData.au3"', 'Global Const $g_sLangDataIni = ""')
     $source = $source.Replace('Global Const $ChromePlusCacheRoot = @TempDir & "\RunFirefox_ChromePlus"', 'Global Const $ChromePlusCacheRoot = "' + $temp + '\logs"')
     $marker = 'If Not @AutoItX64 Then ; 32-bit Autoit'
     if (-not $source.Contains($marker)) { throw 'Test insertion point missing' }

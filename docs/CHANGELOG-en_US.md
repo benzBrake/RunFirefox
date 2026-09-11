@@ -2,6 +2,7 @@
 
 ## [Unreleased]
 
+- Added a `LangCustom.ini` custom-language template to the repo (with a complete Spanish `[es-ES]` example); copying it next to the exe overrides built-in texts or adds new languages, and the README now documents custom languages.
 - Language data is now embedded in the executable: default translations are compiled from `Lang.ini` (via `scripts/update-langdata.ps1` into `libs/LangData.au3`), so `Lang.ini` is no longer extracted next to the exe; a user-provided `LangCustom.ini` is merged on top of the embedded data key by key.
 - Added an overall timeout (10 minutes per URL) to the auto-update download wait so an unreachable source can no longer stall the flow, and the update-package failure dialog now lists the download URLs attempted to help diagnose network issues.
 - Added a RunFirefox-managed browser auto update (Chrome official portable, extended to Brave and Naver Whale): the latest version is checked silently according to the update frequency, and after confirmation the update package is downloaded into a local staging directory (atomic .part write verified by extraction) and applied automatically on the next RunFirefox launch while the browser is not running, Firefox style; Chrome++ config and patch files survive the merge overwrite. The "Auto update" checkbox and the "Check browser update" frequency options are now enabled for Chrome, and the configured update channel is persisted for the background check; Brave's local version is normalized before comparing with the remote tag.

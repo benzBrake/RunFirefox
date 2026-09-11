@@ -15,6 +15,7 @@
 - 修改已有文案时，要同步检查 `Lang.ini` 所有语言 section 的同名 key，保持含义一致。
 - 文案里的占位符必须跨语言保持一致，例如 `{AppName}`、`{Version}`、`%s`、`%i`、`\n`，不能漏删或改名。
 - 新增语言时，必须新增完整的语言 section，至少包含 `LangTitle`、`LangSupportAuthor`、`LangSupportUrl`，并补齐当前所有已有翻译 key；语言名优先使用 Firefox/Mozilla 下载链接可识别的语言代码格式，例如 `en-US`、`zh-CN`。
+- 每新增一种内置语言，必须同步在根目录 `LangCustom.ini` 模板中补齐该语言的完整示例 section（`LangCustom.ini` 是随仓库维护的自定义语言模板，不是生成物）；后续 `_t` key 增减时，也要同步检查 `LangCustom.ini` 中各示例 section 的 key 与 `Lang.ini` 保持一致。
 - 如果新增或修改的文本会出现在 README、指南、发布说明或用户说明中，要同步检查 `README.md` 与 `docs/README-en_US.md` 等对应中英文文档。
 - 提交前用下面的 PowerShell 片段检查 `_t` key 与 `Lang.ini` section key 是否一致；如果输出缺失项，先补齐再提交：
 

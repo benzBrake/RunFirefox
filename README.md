@@ -50,6 +50,16 @@ pwsh -File .\scripts\extract-exe-icon.ps1 -ExePath "C:\Path\browser.exe" -Group 
 pwsh -File .\scripts\compress-ico.ps1 -Paths .\icons\Whale.ico -OutputPath .\icons\Whale.compressed.ico
 ```
 
+### 自定义语言
+
+程序的多语言文案内嵌在 exe 中，同时支持用 `LangCustom.ini` 在不重新编译的情况下自定义或新增语言：
+
+- 在 exe 同目录放置 `LangCustom.ini` 即生效（仓库根目录附带一个含完整西班牙语 `[es-ES]` 示例的模板）。
+- 合并是按 key 进行的：同名 key 覆盖内置文案，其余内置文案保持不变；也可以只写需要修改的少量 key。
+- 新增一个语言 section（例如 `[ja-JP]`）后，该语言会自动出现在设置界面的语言下拉框中。新 section 至少需要 `LangTitle`，`LangSupportAuthor`、`LangSupportUrl` 为可选。
+- 语言代码建议使用 Firefox 可识别的格式，例如 `en-US`、`zh-CN`、`es-ES`。
+- 修改或切换语言后需要重启 RunFirefox 才能生效。
+
 ### 如何下载
 
 右边 Latest，如果你视力不好，按 Ctrl + F 在此页面查找文本 Latest

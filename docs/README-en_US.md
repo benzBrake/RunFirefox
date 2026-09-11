@@ -40,6 +40,16 @@ You can also specify the output path from the command line:
 pwsh -File .\scripts\compress-ico.ps1 -Paths .\icons\Whale.ico -OutputPath .\icons\Whale.compressed.ico
 ```
 
+### Custom language
+
+The UI translations are embedded in the exe, and `LangCustom.ini` lets you customize or add languages without recompiling:
+
+- Place `LangCustom.ini` next to the exe to take effect (the repo root ships a template with a complete Spanish `[es-ES]` example).
+- Merging is key-based: keys with the same name override the built-in text while the rest is kept; you can also include only the few keys you want to change.
+- Adding a new language section (for example `[ja-JP]`) makes it appear automatically in the language dropdown of the settings window. A new section requires at least `LangTitle`; `LangSupportAuthor` and `LangSupportUrl` are optional.
+- Prefer Firefox-recognizable language codes such as `en-US`, `zh-CN`, `es-ES`.
+- Restart RunFirefox after changing or switching languages for it to take effect.
+
 ### How to download
 
 Click on the "Latest" button on the right. If you have trouble finding it, press Ctrl+F and search for the text "Latest" on this page.

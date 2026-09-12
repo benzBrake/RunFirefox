@@ -3302,20 +3302,20 @@ Func SaveChromePlusTabsSettings($BrowserPath)
 	If Not FileExists($ConfigPath) And Not WriteChromePlusManagedConfig($ConfigPath) Then Return False
 	If Not WriteChromePlusPortablePaths($ConfigPath) Then Return False
 
-	If IniWrite($ConfigPath, "tabs", "double_click_close", GetCheckboxIniValue($idChromePlusDoubleClickClose)) = 0 Then Return False
-	If IniWrite($ConfigPath, "tabs", "right_click_close", GetCheckboxIniValue($idChromePlusRightClickClose)) = 0 Then Return False
-	If IniWrite($ConfigPath, "tabs", "keep_last_tab", GetCheckboxIniValue($idChromePlusKeepLastTab)) = 0 Then Return False
-	If IniWrite($ConfigPath, "tabs", "wheel_tab", GetCheckboxIniValue($idChromePlusWheelTab)) = 0 Then Return False
-	If IniWrite($ConfigPath, "tabs", "wheel_tab_when_press_rbutton", GetCheckboxIniValue($idChromePlusWheelTabWhenPressRButton)) = 0 Then Return False
-	If IniWrite($ConfigPath, "tabs", "open_url_new_tab", GetCheckboxIniValue($idChromePlusOpenUrlNewTab)) = 0 Then Return False
-	If IniWrite($ConfigPath, "tabs", "open_bookmark_new_tab", GetCheckboxIniValue($idChromePlusOpenBookmarkNewTab)) = 0 Then Return False
-	If IniWrite($ConfigPath, "tabs", "new_tab_disable", GetCheckboxIniValue($idChromePlusNewTabDisable)) = 0 Then Return False
+	If Not WriteIniTextValue($ConfigPath, "tabs", "double_click_close", GetCheckboxIniValue($idChromePlusDoubleClickClose)) Then Return False
+	If Not WriteIniTextValue($ConfigPath, "tabs", "right_click_close", GetCheckboxIniValue($idChromePlusRightClickClose)) Then Return False
+	If Not WriteIniTextValue($ConfigPath, "tabs", "keep_last_tab", GetCheckboxIniValue($idChromePlusKeepLastTab)) Then Return False
+	If Not WriteIniTextValue($ConfigPath, "tabs", "wheel_tab", GetCheckboxIniValue($idChromePlusWheelTab)) Then Return False
+	If Not WriteIniTextValue($ConfigPath, "tabs", "wheel_tab_when_press_rbutton", GetCheckboxIniValue($idChromePlusWheelTabWhenPressRButton)) Then Return False
+	If Not WriteIniTextValue($ConfigPath, "tabs", "open_url_new_tab", GetCheckboxIniValue($idChromePlusOpenUrlNewTab)) Then Return False
+	If Not WriteIniTextValue($ConfigPath, "tabs", "open_bookmark_new_tab", GetCheckboxIniValue($idChromePlusOpenBookmarkNewTab)) Then Return False
+	If Not WriteIniTextValue($ConfigPath, "tabs", "new_tab_disable", GetCheckboxIniValue($idChromePlusNewTabDisable)) Then Return False
 	If IsChromePlusHoverTabSupported($ResolvedBrowserPath) Then
-		If IniWrite($ConfigPath, "tabs", "hover_tab", GetCheckboxIniValue($idChromePlusHoverTab)) = 0 Then Return False
-		If IniWrite($ConfigPath, "tabs", "hover_tab_delay", NormalizeChromePlusHoverTabDelay(GUICtrlRead($idChromePlusHoverTabDelay))) = 0 Then Return False
+		If Not WriteIniTextValue($ConfigPath, "tabs", "hover_tab", GetCheckboxIniValue($idChromePlusHoverTab)) Then Return False
+		If Not WriteIniTextValue($ConfigPath, "tabs", "hover_tab_delay", NormalizeChromePlusHoverTabDelay(GUICtrlRead($idChromePlusHoverTabDelay))) Then Return False
 	EndIf
 	If Not WriteIniTextValue($ConfigPath, "tabs", "new_tab_disable_name", StringStripWS(GUICtrlRead($idChromePlusNewTabDisableName), 3)) Then Return False
-	If IniWrite($ConfigPath, "general", "suppress_false_upgrade_notification", GetCheckboxIniValue($idChromePlusSuppressFalseUpgradeNotification)) = 0 Then Return False
+	If Not WriteIniTextValue($ConfigPath, "general", "suppress_false_upgrade_notification", GetCheckboxIniValue($idChromePlusSuppressFalseUpgradeNotification)) Then Return False
 	Return True
 EndFunc   ;==>SaveChromePlusTabsSettings
 
@@ -3859,8 +3859,8 @@ EndFunc   ;==>BuildChromePlusManagedConfig
 
 Func WriteChromePlusPortablePaths($ConfigPath)
 	Local $PreviousExpandEnvStrings = Opt("ExpandEnvStrings", 0)
-	Local $Result = IniWrite($ConfigPath, "general", "data_dir", GetChromePlusPortablePath($ProfileDir, $ConfigPath)) <> 0
-	If $Result Then $Result = IniWrite($ConfigPath, "general", "cache_dir", GetChromePlusCachePath($ConfigPath)) <> 0
+	Local $Result = WriteIniTextValue($ConfigPath, "general", "data_dir", GetChromePlusPortablePath($ProfileDir, $ConfigPath))
+	If $Result Then $Result = WriteIniTextValue($ConfigPath, "general", "cache_dir", GetChromePlusCachePath($ConfigPath))
 	Opt("ExpandEnvStrings", $PreviousExpandEnvStrings)
 	Return $Result
 EndFunc   ;==>WriteChromePlusPortablePaths

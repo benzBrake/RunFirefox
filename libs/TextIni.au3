@@ -16,8 +16,13 @@ Func GetTextFileEncodingMode($Path)
 	If $Header3 = "EFBBBF" Then Return BitOR($FO_OVERWRITE, $FO_UTF8)
 	If $Header2 = "FFFE" Or $Header2 = "FEFF" Then Return BitOR($FO_OVERWRITE, $FO_UNICODE)
 
+	; Encoding detection must compare the original bytes. Expanding placeholders in
+	; decoded content (for example Chrome++'s %app%) makes valid UTF-8 look invalid.
+	Local $PreviousExpandEnvStrings = Opt("ExpandEnvStrings", 0)
 	Local $Utf8Text = BinaryToString($Binary, $SB_UTF8)
-	If StringToBinary($Utf8Text, $SB_UTF8) = $Binary Then Return BitOR($FO_OVERWRITE, $FO_UTF8_NOBOM)
+	Local $IsUtf8 = StringToBinary($Utf8Text, $SB_UTF8) = $Binary
+	Opt("ExpandEnvStrings", $PreviousExpandEnvStrings)
+	If $IsUtf8 Then Return BitOR($FO_OVERWRITE, $FO_UTF8_NOBOM)
 
 	Return BitOR($FO_OVERWRITE, $FO_ANSI)
 EndFunc   ;==>GetTextFileEncodingMode
@@ -33,23 +38,39 @@ Func ReadTextFileAuto($Path)
 
 	Local $Header3 = Hex(BinaryMid($Binary, 1, 3))
 	Local $Header2 = StringLeft($Header3, 4)
-	If $Header3 = "EFBBBF" Then Return BinaryToString($Binary, $SB_UTF8)
-	If $Header2 = "FFFE" Then Return BinaryToString($Binary, $SB_UTF16LE)
-	If $Header2 = "FEFF" Then Return BinaryToString($Binary, $SB_UTF16BE)
 
-	Local $Utf8Text = BinaryToString($Binary, $SB_UTF8)
-	If StringToBinary($Utf8Text, $SB_UTF8) = $Binary Then Return $Utf8Text
-
-	Return BinaryToString($Binary, $SB_ANSI)
+	Local $PreviousExpandEnvStrings = Opt("ExpandEnvStrings", 0)
+	Local $Text = ""
+	If $Header3 = "EFBBBF" Then
+		$Text = BinaryToString($Binary, $SB_UTF8)
+	ElseIf $Header2 = "FFFE" Then
+		$Text = BinaryToString($Binary, $SB_UTF16LE)
+	ElseIf $Header2 = "FEFF" Then
+		$Text = BinaryToString($Binary, $SB_UTF16BE)
+	Else
+		Local $Utf8Text = BinaryToString($Binary, $SB_UTF8)
+		If StringToBinary($Utf8Text, $SB_UTF8) = $Binary Then
+			$Text = $Utf8Text
+		Else
+			$Text = BinaryToString($Binary, $SB_ANSI)
+		EndIf
+	EndIf
+	Opt("ExpandEnvStrings", $PreviousExpandEnvStrings)
+	Return $Text
 EndFunc   ;==>ReadTextFileAuto
 
 Func WriteTextFileAuto($Path, $Content)
+	Local $PreviousExpandEnvStrings = Opt("ExpandEnvStrings", 0)
 	Local $Mode = GetTextFileEncodingMode($Path)
 	Local $hFile = FileOpen($Path, $Mode)
-	If $hFile = -1 Then Return False
+	If $hFile = -1 Then
+		Opt("ExpandEnvStrings", $PreviousExpandEnvStrings)
+		Return False
+	EndIf
 
 	Local $Written = FileWrite($hFile, $Content)
 	FileClose($hFile)
+	Opt("ExpandEnvStrings", $PreviousExpandEnvStrings)
 	Return $Written > 0
 EndFunc   ;==>WriteTextFileAuto
 

@@ -16,6 +16,7 @@ $CustomCacheDir = ""
 $BrowserType = $BrowserBrave
 $hSettings = GUICreate("Bundled tests", 500, 450)
 $idBrowserPath = GUICtrlCreateInput("", 0, 0)
+$idUtf8Title = GUICtrlCreateInput("", 0, 0)
 $idChromePlusCurrentCaption = GUICtrlCreateLabel("", 0, 20)
 $idChromePlusLatestCaption = GUICtrlCreateLabel("", 0, 40)
 $idChromePlusCurrentVersion = GUICtrlCreateLabel("", 0, 60)
@@ -33,6 +34,22 @@ TestAssert(EnvGet("APP") = $TestDir & "\expanded-app", "browser launch restores 
 FileDelete($ChildEnvOutput)
 $BrowserPath = $OriginalBrowserPath
 $BrowserDirectory = $OriginalBrowserDirectory
+Local $Utf8Fixture = $TestDir & "\utf8-no-bom.ini"
+Local $Utf8FixtureFile = FileOpen($Utf8Fixture, BitOR($FO_OVERWRITE, $FO_BINARY))
+; Keep a Chrome++ %app% placeholder in the fixture. With ExpandEnvStrings enabled,
+; encoding detection must compare the original bytes without expanding it.
+FileWrite($Utf8FixtureFile, Binary("0x5B67656E6572616C5D0D0A646174615F6469723D25617070255C2E2E5C70726F66696C65730D0A5B746162735D0D0A6E65775F7461625F64697361626C655F6E616D653D2261626F75743A626C616E6B222C22E696B0E5BBBAE6A087E7ADBE220D0A"))
+FileClose($Utf8FixtureFile)
+Local $ExpectedUtf8Title = Chr(34) & "about:blank" & Chr(34) & "," & Chr(34) & ChrW(0x65B0) & ChrW(0x5EFA) & ChrW(0x6807) & ChrW(0x7B7E) & Chr(34)
+TestAssert(GetTextFileEncodingMode($Utf8Fixture) = BitOR($FO_OVERWRITE, $FO_UTF8_NOBOM), "UTF-8 no-BOM detection ignores app placeholder expansion")
+Local $ReadUtf8Title = ReadIniTextValue($Utf8Fixture, "tabs", "new_tab_disable_name", "")
+TestAssert($ReadUtf8Title = $ExpectedUtf8Title, "UTF-8 no-BOM bytes decode to Unicode code points")
+Local $ExpansionWasRestoredAfterRead = Opt("ExpandEnvStrings", 0) = 1
+Opt("ExpandEnvStrings", 1)
+TestAssert($ExpansionWasRestoredAfterRead, "UTF-8 text read restores environment expansion")
+GUICtrlSetData($idUtf8Title, $ReadUtf8Title)
+TestAssert(GUICtrlRead($idUtf8Title) = $ExpectedUtf8Title, "UTF-8 title survives GUI control assignment")
+TestAssert('"about:blank","新建标签"' = $ExpectedUtf8Title, "UTF-8 source literal compiles to Unicode code points")
 For $TestArch In StringSplit("x86|x64", "|", 2)
     Local $Source = PrepareBundledChromePlus($TestArch)
     Local $ExpectedBundledVersion = ReadExecutableVersionField($Source, "ProductVersion")
@@ -58,6 +75,9 @@ For $TestArch In StringSplit("x86|x64", "|", 2)
         TestAssert($ManagedPlaceholderPreserved, "managed config preserves Chrome++ app placeholder")
         TestAssert(Not $ManagedPlaceholderExpanded, "managed config does not expand RunFirefox APP")
         TestAssert($ExpansionWasRestored, "managed config restores environment expansion")
+        Local $Utf8Title = '"about:blank","新建标签"'
+        TestAssert(WriteIniTextValue($Dir & "\chrome++.ini", "tabs", "new_tab_disable_name", $Utf8Title), "UTF-8 title write")
+        TestAssert(ReadIniTextValue($Dir & "\chrome++.ini", "tabs", "new_tab_disable_name", "") = $Utf8Title, "UTF-8 title round trip")
         UpdateChromePlusVersionLabels()
         BeginChromePlusVersionLoad()
         TestAssert($ChromePlusVersionLoadHandle = 0, "no upstream process")

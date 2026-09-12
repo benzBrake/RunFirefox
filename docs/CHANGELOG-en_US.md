@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- Fixed UTF-8 Chinese title corruption when reading and saving Chrome++ tab settings, caused by environment-variable expansion interfering with encoding detection.
+
 ## [2.8.18] - 2026-09-12
 
 - Fixed RunFirefox's `%APP%` environment variable overriding Chrome++'s same-named `%app%` placeholder both while writing `chrome++.ini` and when launching the browser; profile and cache locations now resolve to the correct portable paths relative to the browser directory.

@@ -32,6 +32,7 @@
 #include <StaticConstants.au3>
 #include <WindowsConstants.au3>
 #include <ComboConstants.au3>
+#include <UpDownConstants.au3>
 #include <Date.au3>
 #include <TrayConstants.au3>
 #include <WinAPIReg.au3>
@@ -110,6 +111,7 @@ Global $ChromiumDebugPortEnabled, $ChromiumDebugPort
 Global $BrowserStartApps, $CloseStartAppsAfterBrowserExit, $BrowserExitApps
 Global $BossKeyEnabled, $BossKey, $BossKeyHideToTray, $BossKeyBrowserHidden = 0, $BossKeyTrayVisible = 0
 Global $GithubDirectMirror, $GithubJsDelivrMirror
+Global $DownloadThreads, $ProxyType, $ProxyServer, $ProxyPort
 
 Global $DefaultProfDir, $hSettings, $idBrowserPath, $idProfileDir, $idLanguage
 Global $idCopyProfile, $idCustomPluginsDir, $idGetPluginsDir
@@ -124,6 +126,7 @@ Global $idChromePlusNewTabDisable, $idChromePlusNewTabDisableName, $idChromePlus
 Global $idChromePlusSuppressFalseUpgradeNotification
 Global $idChromiumGoogleApiImport, $idChromiumGoogleApiSuppress, $idChromiumGoogleApiClear
 Global $idChromiumDebugPortEnabled, $idChromiumDebugPort, $idChromiumDebugPortLabel
+Global $idDownloadThreads, $idDownloadThreadsUpDown, $idProxyType, $idProxyServer, $idProxyPort, $idNetworkCurlHint
 Global $LANG_DATA, $LANGUAGE, $LANGUAGES
 Global $ChromePlusReleaseInfoLoaded = False, $ChromePlusReleaseTag = "", $ChromePlusArchiveUrl = ""
 Global $BrowserVersionLoadAnim = 0
@@ -198,6 +201,10 @@ If Not FileExists($inifile) Then
 	IniWrite($inifile, "Settings", "BossKeyHideToTray", 0)
 	IniWrite($inifile, "Settings", "LastPlatformDir", "")
 	IniWrite($inifile, "Settings", "LastProfileDir", "")
+	IniWrite($inifile, "Settings", "DownloadThreads", 3)
+	IniWrite($inifile, "Settings", "ProxyType", "direct")
+	IniWrite($inifile, "Settings", "ProxyServer", "")
+	IniWrite($inifile, "Settings", "ProxyPort", "")
 EndIf
 
 $AppUpdateCheckEnabled = IniRead($inifile, "Settings", "CheckAppUpdate", 1) * 1
@@ -237,6 +244,12 @@ $BrowserExitApps = IniRead($inifile, "Settings", "ExApp2", "")
 $BossKeyEnabled = IniRead($inifile, "Settings", "BossKeyEnabled", 0) * 1
 $BossKey = IniRead($inifile, "Settings", "BossKey", "^`")
 $BossKeyHideToTray = IniRead($inifile, "Settings", "BossKeyHideToTray", 0) * 1
+$DownloadThreads = Int(IniRead($inifile, "Settings", "DownloadThreads", 3))
+If $DownloadThreads < 1 Or $DownloadThreads > 10 Then $DownloadThreads = 3
+$ProxyType = StringLower(IniRead($inifile, "Settings", "ProxyType", "direct"))
+If $ProxyType <> "http" And $ProxyType <> "socks5" Then $ProxyType = "direct"
+$ProxyServer = IniRead($inifile, "Settings", "ProxyServer", "")
+$ProxyPort = Int(IniRead($inifile, "Settings", "ProxyPort", 0))
 $LastPlatformDir = IniRead($inifile, "Settings", "LastPlatformDir", "")
 $LastProfileDir = IniRead($inifile, "Settings", "LastProfileDir", "")
 $LANGUAGE = IniRead($inifile, "Settings", "Language", "")
@@ -266,7 +279,8 @@ If $GithubJsDelivrMirror = "" Then $GithubJsDelivrMirror = _UpgradeGetDefaultGit
 IniWrite($inifile, "Settings", "GithubDirectMirror", $GithubDirectMirror)
 IniWrite($inifile, "Settings", "GithubJsDelivrMirror", $GithubJsDelivrMirror)
 
-_BrowserDownloadConfigure($AppVersion, GetBrowserLocale("zh-CN"), $GithubDirectMirror, $GithubJsDelivrMirror)
+_DownloadToolsConfigure($DownloadThreads, $ProxyType, $ProxyServer, $ProxyPort)
+_BrowserDownloadConfigure($AppVersion, GetBrowserLocale("zh-CN"), GetEffectiveGithubDirectMirror(), GetEffectiveGithubJsDelivrMirror())
 _BrowserAutoUpdateConfigure(@ScriptDir & "\BrowserUpdateCache")
 
 If $CmdLine[0] >= 4 And $CmdLine[1] = "--load-chrome-version" Then
@@ -677,13 +691,12 @@ Func CheckForAppUpdate()
 EndFunc   ;==>CheckForAppUpdate
 
 Func GetAvailableAppUpdate(ByRef $latestVersion, ByRef $releaseNotes)
-	Local $AppUpdateLastCheck, $repo = 'benzBrake/RunFirefox', $MirrorAddress = $GithubDirectMirror
+	Local $AppUpdateLastCheck, $repo = 'benzBrake/RunFirefox', $MirrorAddress = GetEffectiveGithubDirectMirror()
 	$MirrorAddress = _UpgradeNormalizeMirrorAddress($MirrorAddress)
 	$AppUpdateLastCheck = _NowCalc()
 	IniWrite($inifile, "Settings", "AppUpdateLastCheck", $AppUpdateLastCheck)
 
-	HttpSetProxy(0) ; Use IE defaults for proxy
-	$latestVersion = GetLatestReleaseVersion($repo, $MirrorAddress, $GithubJsDelivrMirror);
+	$latestVersion = GetLatestReleaseVersion($repo, $MirrorAddress, GetEffectiveGithubJsDelivrMirror());
 	;~ 获取的版本号不对则返回
 	If Not _StringStartsWith($latestVersion, 'v') Then Return False
 	;~ 去除版本号开头的 v
@@ -696,7 +709,7 @@ Func GetAvailableAppUpdate(ByRef $latestVersion, ByRef $releaseNotes)
 EndFunc   ;==>GetAvailableAppUpdate
 
 Func PromptAndApplyAppUpdate($latestVersion, $releaseNotes)
-	Local $repo = 'benzBrake/RunFirefox', $downloadUrl, $MirrorAddress = $GithubDirectMirror, $msg, $file, $FileName
+	Local $repo = 'benzBrake/RunFirefox', $downloadUrl, $MirrorAddress = GetEffectiveGithubDirectMirror(), $msg, $file, $FileName
 	$MirrorAddress = _UpgradeNormalizeMirrorAddress($MirrorAddress)
 	$UpdateAvailable = _t("UpdateAvailable", "{AppName} {Version} 已发布，更新内容：\n\n\n{Notes}\n是否自动更新？")
 	$UpdateAvailable = StringReplace($UpdateAvailable, "{AppName}", $AppName)
@@ -716,7 +729,7 @@ Func PromptAndApplyAppUpdate($latestVersion, $releaseNotes)
 	EndIf
 	Local $downloadFileName = $AppName & '_' & $latestVersion & $archStr & '.zip'
 	Local $githubDownloadUrl = 'https://github.com/' & $repo & '/releases/download/v' & $latestVersion & '/' & $downloadFileName
-	Local $downloadUrls = _UpgradeBuildGithubReleaseDownloadUrls($githubDownloadUrl, $MirrorAddress, $GithubJsDelivrMirror)
+	Local $downloadUrls = _UpgradeBuildGithubReleaseDownloadUrls($githubDownloadUrl, $MirrorAddress, GetEffectiveGithubJsDelivrMirror())
 
 	Local $temp = @ScriptDir & "\RunFirefox_temp"
 	$file = $temp & "\RunFirefox.zip"
@@ -726,30 +739,12 @@ Func PromptAndApplyAppUpdate($latestVersion, $releaseNotes)
 	TraySetState(1)
 	TraySetClick(8)
 	TraySetToolTip($AppName)
-	Local $idCancelAppUpdate = TrayCreateItem(_t("CancelAppUpdate", "取消更新..."))
 	Local $DownloadSuccessful, $DownloadCancelled, $UpdateSuccessful, $error
-	For $i = 0 To UBound($downloadUrls) - 1
-		$downloadUrl = $downloadUrls[$i]
-		ConsoleWrite($downloadUrl & @CRLF)
-		If FileExists($file) Then FileDelete($file)
-		TrayTip("", _t("StartToDownloadApp", "开始下载 {AppName}"), 10, 1)
-		Local $hDownload = InetGet($downloadUrl, $file, 19, 1)
-		Do
-			Switch TrayGetMsg()
-				Case $TRAY_EVENT_PRIMARYDOWN
-					TrayTip("", _t("AppDownloadProgress", "正在下载 {AppName}\n已下载 %i KB", Round(InetGetInfo($hDownload, 0) / 1024)), 5, 1)
-				Case $idCancelAppUpdate
-					$msg = MsgBox(4 + 32 + 256, $AppName,_t("CancelAppUpdateConfirm", "正在下载 {AppName}，确定要取消吗？"))
-					If $msg = 6 Then
-						$DownloadCancelled = 1
-						ExitLoop
-					EndIf
-			EndSwitch
-		Until InetGetInfo($hDownload, 2)
-		$DownloadSuccessful = InetGetInfo($hDownload, 3)
-		InetClose($hDownload)
-		If $DownloadCancelled Or $DownloadSuccessful Then ExitLoop
-	Next
+	_DownloadToolsShowDownloadProgress(_t("DownloadingAppUpdate", "下载 RunFirefox 更新"), _t("StartToDownloadApp", "开始下载 {AppName}"), "", $hSettings, _t("Cancel", "取消"))
+	Local $TriedUpdateUrls = ""
+	$DownloadSuccessful = _DownloadToolsDownloadUrls($downloadUrls, $file, _t("StartToDownloadApp", "开始下载 {AppName}"), _t("BrowserDownloadProgressKnown", "已下载 {Downloaded} / {Total}"), _t("BrowserDownloadProgressUnknown", "已下载 %s"), $TriedUpdateUrls)
+	$DownloadCancelled = _DownloadToolsIsDownloadProgressCancelled()
+	_DownloadToolsCloseDownloadProgress()
 	If Not $DownloadCancelled Then
 		If $DownloadSuccessful Then
 			TrayTip("", _t("ApplyingUpdate", "正在应用 {AppName} 更新"), 10, 1)
@@ -785,7 +780,6 @@ Func PromptAndApplyAppUpdate($latestVersion, $releaseNotes)
 		EndIf
 	EndIf
 	DirRemove($temp, 1)
-	TrayItemDelete($idCancelAppUpdate)
 	TraySetState(2)
 EndFunc   ;==>PromptAndApplyAppUpdate
 
@@ -1618,6 +1612,52 @@ Func ReplaceLocalPath($content)
 	Return $content
 EndFunc   ;==>ReplaceLocalPath
 
+Func GetEffectiveGithubDirectMirror()
+	If _DownloadToolsUsesProxy() Then Return ""
+	Return $GithubDirectMirror
+EndFunc   ;==>GetEffectiveGithubDirectMirror
+
+Func GetEffectiveGithubJsDelivrMirror()
+	If _DownloadToolsUsesProxy() Then Return ""
+	Return $GithubJsDelivrMirror
+EndFunc   ;==>GetEffectiveGithubJsDelivrMirror
+
+Func GetProxyTypeLabel($Value)
+	Switch StringLower($Value)
+		Case "http"
+			Return _t("ProxyTypeHttp", "HTTP 代理")
+		Case "socks5"
+			Return _t("ProxyTypeSocks5", "SOCKS5 代理")
+	EndSwitch
+	Return _t("ProxyTypeDirect", "直接连接")
+EndFunc   ;==>GetProxyTypeLabel
+
+Func GetProxyTypeComboData()
+	Return GetProxyTypeLabel("direct") & "|" & GetProxyTypeLabel("http") & "|" & GetProxyTypeLabel("socks5")
+EndFunc   ;==>GetProxyTypeComboData
+
+Func GetSelectedProxyType()
+	Local $Label = GUICtrlRead($idProxyType)
+	If $Label = GetProxyTypeLabel("http") Then Return "http"
+	If $Label = GetProxyTypeLabel("socks5") Then Return "socks5"
+	Return "direct"
+EndFunc   ;==>GetSelectedProxyType
+
+Func RefreshNetworkControlsState()
+	If Not $idProxyType Then Return
+	Local $ProxyState = $GUI_DISABLE
+	If GetSelectedProxyType() <> "direct" Then $ProxyState = $GUI_ENABLE
+	GUICtrlSetState($idProxyServer, $ProxyState)
+	GUICtrlSetState($idProxyPort, $ProxyState)
+	Local $ThreadState = $GUI_ENABLE
+	If Not _DownloadToolsHasCurl() Then
+		$ThreadState = $GUI_DISABLE
+		GUICtrlSetData($idDownloadThreads, 1)
+	EndIf
+	GUICtrlSetState($idDownloadThreads, $ThreadState)
+	GUICtrlSetState($idDownloadThreadsUpDown, $ThreadState)
+EndFunc   ;==>RefreshNetworkControlsState
+
 Func Settings()
 	$DefaultProfDir = GetSystemProfileSourceDir($BrowserType, "release")
 
@@ -1823,6 +1863,28 @@ Func Settings()
 		GUICtrlSetData(-1, StringReplace($Params, " -", @CRLF & "-"))
 	EndIf
 	GUICtrlSetTip(-1, _t("CommandLineArgumentsTooltip", "浏览器命令行参数，每行写一个参数。\n支持 %TEMP% 等环境变量，\n另外，%APP% 代表 RunFirefox 所在目录"))
+
+	; 网络
+	GUICtrlCreateTabItem(_t("NetworkTab", "网络"))
+	GUICtrlCreateGroup(_t("NetworkSettings", "网络设置"), 10, 80, 480, 180)
+	GUICtrlCreateLabel(_t("DownloadThreads", "下载线程数（1-10）："), 20, 108, 160, 20)
+	$idDownloadThreads = GUICtrlCreateInput($DownloadThreads, 185, 103, 55, 22, $ES_NUMBER)
+	$idDownloadThreadsUpDown = GUICtrlCreateUpdown($idDownloadThreads, $UDS_ALIGNRIGHT)
+	GUICtrlSetLimit($idDownloadThreadsUpDown, 10, 1)
+	GUICtrlCreateLabel(_t("ProxyType", "代理类型："), 20, 143, 160, 20)
+	$idProxyType = GUICtrlCreateCombo("", 185, 138, 150, 24, $CBS_DROPDOWNLIST)
+	GUICtrlSetData($idProxyType, GetProxyTypeComboData(), GetProxyTypeLabel($ProxyType))
+	GUICtrlSetOnEvent($idProxyType, "RefreshNetworkControlsState")
+	GUICtrlCreateLabel(_t("ProxyServer", "代理服务器："), 20, 178, 160, 20)
+	$idProxyServer = GUICtrlCreateInput($ProxyServer, 185, 173, 150, 22, $ES_AUTOHSCROLL)
+	GUICtrlCreateLabel(_t("ProxyPort", "代理端口："), 355, 178, 70, 20)
+	Local $ProxyPortText = ""
+	If $ProxyPort > 0 Then $ProxyPortText = $ProxyPort
+	$idProxyPort = GUICtrlCreateInput($ProxyPortText, 425, 173, 55, 22, BitOR($ES_NUMBER, $ES_AUTOHSCROLL))
+	$idNetworkCurlHint = GUICtrlCreateLabel(_t("CurlRequiredForThreads", "多线程下载需要 curl.exe；未检测到时固定使用单线程。"), 20, 213, 450, 34)
+	GUICtrlSetColor($idNetworkCurlHint, 0x666666)
+	If _DownloadToolsHasCurl() Then GUICtrlSetState($idNetworkCurlHint, $GUI_HIDE)
+	RefreshNetworkControlsState()
 
 	; Chrome++
 	GUICtrlCreateTabItem(_t("ChromePlusTab", "Chrome++"))
@@ -3687,7 +3749,7 @@ Func GetExecutableArch($ExePath)
 EndFunc   ;==>GetExecutableArch
 
 Func DownloadChromePlusArchiveWithProgress($ArchiveUrl, $ArchivePath, ByRef $InstallLog)
-	Local $aUrls = _UpgradeBuildGithubReleaseDownloadUrls($ArchiveUrl, $GithubDirectMirror, $GithubJsDelivrMirror)
+	Local $aUrls = _UpgradeBuildGithubReleaseDownloadUrls($ArchiveUrl, GetEffectiveGithubDirectMirror(), GetEffectiveGithubJsDelivrMirror())
 	Local $TargetDir, $TargetFile
 	SplitPath($ArchivePath, $TargetDir, $TargetFile)
 	If Not FileExists($TargetDir) Then DirCreate($TargetDir)
@@ -3721,7 +3783,7 @@ Func GetChromePlusReleaseInfo(ByRef $ReleaseTag, ByRef $ArchiveUrl, ByRef $Insta
 	EndIf
 
 	Local $HttpDiagnostic = "", $sJson = ""
-	Local $ChromePlusApiUrls = _UpgradeBuildGithubDirectUrls($ChromePlusReleasesApiUrl, $GithubDirectMirror)
+	Local $ChromePlusApiUrls = _UpgradeBuildGithubDirectUrls($ChromePlusReleasesApiUrl, GetEffectiveGithubDirectMirror())
 	For $i = 0 To UBound($ChromePlusApiUrls) - 1
 		$sJson = _DownloadToolsHttpGetTextDiagnostic($ChromePlusApiUrls[$i], $ChromePlusApiUserAgent, "application/vnd.github+json", $HttpDiagnostic)
 		$InstallLog &= $HttpDiagnostic & @CRLF
@@ -3733,8 +3795,8 @@ Func GetChromePlusReleaseInfo(ByRef $ReleaseTag, ByRef $ArchiveUrl, ByRef $Insta
 		$InstallLog &= "API parsed tag: " & $CachedReleaseTag & @CRLF
 	EndIf
 
-	If $CachedReleaseTag = "" Then
-		Local $JsDelivrBinary = InetRead($ChromePlusJsDelivrVersionsUrl, 1)
+	If $CachedReleaseTag = "" And Not _DownloadToolsUsesProxy() Then
+		Local $JsDelivrBinary = _DownloadToolsReadUrl($ChromePlusJsDelivrVersionsUrl)
 		Local $JsDelivrError = @error
 		Local $JsDelivrJson = BinaryToString($JsDelivrBinary, 4)
 		$InstallLog &= "jsDelivr versions InetRead @error: " & $JsDelivrError & ", bytes: " & BinaryLen($JsDelivrBinary) & ", text length: " & StringLen($JsDelivrJson) & @CRLF
@@ -3749,9 +3811,9 @@ Func GetChromePlusReleaseInfo(ByRef $ReleaseTag, ByRef $ArchiveUrl, ByRef $Insta
 	EndIf
 
 	If $CachedReleaseTag = "" Then
-		Local $LatestPageUrl = _UpgradeBuildGithubPageUrl("https://github.com/" & $ChromePlusRepo & "/releases/latest", $GithubDirectMirror)
+		Local $LatestPageUrl = _UpgradeBuildGithubPageUrl("https://github.com/" & $ChromePlusRepo & "/releases/latest", GetEffectiveGithubDirectMirror())
 		$InstallLog &= "Fallback latest page URL: " & $LatestPageUrl & @CRLF
-		Local $LatestPageBinary = InetRead($LatestPageUrl, 1)
+		Local $LatestPageBinary = _DownloadToolsReadUrl($LatestPageUrl)
 		Local $InetReadError = @error
 		Local $LatestPage = BinaryToString($LatestPageBinary, 4)
 		$InstallLog &= "Fallback InetRead @error: " & $InetReadError & ", bytes: " & BinaryLen($LatestPageBinary) & ", text length: " & StringLen($LatestPage) & @CRLF
@@ -3761,15 +3823,17 @@ Func GetChromePlusReleaseInfo(ByRef $ReleaseTag, ByRef $ArchiveUrl, ByRef $Insta
 			$InstallLog &= "Fallback parsed tag: " & $CachedReleaseTag & @CRLF
 		EndIf
 
-		Local $GitCodeDiagnostic = ""
-		Local $GitCodeJson = _DownloadToolsHttpGetTextDiagnostic($ChromePlusGitCodeTagsApiUrl, $ChromePlusApiUserAgent, "application/json", $GitCodeDiagnostic, $ChromePlusGitCodeTagsUrl)
-		$InstallLog &= "GitCode tags fallback page: " & $ChromePlusGitCodeTagsUrl & @CRLF
-		$InstallLog &= $GitCodeDiagnostic & @CRLF
-		If $GitCodeJson <> "" Then
-			Local $GitCodeTags = StringRegExp($GitCodeJson, '"name"\s*:\s*"([^"]+)"', 3)
-			Local $GitCodeTag = GetLatestChromePlusStableTag($GitCodeTags)
-			If $GitCodeTag <> "" And ($CachedReleaseTag = "" Or VersionCompare(NormalizeChromePlusVersionText($GitCodeTag), NormalizeChromePlusVersionText($CachedReleaseTag)) > 0) Then $CachedReleaseTag = $GitCodeTag
-			$InstallLog &= "GitCode parsed tag: " & $CachedReleaseTag & @CRLF
+		If Not _DownloadToolsUsesProxy() Then
+			Local $GitCodeDiagnostic = ""
+			Local $GitCodeJson = _DownloadToolsHttpGetTextDiagnostic($ChromePlusGitCodeTagsApiUrl, $ChromePlusApiUserAgent, "application/json", $GitCodeDiagnostic, $ChromePlusGitCodeTagsUrl)
+			$InstallLog &= "GitCode tags fallback page: " & $ChromePlusGitCodeTagsUrl & @CRLF
+			$InstallLog &= $GitCodeDiagnostic & @CRLF
+			If $GitCodeJson <> "" Then
+				Local $GitCodeTags = StringRegExp($GitCodeJson, '"name"\s*:\s*"([^"]+)"', 3)
+				Local $GitCodeTag = GetLatestChromePlusStableTag($GitCodeTags)
+				If $GitCodeTag <> "" And ($CachedReleaseTag = "" Or VersionCompare(NormalizeChromePlusVersionText($GitCodeTag), NormalizeChromePlusVersionText($CachedReleaseTag)) > 0) Then $CachedReleaseTag = $GitCodeTag
+				$InstallLog &= "GitCode parsed tag: " & $CachedReleaseTag & @CRLF
+			EndIf
 		EndIf
 	EndIf
 
@@ -4153,6 +4217,40 @@ Func ApplySettings()
 	ApplyDetectedBrowserTypeFromPath()
 	$BrowserType = GetSelectedBrowserType()
 
+	Local $SelectedProxyType = GetSelectedProxyType()
+	Local $SelectedProxyServer = StringStripWS(GUICtrlRead($idProxyServer), 3)
+	Local $SelectedProxyPortText = StringStripWS(GUICtrlRead($idProxyPort), 3)
+	If $SelectedProxyType <> "direct" Then
+		If Not _DownloadToolsHasCurl() Then
+			MsgBox(16, "RunFirefox", _t("CurlRequiredForProxy", "HTTP 和 SOCKS5 代理需要 curl.exe。请安装 curl，或改用直接连接。"), 0, $hSettings)
+			GUICtrlSetState($idProxyType, $GUI_FOCUS)
+			Return SetError(1)
+		EndIf
+		If $SelectedProxyServer = "" Then
+			MsgBox(16, "RunFirefox", _t("ProxyServerRequired", "使用代理时必须填写代理服务器。"), 0, $hSettings)
+			GUICtrlSetState($idProxyServer, $GUI_FOCUS)
+			Return SetError(1)
+		EndIf
+		If StringRegExp($SelectedProxyServer, '[\s"]') Then
+			MsgBox(16, "RunFirefox", _t("ProxyServerInvalid", "代理服务器不能包含空白字符或双引号。"), 0, $hSettings)
+			GUICtrlSetState($idProxyServer, $GUI_FOCUS)
+			Return SetError(1)
+		EndIf
+		If Not StringRegExp($SelectedProxyPortText, "^\d+$") Or Number($SelectedProxyPortText) < 1 Or Number($SelectedProxyPortText) > 65535 Then
+			MsgBox(16, "RunFirefox", _t("ProxyPortInvalid", "代理端口必须是 1-65535 之间的整数。"), 0, $hSettings)
+			GUICtrlSetState($idProxyPort, $GUI_FOCUS)
+			Return SetError(1)
+		EndIf
+	EndIf
+	If _DownloadToolsHasCurl() Then
+		Local $SelectedThreads = Int(GUICtrlRead($idDownloadThreads))
+		If $SelectedThreads < 1 Or $SelectedThreads > 10 Then $SelectedThreads = 3
+		$DownloadThreads = $SelectedThreads
+	EndIf
+	$ProxyType = $SelectedProxyType
+	$ProxyServer = $SelectedProxyServer
+	$ProxyPort = Int($SelectedProxyPortText)
+
 	If GUICtrlRead($idAllowBrowserUpdate) = $GUI_CHECKED Then
 		$AllowBrowserUpdate = 1
 	Else
@@ -4252,6 +4350,12 @@ Func ApplySettings()
 	IniWrite($inifile, "Settings", "BossKeyEnabled", $BossKeyEnabled)
 	IniWrite($inifile, "Settings", "BossKey", $BossKey)
 	IniWrite($inifile, "Settings", "BossKeyHideToTray", $BossKeyHideToTray)
+	IniWrite($inifile, "Settings", "DownloadThreads", $DownloadThreads)
+	IniWrite($inifile, "Settings", "ProxyType", $ProxyType)
+	IniWrite($inifile, "Settings", "ProxyServer", $ProxyServer)
+	IniWrite($inifile, "Settings", "ProxyPort", $ProxyPort)
+	_DownloadToolsConfigure($DownloadThreads, $ProxyType, $ProxyServer, $ProxyPort)
+	_BrowserDownloadConfigure($AppVersion, GetBrowserLocale("zh-CN"), GetEffectiveGithubDirectMirror(), GetEffectiveGithubJsDelivrMirror())
 	$var = $BrowserStartApps
 	If StringRegExp($var, '^".*"$') Then $var = '"' & $var & '"'
 	IniWrite($inifile, "Settings", "ExApp", $var)

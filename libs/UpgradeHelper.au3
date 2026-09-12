@@ -1,4 +1,5 @@
 #include-once
+#include "DownloadTools.au3"
 
 Global Const $UPGRADE_DEFAULT_GITHUB_JSDELIVR_MIRROR_CHINA = "https://cdn.jsdmirror.com/gh"
 Global Const $UPGRADE_DEFAULT_GITHUB_JSDELIVR_MIRROR_GLOBAL = "https://gocre.jsdelivr.net/gh"
@@ -53,6 +54,11 @@ EndFunc
 
 Func _UpgradeBuildGithubDirectUrls($sGithubUrl, $sDirectMirror)
     Local $aUrls[1], $iCount = 0
+	If _DownloadToolsUsesProxy() Then
+		_UpgradeAddUrl($aUrls, $iCount, $sGithubUrl)
+		ReDim $aUrls[$iCount]
+		Return $aUrls
+	EndIf
     $sDirectMirror = _UpgradeNormalizeMirrorAddress($sDirectMirror)
     If $sDirectMirror <> "" And Not _UpgradeIsJsDelivrGithubMirror($sDirectMirror) Then _UpgradeAddUrl($aUrls, $iCount, $sDirectMirror & $sGithubUrl)
     Local $aFallbackMirrors = StringSplit($UPGRADE_FALLBACK_GITHUB_DIRECT_MIRRORS, "|", 2)
@@ -95,11 +101,12 @@ Func GetLatestReleaseVersion($sRepositoryName, $sDirectMirror = $UPGRADE_DEFAULT
     ;~ 构建 GitHub releases 页面的 URL
     Local $sURL = _UpgradeBuildGithubPageUrl("https://github.com/" & $sRepositoryName & "/releases/", $sDirectMirror)
     ;~ 从 URL 获取页面内容
-    Local $sPageContent = BinaryToString(InetRead($sURL, 1))
+	Local $sPageContent = BinaryToString(_DownloadToolsReadUrl($sURL))
 
     If @error Then
 ;~ 		TrayTip("", StringFormat(_t("GetReleaseTagFailed", "获取更新信息失败！")))
-        Return GetLatestReleaseVersionByJsDelivr($sRepositoryName)
+		If $sJsDelivrMirror <> "" Then Return GetLatestReleaseVersionByJsDelivr($sRepositoryName)
+		Return ""
     EndIf
 
     ;~ 使用正则表达式提取版本号
@@ -107,7 +114,8 @@ Func GetLatestReleaseVersion($sRepositoryName, $sDirectMirror = $UPGRADE_DEFAULT
 
     If @error Then
 ;~         TrayTip("", StringFormat(_t("GetReleaseTagFailed", "获取更新信息失败！"))) ''
-        Return GetLatestReleaseVersionByJsDelivr($sRepositoryName)
+		If $sJsDelivrMirror <> "" Then Return GetLatestReleaseVersionByJsDelivr($sRepositoryName)
+		Return ""
     EndIf
 
     ;~ 获取最新版本号
@@ -118,7 +126,7 @@ EndFunc
 
 Func GetLatestReleaseVersionByJsDelivr($sRepositoryName)
     Local $sURL = "https://data.jsdelivr.com/v1/package/gh/" & $sRepositoryName
-    Local $sPageContent = BinaryToString(InetRead($sURL, 1), 4)
+	Local $sPageContent = BinaryToString(_DownloadToolsReadUrl($sURL), 4)
     If @error Then Return ''
 
     Local $aMatches = StringRegExp($sPageContent, '"versions"\s*:\s*\[\s*"v?(\d+\.\d+\.\d+)"', 1)
@@ -134,7 +142,7 @@ Func GetReleaseNotesByVersion($sRepositoryName, $version, $sMirrorAddress = $UPG
     Local $sURL = _UpgradeBuildGithubPageUrl("https://github.com/" & $sRepositoryName & "/releases/tag/" & $version, $sMirrorAddress)
 
     ;~ 从 URL 获取页面内容
-    Local $sPageContent = BinaryToString(InetRead($sURL, 1), 4)
+	Local $sPageContent = BinaryToString(_DownloadToolsReadUrl($sURL), 4)
 
     If @error Then
         Return ''

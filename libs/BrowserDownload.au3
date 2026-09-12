@@ -136,6 +136,10 @@ Func _BrowserDownloadIsVersionLoadActive($BrowserType, $Channel)
 	Return $BD_LoadHandle <> 0 And $BD_LoadBrowserType = NormalizeBrowserType($BrowserType) And $BD_LoadChannel = $Channel
 EndFunc
 
+Func _BrowserDownloadStartVersionUrl($Url)
+	Return _DownloadToolsStartUrlToFile($Url, $BD_LoadFile, $BD_LoadKind)
+EndFunc
+
 Func _BrowserDownloadStartVersionLoad($BrowserType, $Channel, $Os = "win64")
 	$BrowserType = NormalizeBrowserType($BrowserType)
 	If $Channel = "default" Then $Channel = "release"
@@ -148,34 +152,27 @@ Func _BrowserDownloadStartVersionLoad($BrowserType, $Channel, $Os = "win64")
 	FileDelete($BD_LoadFile)
 
 	If $BrowserType = $BrowserTurbo Then
-		$BD_LoadKind = "inet"
-		$BD_LoadHandle = InetGet($TurboDownloadInfoUrl, $BD_LoadFile, 1, 1)
+		$BD_LoadHandle = _BrowserDownloadStartVersionUrl($TurboDownloadInfoUrl)
 	ElseIf $BrowserType = $BrowserHelium Then
-		$BD_LoadKind = "inet"
-		$BD_LoadHandle = InetGet($HeliumLatestReleaseUrl, $BD_LoadFile, 1, 1)
+		$BD_LoadHandle = _BrowserDownloadStartVersionUrl($HeliumLatestReleaseUrl)
 	ElseIf $BrowserType = $BrowserCent Then
-		$BD_LoadKind = "inet"
-		$BD_LoadHandle = InetGet($CentBrowserDownloadPageUrl, $BD_LoadFile, 1, 1)
+		$BD_LoadHandle = _BrowserDownloadStartVersionUrl($CentBrowserDownloadPageUrl)
 	ElseIf $BrowserType = $BrowserVivaldi Then
-		$BD_LoadKind = "inet"
-		$BD_LoadHandle = InetGet($VivaldiDownloadPageUrl, $BD_LoadFile, 1, 1)
+		$BD_LoadHandle = _BrowserDownloadStartVersionUrl($VivaldiDownloadPageUrl)
 	ElseIf $BrowserType = $BrowserWhale Then
-		$BD_LoadKind = "inet"
-		$BD_LoadHandle = InetGet($WhaleLatestVersionUrl, $BD_LoadFile, 1, 1)
+		$BD_LoadHandle = _BrowserDownloadStartVersionUrl($WhaleLatestVersionUrl)
 	ElseIf $BrowserType = $BrowserBrave Then
-		$BD_LoadKind = "inet"
 		$BD_LoadBraveUrls = _UpgradeBuildGithubDirectUrls($BraveLatestReleaseApiUrl, $BD_GithubDirectMirror)
 		$BD_LoadBraveIndex = 0
-		$BD_LoadHandle = InetGet($BD_LoadBraveUrls[$BD_LoadBraveIndex], $BD_LoadFile, 1, 1)
+		$BD_LoadHandle = _BrowserDownloadStartVersionUrl($BD_LoadBraveUrls[$BD_LoadBraveIndex])
 	ElseIf $BrowserType = $BrowserXunlei Then
-		$BD_LoadKind = "inet"
-		$BD_LoadHandle = InetGet($XunleiVersionDataUrl, $BD_LoadFile, 1, 1)
+		$BD_LoadHandle = _BrowserDownloadStartVersionUrl($XunleiVersionDataUrl)
 	ElseIf $BrowserType = $BrowserUngoogledChromium Then
-		$BD_LoadKind = "inet"
-		$BD_LoadHandle = InetGet($UngoogledChromiumGitCodeTagsUrl, $BD_LoadFile, 1, 1)
+		Local $UngoogledVersionUrl = $UngoogledChromiumGitCodeTagsUrl
+		If _DownloadToolsUsesProxy() Then $UngoogledVersionUrl = $UngoogledChromiumLatestReleaseApiUrl
+		$BD_LoadHandle = _BrowserDownloadStartVersionUrl($UngoogledVersionUrl)
 	ElseIf $BrowserType = $BrowserOpera Then
-		$BD_LoadKind = "inet"
-		$BD_LoadHandle = InetGet(_BrowserDownloadGetOperaListingUrl($Channel), $BD_LoadFile, 1, 1)
+		$BD_LoadHandle = _BrowserDownloadStartVersionUrl(_BrowserDownloadGetOperaListingUrl($Channel))
 	ElseIf IsChromeBrowser($BrowserType) Then
 		$BD_LoadKind = "chrome"
 		$BD_LoadHandle = _BrowserDownloadStartChromeVersionLoadProcess($Channel, $Os, $BD_LoadFile)
@@ -185,8 +182,7 @@ Func _BrowserDownloadStartVersionLoad($BrowserType, $Channel, $Os = "win64")
 		If $BrowserType = $BrowserFloorp Then $Url = $FloorpLatestReleaseUrl
 		If $BrowserType = $BrowserWaterfox Then $Url = $WaterfoxDownloadPageUrl
 		If $BrowserType = $BrowserLibreWolf Then $Url = $LibreWolfLatestReleaseApiUrl
-		$BD_LoadKind = "inet"
-		$BD_LoadHandle = InetGet($Url, $BD_LoadFile, 1, 1)
+		$BD_LoadHandle = _BrowserDownloadStartVersionUrl($Url)
 	EndIf
 
 	If $BD_LoadHandle Then Return True
@@ -209,15 +205,20 @@ Func _BrowserDownloadPollVersionLoad(ByRef $BrowserType, ByRef $Channel)
 		Return -1
 	EndIf
 
-	If Not InetGetInfo($BD_LoadHandle, 2) Then Return 0
-	Local $DownloadSuccessful = InetGetInfo($BD_LoadHandle, 3)
+	If $BD_LoadKind = "curl" Then
+		If ProcessExists($BD_LoadHandle) Then Return 0
+	ElseIf Not InetGetInfo($BD_LoadHandle, 2) Then
+		Return 0
+	EndIf
+	Local $DownloadSuccessful = FileExists($BD_LoadFile) And FileGetSize($BD_LoadFile) > 0
+	If $BD_LoadKind = "inet" Then $DownloadSuccessful = InetGetInfo($BD_LoadHandle, 3)
 	$BrowserType = $BD_LoadBrowserType
 	$Channel = $BD_LoadChannel
-	InetClose($BD_LoadHandle)
+	If $BD_LoadKind = "inet" Then InetClose($BD_LoadHandle)
 	$BD_LoadHandle = 0
 	If Not $DownloadSuccessful And $BrowserType = $BrowserBrave And IsArray($BD_LoadBraveUrls) And $BD_LoadBraveIndex + 1 < UBound($BD_LoadBraveUrls) Then
 		$BD_LoadBraveIndex += 1
-		$BD_LoadHandle = InetGet($BD_LoadBraveUrls[$BD_LoadBraveIndex], $BD_LoadFile, 1, 1)
+		$BD_LoadHandle = _BrowserDownloadStartVersionUrl($BD_LoadBraveUrls[$BD_LoadBraveIndex])
 		If $BD_LoadHandle Then Return 0
 	EndIf
 
@@ -268,7 +269,7 @@ EndFunc
 
 Func _BrowserDownloadCancelVersionLoad()
 	If $BD_LoadHandle Then
-		If $BD_LoadKind = "chrome" Then
+		If $BD_LoadKind = "chrome" Or $BD_LoadKind = "curl" Then
 			If ProcessExists($BD_LoadHandle) Then ProcessClose($BD_LoadHandle)
 		Else
 			InetClose($BD_LoadHandle)
@@ -321,7 +322,7 @@ EndFunc
 Func _BrowserDownloadGetFirefoxVersions()
 	If IsObj($FirefoxVersionsObj) Then Return $FirefoxVersionsObj
 
-	Local $sVersions = BinaryToString(InetRead($FirefoxVersionUrl, 1), 4)
+	Local $sVersions = BinaryToString(_DownloadToolsReadUrl($FirefoxVersionUrl), 4)
 	If @error Or $sVersions = "" Then Return SetError(1, 0, 0)
 
 	If Not _BrowserDownloadCacheFirefoxVersions($sVersions) Then Return SetError(1, 0, 0)
@@ -370,7 +371,7 @@ Func _BrowserDownloadGetZenUpdateXml($Channel)
 	If $sCachedUpdateXml <> "" Then Return $sCachedUpdateXml
 
 	$Channel = _BrowserDownloadGetZenUpdateChannel($Channel)
-	Local $sUpdateXml = BinaryToString(InetRead($ZenUpdateBaseUrl & "/" & $Channel & "/update.xml", 1), 4)
+	Local $sUpdateXml = BinaryToString(_DownloadToolsReadUrl($ZenUpdateBaseUrl & "/" & $Channel & "/update.xml"), 4)
 	If @error Or $sUpdateXml = "" Then Return SetError(1, 0, "")
 	_BrowserDownloadSetZenUpdateXml($Channel, $sUpdateXml)
 	Return $sUpdateXml
@@ -450,7 +451,7 @@ EndFunc   ;==>GetFloorpChannelLabel
 Func _BrowserDownloadGetWaterfoxReleasePage()
 	If $WaterfoxReleaseInfoLoaded Then Return True
 
-	Local $Content = BinaryToString(InetRead($WaterfoxDownloadPageUrl, 1), 4)
+	Local $Content = BinaryToString(_DownloadToolsReadUrl($WaterfoxDownloadPageUrl), 4)
 	If @error Or $Content = "" Then Return SetError(1, 0, False)
 
 	Return _BrowserDownloadCacheWaterfoxReleaseInfo($Content)
@@ -515,7 +516,7 @@ EndFunc   ;==>GetLatestLibreWolfVersion
 
 Func _BrowserDownloadGetTurboReleasePage()
 	If $TurboReleaseInfoLoaded Then Return True
-	Local $Content = BinaryToString(InetRead($TurboDownloadInfoUrl, 1), 4)
+	Local $Content = BinaryToString(_DownloadToolsReadUrl($TurboDownloadInfoUrl), 4)
 	If @error Or $Content = "" Then Return False
 	Return _BrowserDownloadCacheTurboReleaseInfo($Content)
 EndFunc   ;==>GetTurboReleasePage
@@ -601,7 +602,7 @@ EndFunc   ;==>GetHeliumChannelLabel
 Func _BrowserDownloadGetCentReleasePage()
 	If $CentReleaseInfoLoaded Then Return True
 
-	Local $Content = BinaryToString(InetRead($CentBrowserDownloadPageUrl, 1), 4)
+	Local $Content = BinaryToString(_DownloadToolsReadUrl($CentBrowserDownloadPageUrl), 4)
 	If @error Or $Content = "" Then Return SetError(1, 0, False)
 
 	Return _BrowserDownloadCacheCentReleaseInfo($Content)
@@ -651,7 +652,7 @@ EndFunc   ;==>GetCentChannelLabel
 Func _BrowserDownloadGetVivaldiReleasePage()
 	If $VivaldiReleaseInfoLoaded Then Return True
 
-	Local $Content = BinaryToString(InetRead($VivaldiDownloadPageUrl, 1), 4)
+	Local $Content = BinaryToString(_DownloadToolsReadUrl($VivaldiDownloadPageUrl), 4)
 	If @error Or $Content = "" Then Return SetError(1, 0, False)
 
 	Return _BrowserDownloadCacheVivaldiReleaseInfo($Content)
@@ -726,7 +727,7 @@ EndFunc   ;==>IsOperaInfoLoaded
 
 Func _BrowserDownloadGetOperaReleasePage($Channel)
 	If _BrowserDownloadIsOperaInfoLoaded($Channel) Then Return True
-	Local $Content = BinaryToString(InetRead(_BrowserDownloadGetOperaListingUrl($Channel), 1), 4)
+	Local $Content = BinaryToString(_DownloadToolsReadUrl(_BrowserDownloadGetOperaListingUrl($Channel)), 4)
 	If @error Or $Content = "" Then Return SetError(1, 0, False)
 	Return _BrowserDownloadCacheOperaReleaseInfo($Channel, $Content)
 EndFunc   ;==>GetOperaReleasePage
@@ -826,8 +827,11 @@ EndFunc   ;==>GetLatestXunleiVersion
 
 Func _BrowserDownloadGetBraveReleasePage()
 	If $BraveReleaseInfoLoaded Then Return True
-	Local $Content = _DownloadToolsHttpGetText($BraveVersionDataUrl, "RunFirefox/" & $BD_AppVersion, "application/json")
-	If $Content <> "" And _BrowserDownloadCacheBraveReleaseInfo($Content) Then Return True
+	Local $Content = ""
+	If Not _DownloadToolsUsesProxy() Then
+		$Content = _DownloadToolsHttpGetText($BraveVersionDataUrl, "RunFirefox/" & $BD_AppVersion, "application/json")
+		If $Content <> "" And _BrowserDownloadCacheBraveReleaseInfo($Content) Then Return True
+	EndIf
 	; Keep the API as a last resort; this request itself uses configured GitHub mirrors.
 	$Content = _BrowserDownloadGetGithubLatestReleaseApi($BraveLatestReleaseApiUrl)
 	If $Content = "" Then Return SetError(1, 0, False)
@@ -836,7 +840,7 @@ EndFunc   ;==>GetBraveReleasePage
 
 Func _BrowserDownloadGetXunleiReleasePage()
 	If $XunleiReleaseInfoLoaded Then Return True
-	Local $Content = BinaryToString(InetRead($XunleiVersionDataUrl, 1), 4)
+	Local $Content = BinaryToString(_DownloadToolsReadUrl($XunleiVersionDataUrl), 4)
 	If @error Or $Content = "" Then Return False
 	Return _BrowserDownloadCacheXunleiReleaseInfo($Content)
 EndFunc   ;==>GetXunleiReleasePage
@@ -1243,6 +1247,7 @@ Func _BrowserDownloadGetChromeOmahaOsVersion()
 EndFunc   ;==>GetChromeOmahaOsVersion
 
 Func _BrowserDownloadChromeUpdatePost($RequestXml)
+	If _DownloadToolsHasCurl() Or _DownloadToolsUsesProxy() Then Return _DownloadToolsHttpPostText($ChromeUpdateUrl, $RequestXml, $ChromeUpdateUserAgent, "application/xml")
 	Local $oError = ObjEvent("AutoIt.Error", "_BrowserDownloadChromeComError")
 	Local $oHTTP = ObjCreate("WinHttp.WinHttpRequest.5.1")
 	If @error Or Not IsObj($oHTTP) Then Return SetError(1, 0, "")

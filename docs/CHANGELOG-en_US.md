@@ -2,6 +2,7 @@
 
 ## [Unreleased]
 
+- Added a Network settings tab with 1–10 segment downloads and HTTP/SOCKS5 proxies. Proxy mode bypasses GitCode, ghproxy, jsDelivr, and other mirrors in favor of original upstream URLs; when curl is unavailable, the thread control is disabled and direct downloads fall back to one thread. curl downloads now use a continuous marquee animation instead of an inaccurate multi-threaded percentage.
 - Fixed UTF-8 Chinese title corruption when reading and saving Chrome++ tab settings, caused by environment-variable expansion interfering with encoding detection.
 
 ## [2.8.18] - 2026-09-12

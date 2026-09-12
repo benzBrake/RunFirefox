@@ -1910,8 +1910,8 @@ Func Settings()
 	GUICtrlSetOnEvent($idChromePlusNewTabDisable, "RefreshChromePlusNewTabDisableNameState")
 	$idChromePlusHoverTab = GUICtrlCreateCheckbox(_t("ChromePlusHoverTab", "鼠标悬停激活标签页"), 20, 274, 230, 20)
 	GUICtrlSetOnEvent($idChromePlusHoverTab, "RefreshChromePlusHoverTabDelayState")
-	$idChromePlusHoverTabDelayLabel = GUICtrlCreateLabel(_t("ChromePlusHoverTabDelay", "延迟（毫秒）"), 270, 279, 80, 20)
-	$idChromePlusHoverTabDelay = GUICtrlCreateEdit("400", 355, 274, 125, 20, BitOR($ES_NUMBER, $ES_AUTOHSCROLL))
+	$idChromePlusHoverTabDelayLabel = GUICtrlCreateLabel(_t("ChromePlusHoverTabDelay", "延迟（毫秒）"), 265, 279, 80, 20)
+	$idChromePlusHoverTabDelay = GUICtrlCreateEdit("400", 355, 276, 125, 20, BitOR($ES_NUMBER, $ES_AUTOHSCROLL))
 	GUICtrlSetTip($idChromePlusHoverTabDelay, _t("ChromePlusHoverTabDelayTooltip", "鼠标需在标签页上停留多久才会激活，范围为 0-5000 毫秒；无效值会使用 400 毫秒。"))
 
 	$idChromePlusNewTabDisableNameLabel = _ALCreateWrapLabel(_t("ChromePlusDisableNewTabName", "额外匹配标题"), 20, 302, 115)
@@ -3104,11 +3104,13 @@ Func RefreshChromePlusHoverTabDelayState()
 	GUICtrlSetTip($idChromePlusHoverTabDelay, $Tooltip)
 
 	Local $State = $GUI_DISABLE
-	If $FeatureSupported Then GUICtrlSetState($idChromePlusHoverTab, $GUI_ENABLE)
-	If $FeatureSupported And GUICtrlRead($idChromePlusHoverTab) = $GUI_CHECKED Then
-		$State = $GUI_ENABLE
+	If $FeatureSupported Then
+		GUICtrlSetState($idChromePlusHoverTab, $GUI_ENABLE)
 	Else
 		GUICtrlSetState($idChromePlusHoverTab, $GUI_DISABLE)
+	EndIf
+	If $FeatureSupported And GUICtrlRead($idChromePlusHoverTab) = $GUI_CHECKED Then
+		$State = $GUI_ENABLE
 	EndIf
 	GUICtrlSetState($idChromePlusHoverTabDelay, $State)
 	GUICtrlSetState($idChromePlusHoverTabDelayLabel, $State)

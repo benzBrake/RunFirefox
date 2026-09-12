@@ -1894,9 +1894,9 @@ Func Settings()
 	$idChromePlusDownloadPatch = GUICtrlCreateButton(_t("DownloadChromePlusPatch", "下载并安装 Chrome++"), 325, 117, 155, 22)
 	GUICtrlSetOnEvent(-1, "DownloadChromePlusPatchFromSettings")
 
-	$idChromePlusCurrentCaption = _ALCreateWrapLabel(_t("CurrentVersion", "当前版本："), 20, 146, 115)
+	$idChromePlusCurrentCaption = GUICtrlCreateLabel(_t("CurrentVersion", "当前版本："), 20, 146, 115, 20)
 	$idChromePlusCurrentVersion = GUICtrlCreateLabel("-", 145, 146, 170, 20)
-	$idChromePlusLatestCaption = _ALCreateWrapLabel(_t("LatestVersion", "最新版本："), 250, 146, 80)
+	$idChromePlusLatestCaption = GUICtrlCreateLabel(_t("LatestVersion", "最新版本："), 250, 146, 80, 20)
 	$idChromePlusLatestVersion = GUICtrlCreateLabel("-", 335, 146, 145, 20)
 
 	$idChromePlusDoubleClickClose = GUICtrlCreateCheckbox(_t("ChromePlusDoubleClickClose", "双击关闭标签页"), 20, 178, 200, 20)

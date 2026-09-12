@@ -272,8 +272,6 @@ If $LegacyGithubMirror <> "" Then
 	EndIf
 	IniDelete($inifile, "Settings", "GithubMirror")
 EndIf
-If StringInStr($GithubDirectMirror, "mirror.serv00.net/gh") Then $GithubDirectMirror = ""
-If StringInStr($GithubJsDelivrMirror, "mirror.serv00.net/gh") Then $GithubJsDelivrMirror = ""
 If $GithubDirectMirror = "" Then $GithubDirectMirror = _UpgradeGetDefaultGithubDirectMirror()
 If $GithubJsDelivrMirror = "" Then $GithubJsDelivrMirror = _UpgradeGetDefaultGithubJsDelivrMirror($LANGUAGE)
 IniWrite($inifile, "Settings", "GithubDirectMirror", $GithubDirectMirror)

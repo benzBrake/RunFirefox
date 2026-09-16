@@ -34,6 +34,34 @@ jobs:
         shell: pwsh
         run: '& .\scripts\install-autoit.ps1'
 
+      - name: Test unified download routing
+        shell: pwsh
+        run: .\scripts\test-download-routing.ps1
+
+      - name: Test Helium downloads
+        shell: pwsh
+        run: .\scripts\test-helium-download.ps1
+
+      - name: Test Brave downloads
+        shell: pwsh
+        run: .\scripts\test-brave-download.ps1
+
+      - name: Test network settings
+        shell: pwsh
+        run: .\scripts\test-network-settings.ps1
+
+      - name: Test Opera downloads
+        shell: pwsh
+        run: .\scripts\test-opera-download.ps1
+
+      - name: Test Vivaldi downloads
+        shell: pwsh
+        run: .\scripts\test-vivaldi-download.ps1
+
+      - name: Test Whale downloads
+        shell: pwsh
+        run: .\scripts\test-whale-download.ps1
+
       - name: Generate nightly scripts
         shell: pwsh
         run: |

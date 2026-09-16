@@ -77,16 +77,23 @@ Func Assert($Condition, $Message)
     EndIf
 EndFunc
 
-_DownloadToolsConfigure(3, "direct", "", 0)
+_DownloadToolsConfigure(3, "direct", "", 0, "zh-CN")
 Assert($DT_DownloadThreads = 3, "thread configuration")
 Local $DirectUrls = _UpgradeBuildGithubDirectUrls("https://github.com/example/project", "https://mirror.example/")
 Assert(UBound($DirectUrls) > 1, "direct mode retains mirror candidates")
+_DownloadToolsConfigure(3, "direct", "", 0, "en-US")
+Local $GenericUrls = _UpgradeBuildUrlProxyUrls("https://archive.org/example/file.exe", "https://mirror.example/")
+Assert(UBound($GenericUrls) = 2, "generic URL proxy fallback count")
+Assert($GenericUrls[0] = "https://mirror.example/https://archive.org/example/file.exe", "configured generic URL proxy first")
+Assert($GenericUrls[1] = "https://archive.org/example/file.exe", "generic upstream fallback last")
 
-_DownloadToolsConfigure(3, "http", "127.0.0.1", 8080)
+_DownloadToolsConfigure(3, "http", "127.0.0.1", 8080, "zh-CN")
 Local $ProxyUrls = _UpgradeBuildGithubDirectUrls("https://github.com/example/project", "https://mirror.example/")
 Assert(UBound($ProxyUrls) = 1 And $ProxyUrls[0] = "https://github.com/example/project", "proxy mode bypasses mirrors")
+Local $GenericProxyUrls = _UpgradeBuildUrlProxyUrls("https://archive.org/example/file.exe", "https://mirror.example/")
+Assert(UBound($GenericProxyUrls) = 1 And $GenericProxyUrls[0] = "https://archive.org/example/file.exe", "proxy mode bypasses generic URL proxy")
 
-_DownloadToolsConfigure(3, "direct", "", 0)
+_DownloadToolsConfigure(3, "direct", "", 0, "zh-CN")
 Assert(_DownloadToolsHasCurl(), "curl detection")
 Local $DownloadResult = _DownloadToolsCurlSegmentedDownload("__URL__", "__DESTINATION__", "test", "{Downloaded}/{Total}", 30000)
 If Not $DownloadResult Then ConsoleWrite("segmented @error=" & @error & ", @extended=" & @extended & @CRLF)

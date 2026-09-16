@@ -21,7 +21,7 @@ $parts = foreach ($line in $lines) {
     '"' + ($line -replace '"', '""') + '"'
 }
 
-$body = ($parts -join ' & @CRLF & _' + "`r`n")
+$body = ($parts -join ' & @CRLF & _' + "`n")
 
 $out = @()
 $out += '; 本文件由 scripts/update-langdata.ps1 从 Lang.ini 自动生成，请勿手工编辑。'
@@ -31,6 +31,6 @@ $out += 'Global Const $g_sLangDataIni = _'
 $out += $body
 
 $utf8Bom = [System.Text.UTF8Encoding]::new($true)
-[System.IO.File]::WriteAllText($target, ($out -join "`r`n") + "`r`n", $utf8Bom)
+[System.IO.File]::WriteAllText($target, ($out -join "`n") + "`n", $utf8Bom)
 
 Write-Host "Generated $target from $source ($($lines.Count) lines)"

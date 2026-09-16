@@ -110,14 +110,14 @@ Global $CustomPluginsDir, $CustomCacheDir, $CacheSize, $CacheSizeSmart, $Default
 Global $ChromiumDebugPortEnabled, $ChromiumDebugPort
 Global $BrowserStartApps, $CloseStartAppsAfterBrowserExit, $BrowserExitApps
 Global $BossKeyEnabled, $BossKey, $BossKeyHideToTray, $BossKeyBrowserHidden = 0, $BossKeyTrayVisible = 0
-Global $GithubDirectMirror, $GithubJsDelivrMirror
+Global $GithubDirectMirror, $GithubJsDelivrMirror, $GithubApiMirror
 Global $DownloadThreads, $ProxyType, $ProxyServer, $ProxyPort
 
 Global $DefaultProfDir, $hSettings, $idBrowserPath, $idProfileDir, $idLanguage
 Global $idCopyProfile, $idCustomPluginsDir, $idGetPluginsDir
 Global $idCustomCacheDir, $idGetCacheDir, $idCacheSize, $idCacheSizeSmart
 Global $idParams, $hStatus, $SettingsConfirmed
-Global $idAllowBrowserUpdate, $idAppUpdateCheckEnabled, $idBackgroundModeEnabled, $idBrowserType, $idChannel, $idBrowserDownloadLink, $BrowserDownloadUrl
+Global $idAllowBrowserUpdate, $idAppUpdateCheckEnabled, $idBackgroundModeEnabled, $idBrowserType, $idChannel, $idBrowserDownloadLink, $BrowserDownloadUrl, $idCommandLineCaption
 Global $idBrowserBitness, $idBrowserUpdateCheckMode, $idCurrentBrowserVersion, $idBrowserDownloadNow
 Global $idChromePlusHint, $idChromePlusDownloadPatch, $idChromePlusConfigPath, $idChromePlusCurrentVersion, $idChromePlusLatestVersion, $idChromePlusDoubleClickClose, $idChromePlusRightClickClose, $idChromePlusKeepLastTab
 Global $idChromePlusWheelTab, $idChromePlusWheelTabWhenPressRButton, $idChromePlusOpenUrlNewTab, $idChromePlusOpenBookmarkNewTab
@@ -126,7 +126,7 @@ Global $idChromePlusNewTabDisable, $idChromePlusNewTabDisableName, $idChromePlus
 Global $idChromePlusSuppressFalseUpgradeNotification
 Global $idChromiumGoogleApiImport, $idChromiumGoogleApiSuppress, $idChromiumGoogleApiClear
 Global $idChromiumDebugPortEnabled, $idChromiumDebugPort, $idChromiumDebugPortLabel
-Global $idDownloadThreads, $idDownloadThreadsUpDown, $idProxyType, $idProxyServer, $idProxyPort, $idNetworkCurlHint
+Global $idDownloadThreads, $idDownloadThreadsUpDown, $idProxyType, $idProxyServer, $idProxyPort, $idGithubApiMirror, $idNetworkCurlHint
 Global $LANG_DATA, $LANGUAGE, $LANGUAGES
 Global $ChromePlusReleaseInfoLoaded = False, $ChromePlusReleaseTag = "", $ChromePlusArchiveUrl = ""
 Global $BrowserVersionLoadAnim = 0
@@ -218,9 +218,10 @@ $BrowserUpdateLastCheck = IniRead($inifile, "Settings", "BrowserUpdateLastCheck"
 If Not $BrowserUpdateLastCheck Then
 	$BrowserUpdateLastCheck = "2015/01/01 00:00:00"
 EndIf
-$BrowserUpdateChannel = _BrowserDownloadNormalizeChromeChannel(IniRead($inifile, "Settings", "BrowserUpdateChannel", "stable"))
 $BackgroundModeEnabled = IniRead($inifile, "Settings", "RunInBackground", 1) * 1
 $BrowserType = NormalizeBrowserType(IniRead($inifile, "Settings", "BrowserType", $BrowserFirefox))
+$BrowserUpdateChannel = _BrowserDownloadNormalizeChannel($BrowserType, IniRead($inifile, "Settings", "BrowserUpdateChannel", "release"))
+IniWrite($inifile, "Settings", "BrowserUpdateChannel", $BrowserUpdateChannel)
 Local $BrowserPathValue = IniRead($inifile, "Settings", "BrowserPath", "__MISSING__")
 If $BrowserPathValue = "__MISSING__" Then
 	; Keep reading the legacy key so existing configurations migrate transparently.
@@ -261,23 +262,14 @@ If Not $LANGUAGE Then
 Else
 	$LANGUAGE = GetSupportedLanguage($LANGUAGE, "zh-CN")
 EndIf
-Local $LegacyGithubMirror = IniRead($inifile, "Settings", "GithubMirror", "")
 $GithubDirectMirror = IniRead($inifile, "Settings", "GithubDirectMirror", "")
 $GithubJsDelivrMirror = IniRead($inifile, "Settings", "GithubJsDelivrMirror", "")
-If $LegacyGithubMirror <> "" Then
-	If _UpgradeIsJsDelivrGithubMirror($LegacyGithubMirror) Then
-		If $GithubJsDelivrMirror = "" Then $GithubJsDelivrMirror = $LegacyGithubMirror
-	Else
-		If $GithubDirectMirror = "" Then $GithubDirectMirror = $LegacyGithubMirror
-	EndIf
-	IniDelete($inifile, "Settings", "GithubMirror")
-EndIf
-If $GithubDirectMirror = "" Then $GithubDirectMirror = _UpgradeGetDefaultGithubDirectMirror()
-If $GithubJsDelivrMirror = "" Then $GithubJsDelivrMirror = _UpgradeGetDefaultGithubJsDelivrMirror($LANGUAGE)
+$GithubApiMirror = IniRead($inifile, "Settings", "GithubApiMirror", "")
 IniWrite($inifile, "Settings", "GithubDirectMirror", $GithubDirectMirror)
 IniWrite($inifile, "Settings", "GithubJsDelivrMirror", $GithubJsDelivrMirror)
+IniWrite($inifile, "Settings", "GithubApiMirror", $GithubApiMirror)
 
-_DownloadToolsConfigure($DownloadThreads, $ProxyType, $ProxyServer, $ProxyPort)
+_DownloadToolsConfigure($DownloadThreads, $ProxyType, $ProxyServer, $ProxyPort, GetBrowserLocale("zh-CN"), $GithubDirectMirror, $GithubJsDelivrMirror, $GithubApiMirror)
 _BrowserDownloadConfigure($AppVersion, GetBrowserLocale("zh-CN"), GetEffectiveGithubDirectMirror(), GetEffectiveGithubJsDelivrMirror())
 _BrowserAutoUpdateConfigure(@ScriptDir & "\BrowserUpdateCache")
 
@@ -728,6 +720,7 @@ Func PromptAndApplyAppUpdate($latestVersion, $releaseNotes)
 	Local $downloadFileName = $AppName & '_' & $latestVersion & $archStr & '.zip'
 	Local $githubDownloadUrl = 'https://github.com/' & $repo & '/releases/download/v' & $latestVersion & '/' & $downloadFileName
 	Local $downloadUrls = _UpgradeBuildGithubReleaseDownloadUrls($githubDownloadUrl, $MirrorAddress, GetEffectiveGithubJsDelivrMirror())
+	_UpgradePrioritizeGithubUrls($downloadUrls)
 
 	Local $temp = @ScriptDir & "\RunFirefox_temp"
 	$file = $temp & "\RunFirefox.zip"
@@ -1620,6 +1613,12 @@ Func GetEffectiveGithubJsDelivrMirror()
 	Return $GithubJsDelivrMirror
 EndFunc   ;==>GetEffectiveGithubJsDelivrMirror
 
+Func GetEffectiveGithubApiMirror()
+	Local $ConfiguredMirror = StringStripWS($GithubApiMirror, 3)
+	If $ConfiguredMirror <> "" Then Return $ConfiguredMirror
+	Return _UpgradeGetDefaultGithubApiMirror($LANGUAGE)
+EndFunc
+
 Func GetProxyTypeLabel($Value)
 	Switch StringLower($Value)
 		Case "http"
@@ -1703,7 +1702,7 @@ Func Settings()
 	GUICtrlSetOnEvent($aId1[2], "SelectBrowserExecutable")
 
 	$idBrowserType = $aId1[5]
-	GUICtrlSetData($idBrowserType, GetBrowserTypeComboData(), GetBrowserTypeLabel($BrowserType))
+	SetBrowserTypeComboSelection($BrowserType, True)
 	GUICtrlSetOnEvent($idBrowserType, "ChangeBrowserType")
 
 	$idChannel = $aId1[8]
@@ -1733,6 +1732,7 @@ Func Settings()
 
 	$idBrowserBitness = $aId1b[1]
 	GUICtrlSetData($idBrowserBitness, "x64|x86|arm64", "x64")
+	GUICtrlSetOnEvent($idBrowserBitness, "ChangeBrowserBitness")
 	GUICtrlSetState($idBrowserBitness, $GUI_DISABLE)
 
 	$idBrowserUpdateCheckMode = $aId1b[4]
@@ -1855,12 +1855,14 @@ Func Settings()
 	GUICtrlCreateLabel(_t("ChromiumDebugPortConflictHelp", "启用后会自动添加 CDP 参数，请勿在下方命令行参数中重复设置调试端口或调试管道。"), 20, 298, 460, $iCdpHelpH)
 	GUICtrlSetColor(-1, 0x666666)
 
-	GUICtrlCreateLabel(_t("CommandLineArguments", "命令行参数"), 20, 345 + $iCdpHelpH - 28, -1, 20)
+	Local $sCommandLineCaption = _t("CommandLineArguments", "命令行参数")
+	$idCommandLineCaption = GUICtrlCreateLabel($sCommandLineCaption, 20, 345 + $iCdpHelpH - 28, -1, 20)
 	$idParams = GUICtrlCreateEdit("", 20, 365 + $iCdpHelpH - 28, 460, 50, BitOR($ES_WANTRETURN, $WS_VSCROLL, $ES_AUTOVSCROLL))
 	If $Params <> "" Then
 		GUICtrlSetData(-1, StringReplace($Params, " -", @CRLF & "-"))
 	EndIf
-	GUICtrlSetTip(-1, _t("CommandLineArgumentsTooltip", "浏览器命令行参数，每行写一个参数。\n支持 %TEMP% 等环境变量，\n另外，%APP% 代表 RunFirefox 所在目录"))
+	Local $sCommandLineTooltip = _t("CommandLineArgumentsTooltip", "浏览器命令行参数，每行写一个参数。\n支持 %TEMP% 等环境变量，\n另外，%APP% 代表 RunFirefox 所在目录")
+	GUICtrlSetTip(-1, $sCommandLineTooltip)
 
 	; 网络
 	GUICtrlCreateTabItem(_t("NetworkTab", "网络"))
@@ -1879,7 +1881,9 @@ Func Settings()
 	Local $ProxyPortText = ""
 	If $ProxyPort > 0 Then $ProxyPortText = $ProxyPort
 	$idProxyPort = GUICtrlCreateInput($ProxyPortText, 425, 173, 55, 22, BitOR($ES_NUMBER, $ES_AUTOHSCROLL))
-	$idNetworkCurlHint = GUICtrlCreateLabel(_t("CurlRequiredForThreads", "多线程下载需要 curl.exe；未检测到时固定使用单线程。"), 20, 213, 450, 34)
+	GUICtrlCreateLabel(_t("GithubApiMirror", "Github API 加速："), 20, 208, 160, 20)
+	$idGithubApiMirror = GUICtrlCreateInput($GithubApiMirror, 185, 203, 295, 22, $ES_AUTOHSCROLL)
+	$idNetworkCurlHint = GUICtrlCreateLabel(_t("CurlRequiredForThreads", "多线程下载需要 curl.exe；未检测到时固定使用单线程。"), 20, 238, 450, 34)
 	GUICtrlSetColor($idNetworkCurlHint, 0x666666)
 	If _DownloadToolsHasCurl() Then GUICtrlSetState($idNetworkCurlHint, $GUI_HIDE)
 	RefreshNetworkControlsState()
@@ -2003,7 +2007,7 @@ Func Settings()
 	Opt("ExpandEnvStrings", 1)
 
 	ApplyDetectedBrowserTypeFromPath()
-	UpdateBrowserChannelOptions($BrowserType, "release")
+	UpdateBrowserChannelOptions($BrowserType, $BrowserUpdateChannel)
 	UpdateBrowserSpecificControls()
 	ShowCurrentChannel()
 	UpdateCurrentBrowserVersionLabel()
@@ -2204,33 +2208,43 @@ Func ApplyDetectedBrowserTypeFromPath()
 	Local $SelectedChannel = "release"
 	If $idChannel Then $SelectedChannel = GUICtrlRead($idChannel)
 	$BrowserType = $DetectedBrowserType
-	GUICtrlSetData($idBrowserType, GetBrowserTypeComboData(), GetBrowserTypeLabel($DetectedBrowserType))
+	SetBrowserTypeComboSelection($DetectedBrowserType)
+	UpdateCommandLineHint()
 	If $idChannel Then UpdateBrowserChannelOptions($DetectedBrowserType, $SelectedChannel)
 EndFunc   ;==>ApplyDetectedBrowserTypeFromPath
 
 Func ChangeBrowserType()
 	Local $NewBrowserType = GetSelectedBrowserType()
 	Local $CurrentPath = StringLower(GUICtrlRead($idBrowserPath))
-	If $CurrentPath = ".\firefox\firefox.exe" Or $CurrentPath = ".\zenbrowser\zen.exe" Or $CurrentPath = ".\floorp\floorp.exe" Or $CurrentPath = ".\waterfox\waterfox.exe" Or $CurrentPath = ".\librewolf\librewolf.exe" Or $CurrentPath = ".\chrome\chrome.exe" Or $CurrentPath = ".\turbo\turbo.exe" Or $CurrentPath = ".\helium\chrome.exe" Or $CurrentPath = ".\whale\whale.exe" Or $CurrentPath = ".\centbrowser\chrome.exe" Or $CurrentPath = ".\vivaldi\vivaldi.exe" Or $CurrentPath = ".\opera\opera.exe" Or $CurrentPath = ".\xunlei\xlbrowser.exe" Or $CurrentPath = ".\xunlei\xunleibrowser.exe" Or $CurrentPath = ".\ungoogled-chromium\chrome.exe" Then
+	If $CurrentPath = ".\firefox\firefox.exe" Or $CurrentPath = ".\zenbrowser\zen.exe" Or $CurrentPath = ".\floorp\floorp.exe" Or $CurrentPath = ".\waterfox\waterfox.exe" Or $CurrentPath = ".\librewolf\librewolf.exe" Or $CurrentPath = ".\chrome\chrome.exe" Or $CurrentPath = ".\turbo\turbo.exe" Or $CurrentPath = ".\helium\chrome.exe" Or $CurrentPath = ".\whale\whale.exe" Or $CurrentPath = ".\centbrowser\chrome.exe" Or $CurrentPath = ".\vivaldi\vivaldi.exe" Or $CurrentPath = ".\opera\opera.exe" Or $CurrentPath = ".\brave\brave.exe" Or $CurrentPath = ".\xunlei\xlbrowser.exe" Or $CurrentPath = ".\xunlei\xunleibrowser.exe" Or $CurrentPath = ".\ungoogled-chromium\chrome.exe" Then
 		GUICtrlSetData($idBrowserPath, GetDefaultBrowserPath($NewBrowserType))
 	EndIf
 	$BrowserType = $NewBrowserType
-	If NormalizeBrowserType($NewBrowserType) = $BrowserUngoogledChromium Then
-		GUICtrlSetState($idBrowserBitness, $GUI_ENABLE)
-	Else
-		GUICtrlSetData($idBrowserBitness, "x64", "x64")
-		GUICtrlSetState($idBrowserBitness, $GUI_DISABLE)
-	EndIf
+	UpdateCommandLineHint()
+	UpdateBrowserBitnessControl($NewBrowserType)
 	UpdateBrowserChannelOptions($BrowserType, "release")
 	UpdateCurrentBrowserVersionLabel()
 	UpdateBrowserSpecificControls()
 	BeginBrowserVersionLoad()
 EndFunc   ;==>ChangeBrowserType
 
+Func UpdateCommandLineHint()
+	If Not $idCommandLineCaption Then Return
+	Local $Caption = _t("CommandLineArguments", "命令行参数")
+	Local $Tooltip = _t("CommandLineArgumentsTooltip", "浏览器命令行参数，每行写一个参数。\n支持 %TEMP% 等环境变量，\n另外，%APP% 代表 RunFirefox 所在目录")
+	GUICtrlSetData($idCommandLineCaption, $Caption)
+	If $idParams Then GUICtrlSetTip($idParams, $Tooltip)
+EndFunc   ;==>UpdateCommandLineHint
+
 Func ChangeChannel()
 	RefreshCopyProfileState()
 	BeginBrowserVersionLoad()
 EndFunc   ;==>ChangeChannel
+
+Func ChangeBrowserBitness()
+	CancelBrowserVersionLoad()
+	BeginBrowserVersionLoad()
+EndFunc   ;==>ChangeBrowserBitness
 
 Func ChangeBrowserUpdateCheckMode()
 	$BrowserUpdateCheckMode = GetSelectedBrowserUpdateCheckMode()
@@ -2297,9 +2311,10 @@ Func BrowserAutoUpdateCheck()
 		Return
 	EndIf
 
-	Local $Channel = $BrowserUpdateChannel
-	If IsGoogleChromeBrowser($BrowserType) Then $Channel = _BrowserDownloadNormalizeChromeChannel($BrowserUpdateChannel)
-	Local $LatestVersion = BrowserAutoUpdateResolveLatestVersion($BrowserType, $Channel)
+	Local $Channel = _BrowserDownloadNormalizeChannel($BrowserType, $BrowserUpdateChannel)
+	Local $UpdateOs = "win64"
+	If NormalizeBrowserType($BrowserType) = $BrowserWhale And GetExecutableArch($BrowserPath) = "x86" Then $UpdateOs = "win32"
+	Local $LatestVersion = BrowserAutoUpdateResolveLatestVersion($BrowserType, $Channel, $UpdateOs)
 	If $LatestVersion = "" Then Return
 
 	If Not _BrowserAutoUpdateVersionIsNewer($LatestVersion, _BrowserAutoUpdateGetLocalVersion($BrowserPath, $BrowserType)) Then Return
@@ -2307,7 +2322,7 @@ Func BrowserAutoUpdateCheck()
 	Local $UpdateConfirm = _t("BrowserAutoUpdateAvailable", "发现浏览器新版本：%s\n\n是否下载更新？下载完成后将在下次启动浏览器时自动应用。", $LatestVersion)
 	If MsgBox(36 + 256, $AppName, $UpdateConfirm) <> 6 Then Return
 
-	Local $Urls = _BrowserDownloadBuildUrls($BrowserType, $Channel, "win64")
+	Local $Urls = _BrowserDownloadBuildUrls($BrowserType, $Channel, $UpdateOs)
 	If @error Or Not IsArray($Urls) Or UBound($Urls) = 0 Then Return
 	Local $TriedUrls = ""
 	Local $Staged = _BrowserAutoUpdateStageUpdate($BrowserType, $Channel, $LatestVersion, $Urls, $TriedUrls)
@@ -2322,9 +2337,9 @@ Func BrowserAutoUpdateCheck()
 EndFunc   ;==>BrowserAutoUpdateCheck
 
 ;~ Resolve the latest browser version for auto-update. Chrome uses a dedicated
-;~ child process (POST request to Omaha), while Brave/Whale reuse the generic
-;~ InetGet-based version loader used by the settings dialog.
-Func BrowserAutoUpdateResolveLatestVersion($BrowserType, $Channel)
+;~ child process (POST request to Omaha), while other browsers reuse the
+;~ version loader used by the settings dialog (including Opera API fallback).
+Func BrowserAutoUpdateResolveLatestVersion($BrowserType, $Channel, $Os = "win64")
 	If IsGoogleChromeBrowser($BrowserType) Then
 		Local $OutputFile = @TempDir & "\RunFirefox_BrowserAutoUpdate_" & @AutoItPID & ".tmp"
 		FileDelete($OutputFile)
@@ -2344,7 +2359,7 @@ Func BrowserAutoUpdateResolveLatestVersion($BrowserType, $Channel)
 		Return _BrowserDownloadGetChromeVersionCache($Channel)
 	EndIf
 
-	If Not _BrowserDownloadStartVersionLoad($BrowserType, $Channel, "win64") Then Return ""
+	If Not _BrowserDownloadStartVersionLoad($BrowserType, $Channel, $Os) Then Return ""
 	Local $Timer = TimerInit()
 	Local $Result = -1
 	While 1
@@ -2547,17 +2562,18 @@ Func BeginBrowserVersionLoad($CurrentBrowserType = "", $Channel = "")
 	If $CurrentBrowserType = "" Then $CurrentBrowserType = GetSelectedBrowserType()
 	If $Channel = "" Then $Channel = GUICtrlRead($idChannel)
 	If $Channel = "default" Then $Channel = "release"
+	Local $Os = "win64"
 
-	If IsBrowserVersionCached($CurrentBrowserType, $Channel) Then
+	If IsBrowserVersionCached($CurrentBrowserType, $Channel, $Os) Then
 		UpdateBrowserDownloadLabels(True)
 		Return
 	EndIf
 
-	If _BrowserDownloadIsVersionLoadActive($CurrentBrowserType, $Channel) Then
+	If _BrowserDownloadIsVersionLoadActive($CurrentBrowserType, $Channel, $Os) Then
 			UpdateBrowserVersionLoadingLabel()
 			Return
 	EndIf
-	If Not _BrowserDownloadStartVersionLoad($CurrentBrowserType, $Channel, "win64") Then
+	If Not _BrowserDownloadStartVersionLoad($CurrentBrowserType, $Channel, $Os) Then
 		If NormalizeBrowserType($CurrentBrowserType) = $BrowserWhale Then
 			UpdateBrowserDownloadLabels(False, True)
 		Else
@@ -2619,8 +2635,8 @@ Func UpdateBrowserVersionLoadingLabel()
 	GUICtrlSetData($idBrowserDownloadLink, _t("BrowserVersionLoading", "正在读取版本 %s", $Spinner))
 EndFunc   ;==>UpdateBrowserVersionLoadingLabel
 
-Func IsBrowserVersionCached($CurrentBrowserType, $Channel)
-	Return _BrowserDownloadIsVersionCached($CurrentBrowserType, $Channel)
+Func IsBrowserVersionCached($CurrentBrowserType, $Channel, $Os = "win64")
+	Return _BrowserDownloadIsVersionCached($CurrentBrowserType, $Channel, $Os)
 EndFunc   ;==>IsBrowserVersionCached
 
 Func GetSelectedBrowserType()
@@ -2826,6 +2842,20 @@ Func GetBrowserTypeComboData()
 	Return _t("BrowserFirefox", "Firefox 原版") & "|" & _t("BrowserZen", "ZenBrowser") & "|" & _t("BrowserFloorp", "Floorp") & "|" & _t("BrowserWaterfox", "Waterfox") & "|" & _t("BrowserLibreWolf", "LibreWolf") & "|" & _t("BrowserChrome", "Chrome") & "|" & _t("BrowserUngoogledChromium", "Ungoogled Chromium") & "|" & _t("BrowserTurbo", "涡轮浏览器") & "|" & _t("BrowserHelium", "Helium") & "|" & _t("BrowserWhale", "Naver Whale") & "|" & _t("BrowserCent", "百分浏览器") & "|" & _t("BrowserVivaldi", "Vivaldi") & "|" & _t("BrowserOpera", "Opera") & "|" & _t("BrowserBrave", "Brave") & "|" & _t("BrowserXunlei", "迅雷浏览器")
 EndFunc   ;==>GetBrowserTypeComboData
 
+Func SetBrowserTypeComboSelection($Value, $ResetList = False)
+	If Not $idBrowserType Then Return False
+	Local $Handle = GUICtrlGetHandle($idBrowserType)
+	If $ResetList Then
+		_SendMessage($Handle, $CB_RESETCONTENT)
+		GUICtrlSetData($idBrowserType, GetBrowserTypeComboData())
+	EndIf
+	Local $Label = GetBrowserTypeLabel($Value)
+	Local $Index = _SendMessage($Handle, $CB_FINDSTRINGEXACT, -1, $Label, 0, "wparam", "wstr")
+	If $Index < 0 Then Return False
+	_SendMessage($Handle, $CB_SETCURSEL, $Index)
+	Return True
+EndFunc   ;==>SetBrowserTypeComboSelection
+
 Func GetBrowserExecutableName($Value)
 	If NormalizeBrowserType($Value) = $BrowserChrome Then Return "chrome.exe"
 	If NormalizeBrowserType($Value) = $BrowserTurbo Then Return "turbo.exe"
@@ -2964,12 +2994,7 @@ EndFunc   ;==>GetBrowserWindowWait
 Func UpdateBrowserSpecificControls()
 	If Not $idBrowserType Then Return
 	Local $IsChrome = IsChromeBrowser(GetSelectedBrowserType())
-	If NormalizeBrowserType(GetSelectedBrowserType()) = $BrowserUngoogledChromium Then
-		GUICtrlSetState($idBrowserBitness, $GUI_ENABLE)
-	Else
-		GUICtrlSetData($idBrowserBitness, "x64", "x64")
-		GUICtrlSetState($idBrowserBitness, $GUI_DISABLE)
-	EndIf
+	UpdateBrowserBitnessControl(GetSelectedBrowserType())
 	Local $MozillaState = $GUI_ENABLE
 	Local $ChromiumState = $GUI_DISABLE
 	If $IsChrome Then $MozillaState = $GUI_DISABLE
@@ -3000,6 +3025,24 @@ Func UpdateBrowserSpecificControls()
 	RefreshChromePlusTabState()
 	RefreshBossKeyControlsState()
 EndFunc   ;==>UpdateBrowserSpecificControls
+
+Func UpdateBrowserBitnessControl($Value)
+	If Not $idBrowserBitness Then Return
+	Local $SelectedArch = StringLower(StringStripWS(GUICtrlRead($idBrowserBitness), 3))
+	Local $Normalized = NormalizeBrowserType($Value)
+	If $Normalized = $BrowserUngoogledChromium Then
+		If $SelectedArch <> "x64" And $SelectedArch <> "x86" And $SelectedArch <> "arm64" Then $SelectedArch = "x64"
+		GUICtrlSetData($idBrowserBitness, "|x64|x86|arm64", $SelectedArch)
+		GUICtrlSetState($idBrowserBitness, $GUI_ENABLE)
+	ElseIf $Normalized = $BrowserWhale Then
+		If $SelectedArch <> "x64" And $SelectedArch <> "x86" Then $SelectedArch = "x64"
+		GUICtrlSetData($idBrowserBitness, "|x64|x86", $SelectedArch)
+		GUICtrlSetState($idBrowserBitness, $GUI_ENABLE)
+	Else
+		GUICtrlSetData($idBrowserBitness, "|x64", "x64")
+		GUICtrlSetState($idBrowserBitness, $GUI_DISABLE)
+	EndIf
+EndFunc   ;==>UpdateBrowserBitnessControl
 
 Func GetCurrentSettingsBrowserPath()
 	If $idBrowserPath Then Return FullPath(GUICtrlRead($idBrowserPath))
@@ -3494,7 +3537,6 @@ Func GetSystemChromiumUserDataDir($BrowserTypeValue, $Channel = "")
 		; Opera keeps its default profile directly inside the channel folder,
 		; without the Chromium-style "User Data" wrapper.
 		Local $OperaProfileDir = "Opera Stable"
-		If StringLower($Channel) = "beta" Then $OperaProfileDir = "Opera Beta"
 		If StringLower($Channel) = "dev" Then $OperaProfileDir = "Opera Developer"
 		If FileExists(@LocalAppDataDir & "\Opera Software\" & $OperaProfileDir & "\Local State") Then Return @LocalAppDataDir & "\Opera Software\" & $OperaProfileDir
 		If FileExists(@AppDataDir & "\Opera Software\" & $OperaProfileDir & "\Local State") Then Return @AppDataDir & "\Opera Software\" & $OperaProfileDir
@@ -3536,6 +3578,7 @@ Func ChromiumProfileInUse($UserDataDir)
 EndFunc   ;==>ChromiumProfileInUse
 
 Func UpdateBrowserChannelOptions($Value, $SelectedChannel)
+	$SelectedChannel = _BrowserDownloadNormalizeChannel($Value, $SelectedChannel)
 	Local $Options = "esr|release|beta|dev|nightly"
 	Local $DefaultChannel = "release"
 	If NormalizeBrowserType($Value) = $BrowserZen Then $Options = "release|twilight"
@@ -3546,12 +3589,16 @@ Func UpdateBrowserChannelOptions($Value, $SelectedChannel)
 	If NormalizeBrowserType($Value) = $BrowserHelium Then $Options = "release"
 	If NormalizeBrowserType($Value) = $BrowserWhale Then $Options = "release"
 	If NormalizeBrowserType($Value) = $BrowserCent Then $Options = "release"
-	If NormalizeBrowserType($Value) = $BrowserVivaldi Then $Options = "release"
+	If NormalizeBrowserType($Value) = $BrowserVivaldi Then
+		$Options = "stable|snapshot"
+		$DefaultChannel = "stable"
+		If StringLower($SelectedChannel) = "release" Or StringLower($SelectedChannel) = "default" Then $SelectedChannel = "stable"
+	EndIf
 	If NormalizeBrowserType($Value) = $BrowserOpera Then
-		$Options = "stable|beta|dev"
+		$Options = "stable|dev"
 		$DefaultChannel = "stable"
 	EndIf
-	If NormalizeBrowserType($Value) = $BrowserBrave Then $Options = "release"
+	If NormalizeBrowserType($Value) = $BrowserBrave Then $Options = "release|beta|nightly"
 	If NormalizeBrowserType($Value) = $BrowserXunlei Then $Options = "release"
 	If IsGoogleChromeBrowser($Value) Then
 		$Options = "stable|beta|dev|canary"
@@ -3750,6 +3797,7 @@ EndFunc   ;==>GetExecutableArch
 
 Func DownloadChromePlusArchiveWithProgress($ArchiveUrl, $ArchivePath, ByRef $InstallLog)
 	Local $aUrls = _UpgradeBuildGithubReleaseDownloadUrls($ArchiveUrl, GetEffectiveGithubDirectMirror(), GetEffectiveGithubJsDelivrMirror())
+	_UpgradePrioritizeGithubUrls($aUrls)
 	Local $TargetDir, $TargetFile
 	SplitPath($ArchivePath, $TargetDir, $TargetFile)
 	If Not FileExists($TargetDir) Then DirCreate($TargetDir)
@@ -3783,7 +3831,7 @@ Func GetChromePlusReleaseInfo(ByRef $ReleaseTag, ByRef $ArchiveUrl, ByRef $Insta
 	EndIf
 
 	Local $HttpDiagnostic = "", $sJson = ""
-	Local $ChromePlusApiUrls = _UpgradeBuildGithubDirectUrls($ChromePlusReleasesApiUrl, GetEffectiveGithubDirectMirror())
+	Local $ChromePlusApiUrls = _UpgradeBuildGithubApiUrls($ChromePlusReleasesApiUrl, GetEffectiveGithubApiMirror(), GetEffectiveGithubDirectMirror())
 	For $i = 0 To UBound($ChromePlusApiUrls) - 1
 		$sJson = _DownloadToolsHttpGetTextDiagnostic($ChromePlusApiUrls[$i], $ChromePlusApiUserAgent, "application/vnd.github+json", $HttpDiagnostic)
 		$InstallLog &= $HttpDiagnostic & @CRLF
@@ -4030,14 +4078,14 @@ EndFunc   ;==>ShowCurrentChannel
 Func DownloadBrowser()
 	Local $CurrentBrowserType = GetSelectedBrowserType()
 	Local $os = "win64"
-	If NormalizeBrowserType($CurrentBrowserType) = $BrowserUngoogledChromium Then
+	If NormalizeBrowserType($CurrentBrowserType) = $BrowserUngoogledChromium Or NormalizeBrowserType($CurrentBrowserType) = $BrowserWhale Then
 		Local $SelectedArch = StringLower(StringStripWS(GUICtrlRead($idBrowserBitness), 3))
 		If $SelectedArch = "x86" Then $os = "win32"
-		If $SelectedArch = "arm64" Then $os = "arm64"
+		If NormalizeBrowserType($CurrentBrowserType) = $BrowserUngoogledChromium And $SelectedArch = "arm64" Then $os = "arm64"
 	EndIf
 
 	Local $ChannelString = GUICtrlRead($idChannel)
-	Local $Channel = StringRegExpReplace($ChannelString, " *-.*", "")
+	Local $Channel = _BrowserDownloadNormalizeChannel($CurrentBrowserType, StringRegExpReplace($ChannelString, " *-.*", ""))
 	If IsDisplayedBrowserVersionUnavailable(GUICtrlRead($idBrowserDownloadLink)) And Not HasBrowserDownloadFallback($CurrentBrowserType, $Channel) Then
 		Local $DownloadPageUrl = GetBrowserDownloadPageUrl($CurrentBrowserType, $Channel)
 		If $DownloadPageUrl <> "" Then ShellExecute($DownloadPageUrl)
@@ -4075,6 +4123,13 @@ Func DownloadBrowser()
 	$BrowserPath = RelativePath($DownloadedBrowserPath)
 	GUICtrlSetData($idBrowserPath, $BrowserPath)
 	OnBrowserPathChange()
+	; 下载动作已经确定了目标浏览器，即使用户稍后不选择“马上打开”并关闭设置窗口，
+	; 也应保存浏览器类型和路径，避免下次启动回到旧类型。
+	$BrowserType = GetSelectedBrowserType()
+	IniWrite($inifile, "Settings", "BrowserType", $BrowserType)
+	IniWrite($inifile, "Settings", "BrowserPath", $BrowserPath)
+	$BrowserUpdateChannel = $Channel
+	IniWrite($inifile, "Settings", "BrowserUpdateChannel", $BrowserUpdateChannel)
 	If IsChromePlusSupportedBrowser($CurrentBrowserType) And Not IsChromePlusPatchInstalled($DownloadedBrowserPath) Then
 		Local $InstallChromePlusConfirm = _t("InstallChromePlusPatchAfterDownloadConfirm", "浏览器已下载并解压完成。\n\nChrome++ 为可选补丁，非必须安装。安装后可提供右键关闭标签页、书签在新标签页打开等功能。\n\n是否下载并安装 Chrome++ 补丁？")
 		If UsesBundledChromePlus($DownloadedBrowserPath) Then $InstallChromePlusConfirm = _t("InstallBundledChromePlusConfirm", "浏览器已下载并解压完成。\n\nChrome++ 为可选补丁，可提供右键关闭标签页、书签在新标签页打开等功能。\n\n是否安装内置自编译版 Chrome++？无需联网下载。")
@@ -4216,6 +4271,7 @@ Func ApplySettings()
 	$BrowserPath = RelativePath(GUICtrlRead($idBrowserPath))
 	ApplyDetectedBrowserTypeFromPath()
 	$BrowserType = GetSelectedBrowserType()
+	$BrowserUpdateChannel = _BrowserDownloadNormalizeChannel($BrowserType, GUICtrlRead($idChannel))
 
 	Local $SelectedProxyType = GetSelectedProxyType()
 	Local $SelectedProxyServer = StringStripWS(GUICtrlRead($idProxyServer), 3)
@@ -4250,6 +4306,7 @@ Func ApplySettings()
 	$ProxyType = $SelectedProxyType
 	$ProxyServer = $SelectedProxyServer
 	$ProxyPort = Int($SelectedProxyPortText)
+	$GithubApiMirror = StringStripWS(GUICtrlRead($idGithubApiMirror), 3)
 
 	If GUICtrlRead($idAllowBrowserUpdate) = $GUI_CHECKED Then
 		$AllowBrowserUpdate = 1
@@ -4338,6 +4395,7 @@ Func ApplySettings()
 	IniWrite($inifile, "Settings", "BrowserUpdateCheckMode", $BrowserUpdateCheckMode)
 	IniWrite($inifile, "Settings", "BrowserUpdateLastCheck", $BrowserUpdateLastCheck)
 	IniWrite($inifile, "Settings", "BrowserType", $BrowserType)
+	IniWrite($inifile, "Settings", "BrowserUpdateChannel", $BrowserUpdateChannel)
 	IniWrite($inifile, "Settings", "BrowserPath", $BrowserPath)
 	IniWrite($inifile, "Settings", "ProfileDir", $ProfileDir)
 	IniWrite($inifile, "Settings", "CustomPluginsDir", $CustomPluginsDir)
@@ -4354,7 +4412,8 @@ Func ApplySettings()
 	IniWrite($inifile, "Settings", "ProxyType", $ProxyType)
 	IniWrite($inifile, "Settings", "ProxyServer", $ProxyServer)
 	IniWrite($inifile, "Settings", "ProxyPort", $ProxyPort)
-	_DownloadToolsConfigure($DownloadThreads, $ProxyType, $ProxyServer, $ProxyPort)
+	IniWrite($inifile, "Settings", "GithubApiMirror", $GithubApiMirror)
+	_DownloadToolsConfigure($DownloadThreads, $ProxyType, $ProxyServer, $ProxyPort, GetBrowserLocale("zh-CN"), $GithubDirectMirror, $GithubJsDelivrMirror, $GithubApiMirror)
 	_BrowserDownloadConfigure($AppVersion, GetBrowserLocale("zh-CN"), GetEffectiveGithubDirectMirror(), GetEffectiveGithubJsDelivrMirror())
 	$var = $BrowserStartApps
 	If StringRegExp($var, '^".*"$') Then $var = '"' & $var & '"'
@@ -4393,11 +4452,6 @@ Func ApplySettings()
 			FileDelete($ChannelPath)
 			FileWrite($ChannelPath, $ChannelPrefs)
 		EndIf
-	ElseIf IsGoogleChromeBrowser($BrowserType) Then
-		; Remember the channel so the startup update check queries the same one.
-		Local $ChromeChannelString = GUICtrlRead($idChannel)
-		$BrowserUpdateChannel = _BrowserDownloadNormalizeChromeChannel(StringRegExpReplace($ChromeChannelString, " -.*", ""))
-		IniWrite($inifile, "Settings", "BrowserUpdateChannel", $BrowserUpdateChannel)
 	EndIf
 
 	;profiles dir

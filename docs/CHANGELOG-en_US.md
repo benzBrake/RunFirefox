@@ -2,6 +2,19 @@
 
 ## [Unreleased]
 
+- Restored BrowserArchive's `helium.json` as the preferred source for the latest Helium version, with GitHub Releases as fallback.
+
+- Switched Opera update metadata to BrowserArchive's `opera.json` with the official version API as fallback; installer downloads now use the common proxy with the official URL as fallback, removing the legacy dedicated mirror dependency.
+
+- Switched Vivaldi update metadata to BrowserArchive's `vivaldi.json`; downloads now use the official URL through the common proxy/fallback flow, removing the legacy dedicated mirror dependency.
+
+- Adjusted the GitHub Release download fallback order: without a user proxy, GitHub-specific mirrors are tried before the official GitHub URL; Simplified Chinese locales no longer use jsdelivr.net mirrors, and generic URL proxies are excluded from release-asset routing.
+
+- Whale version checks and Windows x86/x64 downloads now use BrowserArchive JSON metadata, preferring jsd mirrors with GitHub fallback and retaining the matching official Naver installer as the final download fallback.
+
+- Opera version checks now use the JSON API for the latest Release/Developer versions; downloads use the matching FTP paths with mirror-first and official fallback, and legacy Beta settings migrate to Stable.
+- Added Vivaldi Stable/Snapshot download channels; version metadata and Windows x64 installers now prefer mirrors with official fallback.
+- Switched Brave release/beta/nightly version and Windows x64 portable ZIP metadata to BrowserArchive's `brave.json`, falling back to official `versions.brave.com` data and then the GitHub Releases API for the release channel only, while removing the retired third-party channel API.
 - Restored the Chrome++ current/latest version row to single-line labels and shortened long Spanish captions and option texts to prevent wrapping, clipping, and misalignment in narrow columns.
 - Fixed the Chrome++ 1.18.0-or-later “Activate a tab on hover” option being incorrectly disabled when it was not already selected.
 - Added a Network settings tab with 1–10 segment downloads and HTTP/SOCKS5 proxies. Proxy mode bypasses GitCode, ghproxy, jsDelivr, and other mirrors in favor of original upstream URLs; when curl is unavailable, the thread control is disabled and direct downloads fall back to one thread. curl downloads now use a continuous marquee animation instead of an inaccurate multi-threaded percentage.

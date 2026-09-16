@@ -2,6 +2,19 @@
 
 ## [Unreleased]
 
+- Helium 最新版本号恢复优先从 BrowserArchive 的 `helium.json` 获取，失败时回退 GitHub Release。
+
+- Opera 更新信息改用 BrowserArchive 的 `opera.json`，失败时回退官方版本 API；安装包下载改用通用代理并回退官方地址，移除旧专用镜像依赖。
+
+- Vivaldi 更新信息改用 BrowserArchive 的 `vivaldi.json`，下载直接使用官方地址并沿用通用代理与失败回退机制，移除旧专用镜像依赖。
+
+- 调整 GitHub Release 下载回退顺序：未启用代理时优先使用 GitHub 专用镜像，最后回退 GitHub 官方地址；简体中文环境不再使用 jsdelivr.net 镜像，通用 URL 代理不参与 Release 资源路由。
+
+- Whale 最新版本与 Windows x86/x64 下载地址改由 BrowserArchive JSON 提供，元数据优先使用 jsd 镜像并回退 GitHub，下载失败时继续回退对应架构的 Naver 官方安装包。
+
+- Opera 版本检查改用 JSON API 获取 Release/Developer 最新版本，下载地址改为对应 FTP 路径并支持镜像优先、官方回退；旧 Beta 通道配置自动按 Stable 处理。
+- Vivaldi 下载新增 Stable/Snapshot 通道，版本信息与 Windows x64 安装包均优先使用镜像并在失败时回退官方地址。
+- Brave 的 release/beta/nightly 版本与 Windows x64 便携 ZIP 信息改用 BrowserArchive 的 `brave.json`，失败时依次回退 `versions.brave.com` 官方数据及仅限 release 通道的 GitHub Releases API，并移除已停用的第三方渠道 API。
 - Chrome++ 页的当前与最新版本恢复为单行显示，并精简西班牙语版本标签及较长的选项文案，避免窄列换行、截断和错位。
 - 修复 Chrome++ 1.18.0 及更高版本在尚未开启“鼠标悬停激活标签页”时，该选项被错误禁用而无法勾选的问题。
 - 新增“网络”设置页：支持 1–10 线程分段下载及 HTTP/SOCKS5 代理；代理模式跳过 GitCode、ghproxy、jsDelivr 等镜像并直连原始地址，缺少 curl 时禁用线程数设置并回退单线程直连；curl 下载使用持续滑动的进度动画，避免多线程下显示不准确的百分比。

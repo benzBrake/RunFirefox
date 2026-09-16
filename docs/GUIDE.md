@@ -17,7 +17,7 @@ LibreWolf 会固定下载官网提供的 Windows x64 portable ZIP；即使压缩
 
 迅雷浏览器会从迅雷官网解析当前 Windows x64 安装包地址并下载；官网解析失败时可打开官网手动下载。
 
-Opera 会从官方 FTP 读取所选渠道（stable/beta/dev）的最新版本并下载 Windows x64 离线安装包自动解压；FTP 解析失败时可打开官网手动下载。
+Opera 会优先从 BrowserArchive 获取所选渠道（stable/beta/dev）的最新版本，失败时回退官方版本 API；Windows x64 离线安装包会依次经内置通用代理下载并在失败时回退官方地址，然后自动解压。
 
 ## 方式二：手动制作（适用于未内置下载的浏览器）
 

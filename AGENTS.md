@@ -1,96 +1,115 @@
-# 约定
-如果 `AGENTS.local.md` 文件存在，请优先遵循该文件中的约定。
+# RunFirefox 项目约定
 
-## 多语言文本变更
-这个项目的界面文本源头集中在 `Lang.ini`，AutoIt 代码通过 `_t("Key", "默认文本")` 读取。
-`Lang.ini` 不会随 exe 释放到磁盘：编译前需用 `pwsh -File .\scripts\update-langdata.ps1` 把它生成到 `libs\LangData.au3` 内嵌进程序。
-运行时若 exe 目录存在 `LangCustom.ini`，其中的 key 会覆盖内嵌数据的同名 key（按 key 合并，不是整体替换）。
-凡是新增语言、增加/修改用户可见文本，必须同步处理多语言，避免只改一种语言。
+## 1. 适用范围与优先级
 
-约定如下：
+- 本文件适用于项目内所有开发、测试、构建和文档变更。
+- 如果存在 `AGENTS.local.md`，先遵循其中的本地环境和用户偏好约定。
+- 修改前先检查 `git status`，保留用户已有改动，不覆盖无关文件。
+- 默认文件编码为 UTF-8，无 BOM；默认换行符为 LF。
+- `.bat`、`.cmd` 使用 GBK 编码和 CRLF 换行。
+- `.reg` 使用 UTF-16LE 编码和 CRLF 换行。
 
-- 新增用户可见文本时，优先新增或复用 `_t("Key", "默认文本")`，不要在界面、弹窗、提示、菜单等位置直接写死单一语言文本。
-- 每新增一个 `_t` key，必须在 `Lang.ini` 的所有语言 section 中补齐同名 key；暂时无法准确翻译时，也要先填入可接受的英文或中文占位译文，不要缺 key。
-- 每次修改 `Lang.ini` 后，必须重新运行 `pwsh -File .\scripts\update-langdata.ps1` 再提交（`libs/LangData.au3` 是生成物，不要手工编辑）；如果只改了 `Lang.ini` 而忘记重新生成，编译出的 exe 仍是旧文案。
-- 修改已有文案时，要同步检查 `Lang.ini` 所有语言 section 的同名 key，保持含义一致。
-- 文案里的占位符必须跨语言保持一致，例如 `{AppName}`、`{Version}`、`%s`、`%i`、`\n`，不能漏删或改名。
-- 新增语言时，必须新增完整的语言 section，至少包含 `LangTitle`、`LangSupportAuthor`、`LangSupportUrl`，并补齐当前所有已有翻译 key；语言名优先使用 Firefox/Mozilla 下载链接可识别的语言代码格式，例如 `en-US`、`zh-CN`。
-- 每新增一种内置语言，必须同步在根目录 `LangCustom.ini` 模板中补齐该语言的完整示例 section（`LangCustom.ini` 是随仓库维护的自定义语言模板，不是生成物）；后续 `_t` key 增减时，也要同步检查 `LangCustom.ini` 中各示例 section 的 key 与 `Lang.ini` 保持一致。
-- 如果新增或修改的文本会出现在 README、指南、发布说明或用户说明中，要同步检查 `README.md` 与 `docs/README-en_US.md` 等对应中英文文档。
-- 提交前用下面的 PowerShell 片段检查 `_t` key 与 `Lang.ini` section key 是否一致；如果输出缺失项，先补齐再提交：
+## 2. 项目结构
 
-```powershell
-$codeFiles = @('.\RunFirefox.au3') + (Get-ChildItem .\libs -Filter '*.au3' -File | ForEach-Object { $_.FullName })
-$code = [string]::Join("`n", ($codeFiles | ForEach-Object {
-    Get-Content $_ | Where-Object { $_ -notmatch '^\s*;' }
-}))
-$codeKeys = [regex]::Matches($code, '_t\("([^"]+)"') |
-    ForEach-Object { $_.Groups[1].Value } |
-    Sort-Object -Unique
+- `RunFirefox.au3`：主 AutoIt 源文件。
+- `libs/*.au3`：AutoIt 功能模块。
+- `Lang.ini`：内置多语言文本源文件。
+- `LangCustom.ini`：用户自定义语言模板，不是生成文件。
+- `libs/LangData.au3`：由 `Lang.ini` 生成的内嵌语言数据。
+- `icons/`：构建使用的浏览器图标。
+- `scripts/`：构建、测试、资源处理和发布辅助脚本。
+- `.github/workflows/build.yml`：CI、Nightly 和 Release 构建流程。
+- `README.md`、`docs/`：项目说明、使用指南和英文文档。
+- `CHANGELOG.md`、`docs/CHANGELOG-en_US.md`：中英文更新日志。
 
-$sections = @{}
-$current = $null
-foreach ($line in Get-Content .\Lang.ini) {
-    if ($line -match '^\s*\[([^\]]+)\]\s*$') {
-        $current = $Matches[1]
-        $sections[$current] = [System.Collections.Generic.HashSet[string]]::new()
-        continue
-    }
+## 3. AutoIt 开发约定
 
-    if ($current -and $line -match '^\s*([^=;\s][^=]*)=') {
-        [void]$sections[$current].Add($Matches[1].Trim())
-    }
-}
+- 保持现有 AutoIt 3.3.14.x 兼容性。
+- 公共功能优先放入对应的 `libs/*.au3`，避免继续扩大 `RunFirefox.au3`。
+- 修改下载、浏览器版本检测、更新或安装逻辑时，优先复用现有模块。
+- 注意同时兼容 x86 和 x64 构建；除非功能明确不支持，否则不要依赖启动器自身位数判断浏览器架构。
+- 不要手工修改构建生成的 EXE 文件。
+- `RunFirefox.au3` 中的文件版本号和 `$AppVersion` 必须保持一致。
 
-foreach ($section in $sections.Keys) {
-    $missing = $codeKeys | Where-Object { -not $sections[$section].Contains($_) }
-    if ($missing) {
-        Write-Host "[$section] missing:"
-        $missing | ForEach-Object { Write-Host "  $_" }
-    }
-}
-```
+## 4. 下载与网络请求
 
-## AI 提交前检查
-在 AI 准备创建 commit 之前，先运行：
+- 所有 HTTP GET/POST、版本元数据读取、浏览器安装包下载、自动更新和 Chrome++ 补丁下载，必须通过 `libs/DownloadTools.au3` 提供的统一函数。
+- 业务模块不得直接调用 `InetGet`、`InetRead`，也不得拼接或执行 `curl` 命令。
+- URL 分类、镜像顺序、代理配置、超时和失败回退统一由下载工具处理。
+- 代理模式下应遵循下载工具的直连策略，不要在业务模块中自行追加镜像。
+- 新增或调整下载源时，同时更新相应测试脚本。
 
-```powershell
-pwsh -File .\scripts\release-advisor.ps1 -PendingSubject "<commit subject>"
-```
+## 5. 多语言文本
 
-约定如下：
+- 所有用户可见文本优先使用 `_t("Key", "默认文本")`，不要在界面、菜单、弹窗或提示中直接写死单一语言。
+- 新增或修改 `_t` key 时，必须同步更新 `Lang.ini` 的所有语言 section。
+- 修改 `Lang.ini` 后必须运行：
 
-- commit message 尽量使用 Conventional Commits 风格，例如 `feat:`、`fix:`、`docs:`、`chore:`。
-- 如果脚本输出 `Should release: yes`，AI 需要在提交说明里明确告知“建议补一个新 tag”，并附上建议 tag 名称。
-- 如果脚本输出 `Should release: no`，AI 可以正常提交，但不要建议打 tag。
-- 除非用户明确要求，否则 AI 不要自动创建或推送 tag。
+  ```powershell
+  pwsh -File .\scripts\update-langdata.ps1
+  ```
 
-当前仓库的自动构建逻辑是“先更新版本号和更新日志，再打 `v*` tag，由 workflow 校验版本并编译 release”。
-为了让 AI 在 commit 前先判断这次改动是否值得发版，可以运行：
+- 不要手工编辑 `libs/LangData.au3`。
+- `LangCustom.ini` 是运行时覆盖模板；新增语言或新增 key 时，应同步维护其中的示例 section。
+- 各语言中的占位符必须保持一致，例如 `{AppName}`、`{Version}`、`%s`、`%i` 和 `\n`。
+- 新增语言至少应包含 `LangTitle`、`LangSupportAuthor` 和 `LangSupportUrl`，语言代码优先使用 Firefox/Mozilla 可识别的格式。
+- 提交前检查代码中的 `_t` key 是否在所有 `Lang.ini` section 中存在。
+
+## 6. 测试与验证
+
+修改后根据影响范围运行相关测试。常用命令包括：
 
 ```powershell
-pwsh -File .\scripts\release-advisor.ps1 -PendingSubject "feat: 你的提交标题"
+pwsh -File .\scripts\test-download-routing.ps1
+pwsh -File .\scripts\test-generate-release-notes.ps1
+pwsh -File .\scripts\test-network-settings.ps1
+pwsh -File .\scripts\test-opera-download.ps1
+pwsh -File .\scripts\test-vivaldi-download.ps1
+pwsh -File .\scripts\test-whale-download.ps1
+pwsh -File .\scripts\test-bundled-chrome-plus.ps1
+pwsh -File .\scripts\generate-release-notes.ps1 -ValidateOnly
 ```
 
-默认策略是按当前仓库习惯判断：
+- 需要 AutoIt 的测试默认使用 `C:\Program Files\AutoIt3`。
+- 修改语言、下载、版本检测或发布脚本时，不要只做静态检查，应运行对应测试。
+- 提交前确认没有生成临时 harness、测试输出、`.part` 文件或未跟踪构建产物。
 
-1. 只要自上个 tag 以来有影响发布内容的改动，就建议递增一个 patch tag。
-2. 只有文档、CI、`AGENTS.md`、`.gitignore` 之类改动时，不建议单独打 tag。
-3. 如果想按 Conventional Commits 推断 major/minor/patch，可以加 `-VersionStrategy semver`。
+## 7. 构建约定
 
-例如当前输出如果是：
+- 构建前确保 `libs/LangData.au3` 已由最新的 `Lang.ini` 生成。
+- 本地构建使用 AutoIt3Wrapper，并同时验证 x86/x64 输出。
+- CI 在推送到 `master` 或 Pull Request 时执行验证和 Nightly 构建。
+- Release 仅由符合 `vX.Y.Z` 格式的 Git tag 触发。
+- Release workflow 会校验 Git tag 版本、`RunFirefox.au3` 中的文件版本号、`$AppVersion`、中英文 changelog 和 Release 产物。
 
-```text
-Should release: yes
-Suggested tag: v2.8.5
-```
+## 8. Changelog 与发布
 
-那就表示这次提交后比较适合补一个 `v2.8.5` tag，再交给现有 workflow 去构建 release。
+- 所有未发布的用户可感知变更写入两个 changelog 顶部的 `[Unreleased]`：
+  - `CHANGELOG.md`
+  - `docs/CHANGELOG-en_US.md`
+- 中英文 changelog 的版本、日期和条目数量应保持同步。
+- 创建 tag 前：
+  1. 将 `[Unreleased]` 条目迁移到新的版本段；
+  2. 保留空的 `[Unreleased]` 标题；
+  3. 更新 `RunFirefox.au3` 的文件版本号和 `$AppVersion`；
+  4. 运行 changelog 验证脚本。
+- 准备提交前运行：
 
-日常开发时，所有尚未发布的用户可感知变更都写入 `CHANGELOG.md` 与 `docs/CHANGELOG-en_US.md` 顶部的 `## [Unreleased]`，不要追加到已经发布的版本段。
+  ```powershell
+  pwsh -File .\scripts\release-advisor.ps1 -PendingSubject "<commit subject>"
+  ```
 
-tag 之前：
+- 如果输出 `Should release: yes`，在提交说明中提示建议创建对应的新 tag。
+- 除非用户明确要求，不自动创建或推送 tag。
+- 提交信息优先使用英文 Conventional Commits 格式，例如 `feat:`、`fix:`、`docs:`、`chore:`。
 
-1. 将两个 changelog 的 `Unreleased` 内容同步迁入新的 `## [X.Y.Z] - YYYY-MM-DD` 版本段，并保留空的 `Unreleased` 标题。
-2. 更新 RunFirefox.au3 的文件版本号和 `$AppVersion`。
-3. 提交上述发版准备改动后再创建 tag；如果 `Unreleased` 仍有内容，release workflow 会拒绝发布。
+## 9. 文档同步
+
+- 用户可见功能、配置、下载行为或语言行为发生变化时，同步检查 `README.md`、`docs/README-en_US.md`、`docs/GUIDE.md` 和中英文 changelog。
+- 不要在文档中写入本地代理地址、个人路径或临时测试信息。
+
+## 10. 安全与变更边界
+
+- 不提交 API 密钥、代理认证信息或其他凭据。
+- 不使用危险的递归删除、强制覆盖或破坏性 Git 操作，除非用户明确要求。
+- 不修改与当前任务无关的用户文件或已有改动。

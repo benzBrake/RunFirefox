@@ -8,16 +8,173 @@ Global $DT_Cancelled = False, $DT_CanCancel = False, $DT_PreviousGuiMode = -1
 Global $DT_ProgressMarquee = False
 Global $DT_CurlPath = "", $DT_CurlDetected = False
 Global $DT_DownloadThreads = 3, $DT_ProxyType = "direct", $DT_ProxyServer = "", $DT_ProxyPort = 0
+Global $DT_Language = "", $DT_GithubDirectMirror = "", $DT_GithubJsDelivrMirror = "", $DT_GithubApiMirror = ""
+Global $DT_AsyncUrls = 0, $DT_AsyncIndex = -1, $DT_AsyncDestination = ""
 
-Func _DownloadToolsConfigure($DownloadThreads = 3, $ProxyType = "direct", $ProxyServer = "", $ProxyPort = 0)
+Global Const $DT_DEFAULT_GITHUB_JSDELIVR_MIRROR = "https://cdn.jsdmirror.com/gh/"
+Global Const $DT_DEFAULT_GITHUB_DIRECT_MIRROR = "https://v6.gh-proxy.org/"
+Global Const $DT_DEFAULT_GITHUB_API_MIRROR = "https://gh.dpik.top/"
+Global Const $DT_DEFAULT_GENERIC_URL_PROXY = "https://box.w0x7ce.eu/proxy/"
+Global Const $DT_FALLBACK_GENERIC_URL_PROXY = "https://oo6.cc/proxy/"
+
+Func _DownloadToolsConfigure($DownloadThreads = 3, $ProxyType = "direct", $ProxyServer = "", $ProxyPort = 0, $Language = "", $GithubDirectMirror = "", $GithubJsDelivrMirror = "", $GithubApiMirror = "")
 	$DT_DownloadThreads = Int($DownloadThreads)
 	If $DT_DownloadThreads < 1 Or $DT_DownloadThreads > 10 Then $DT_DownloadThreads = 3
 	$DT_ProxyType = StringLower(StringStripWS($ProxyType, 3))
 	If $DT_ProxyType <> "http" And $DT_ProxyType <> "socks5" Then $DT_ProxyType = "direct"
 	$DT_ProxyServer = StringStripWS($ProxyServer, 3)
 	$DT_ProxyPort = Int($ProxyPort)
+	_DownloadToolsSetRouting($Language, $GithubDirectMirror, $GithubJsDelivrMirror, $GithubApiMirror)
 	If $DT_ProxyType = "direct" Then HttpSetProxy(1)
 EndFunc   ;==>Configure
+
+Func _DownloadToolsSetRouting($Language = "", $GithubDirectMirror = "", $GithubJsDelivrMirror = "", $GithubApiMirror = "")
+	$DT_Language = StringLower(StringReplace(StringStripWS($Language, 3), "_", "-"))
+	$DT_GithubDirectMirror = _DownloadToolsNormalizeMirror($GithubDirectMirror)
+	$DT_GithubJsDelivrMirror = _DownloadToolsNormalizeMirror($GithubJsDelivrMirror)
+	$DT_GithubApiMirror = _DownloadToolsNormalizeMirror($GithubApiMirror)
+EndFunc   ;==>SetRouting
+
+Func _DownloadToolsNormalizeMirror($Mirror)
+	$Mirror = StringStripWS($Mirror, 3)
+	If $Mirror = "" Then Return ""
+	If StringRight($Mirror, 1) <> "/" Then $Mirror &= "/"
+	Return $Mirror
+EndFunc   ;==>NormalizeMirror
+
+Func _DownloadToolsIsSimplifiedChinese()
+	Return $DT_Language = "zh-cn"
+EndFunc   ;==>IsSimplifiedChinese
+
+Func _DownloadToolsAddCandidate(ByRef $Urls, ByRef $Count, $Url)
+	If $Url = "" Then Return
+	For $i = 0 To $Count - 1
+		If $Urls[$i] = $Url Then Return
+	Next
+	ReDim $Urls[$Count + 1]
+	$Urls[$Count] = $Url
+	$Count += 1
+EndFunc   ;==>AddCandidate
+
+Func _DownloadToolsAddGenericProxyCandidates(ByRef $Urls, ByRef $Count, $Url, $Language, $ConfiguredProxy = "")
+	If $Language = "zh-cn" Then
+		_DownloadToolsAddCandidate($Urls, $Count, $DT_DEFAULT_GENERIC_URL_PROXY & $Url)
+		_DownloadToolsAddCandidate($Urls, $Count, $DT_FALLBACK_GENERIC_URL_PROXY & $Url)
+		Return
+	EndIf
+	$ConfiguredProxy = _DownloadToolsNormalizeMirror($ConfiguredProxy)
+	If $ConfiguredProxy <> "" Then _DownloadToolsAddCandidate($Urls, $Count, $ConfiguredProxy & $Url)
+EndFunc   ;==>AddGenericProxyCandidates
+
+Func _DownloadToolsIsGithubApiUrl($Url)
+	Return StringRegExp($Url, "(?i)^https?://api\.github\.com/")
+EndFunc   ;==>IsGithubApiUrl
+
+Func _DownloadToolsIsGithubUrl($Url)
+	Return StringRegExp($Url, "(?i)^https?://(?:api\.github\.com|github\.com|raw\.githubusercontent\.com)/")
+EndFunc   ;==>IsGithubUrl
+
+Func _DownloadToolsBuildGithubJsMirrorUrl($Url)
+	Local $Lower = StringLower($Url), $Path
+	If StringRegExp($Lower, "^https?://cdn\.jsdelivr\.net/gh/") Then
+		Return StringRegExpReplace($Url, "(?i)^https?://cdn\.jsdelivr\.net/gh/", "https://cdn.jsdmirror.com/gh/")
+	EndIf
+	If StringRegExp($Lower, "^https?://cdn\.jsdmirror\.com/gh/") Then Return $Url
+	If StringRegExp($Lower, "^https?://raw\.githubusercontent\.com/[^/]+/[^/]+/") Then
+		$Path = StringRegExpReplace($Url, "(?i)^https?://raw\.githubusercontent\.com/", "")
+		Local $Parts = StringSplit($Path, "/", 2)
+		If UBound($Parts) >= 3 Then
+			Local $Ref = $Parts[2], $Start = 3
+			If $Ref = "refs" And UBound($Parts) >= 5 And $Parts[3] = "heads" Then
+				$Ref = $Parts[4]
+				$Start = 5
+			EndIf
+			Local $Result = "https://cdn.jsdmirror.com/gh/" & $Parts[0] & "/" & $Parts[1] & "@" & $Ref
+			For $i = $Start To UBound($Parts) - 1
+				$Result &= "/" & $Parts[$i]
+			Next
+			Return $Result
+		EndIf
+	EndIf
+	If StringRegExp($Lower, "(?i)^https?://github\.com/[^/]+/[^/]+/raw/") Then
+		$Path = StringRegExpReplace($Url, "(?i)^https?://github\.com/", "")
+		Local $RawParts = StringSplit($Path, "/", 2)
+		If UBound($RawParts) >= 5 And $RawParts[2] = "raw" Then
+			Local $RawRef = $RawParts[3], $RawStart = 4
+			If $RawParts[3] = "refs" And $RawParts[4] = "heads" And UBound($RawParts) >= 6 Then
+				$RawRef = $RawParts[5]
+				$RawStart = 6
+			EndIf
+			Local $RawResult = "https://cdn.jsdmirror.com/gh/" & $RawParts[0] & "/" & $RawParts[1] & "@" & $RawRef
+			For $i = $RawStart To UBound($RawParts) - 1
+				$RawResult &= "/" & $RawParts[$i]
+			Next
+			Return $RawResult
+		EndIf
+	EndIf
+	Return ""
+EndFunc   ;==>BuildGithubJsMirrorUrl
+
+Func _DownloadToolsIsGenericProxyUrl($Url)
+	Return StringRegExp($Url, "(?i)^https?://(?:downloads\.vivaldi\.com|update\.vivaldi\.com|vivaldi\.com|www\.vivaldi\.com|get\.opera\.com|installer-whale\.pstatic\.net|cv\.whale\.naver\.com|archive\.org|versions\.brave\.com|brave\.com|www\.brave\.com|static\.brave\.com)/")
+EndFunc   ;==>IsGenericProxyUrl
+
+Func _DownloadToolsIsManagedMirrorUrl($Url)
+	Local $Lower = StringLower($Url)
+	If $DT_GithubDirectMirror <> "" And StringLeft($Lower, StringLen(StringLower($DT_GithubDirectMirror))) = StringLower($DT_GithubDirectMirror) Then Return True
+	If $DT_GithubJsDelivrMirror <> "" And StringLeft($Lower, StringLen(StringLower($DT_GithubJsDelivrMirror))) = StringLower($DT_GithubJsDelivrMirror) Then Return True
+	If $DT_GithubApiMirror <> "" And StringLeft($Lower, StringLen(StringLower($DT_GithubApiMirror))) = StringLower($DT_GithubApiMirror) Then Return True
+	If StringLeft($Lower, StringLen($DT_DEFAULT_GENERIC_URL_PROXY)) = StringLower($DT_DEFAULT_GENERIC_URL_PROXY) Then Return True
+	If StringLeft($Lower, StringLen($DT_FALLBACK_GENERIC_URL_PROXY)) = StringLower($DT_FALLBACK_GENERIC_URL_PROXY) Then Return True
+	Return StringInStr($Lower, "cdn.jsdmirror.com/") > 0 Or _
+			(StringInStr($Lower, "gcore.jsdelivr.net/") > 0 And StringInStr($Lower, "/gh/") > 0) Or _
+			(StringInStr($Lower, "testingcf.jsdelivr.net/") > 0 And StringInStr($Lower, "/gh/") > 0) Or _
+			StringInStr($Lower, "gh-proxy") > 0 Or StringInStr($Lower, "ghproxy") > 0 Or _
+			StringInStr($Lower, "gh.dpik.top/") > 0
+EndFunc   ;==>IsManagedMirrorUrl
+
+Func _DownloadToolsBuildUrlCandidatesForConfig($Url, $Language, $GithubDirectMirror, $GithubJsDelivrMirror, $GithubApiMirror, $GenericProxy = "")
+	Local $Urls[1], $Count = 0
+	If $Url = "" Then Return SetError(1, 0, 0)
+	If _DownloadToolsUsesProxy() Or _DownloadToolsIsManagedMirrorUrl($Url) Then
+		_DownloadToolsAddCandidate($Urls, $Count, $Url)
+		ReDim $Urls[$Count]
+		Return $Urls
+	EndIf
+
+	Local $Lang = StringLower(StringReplace(StringStripWS($Language, 3), "_", "-"))
+	Local $Direct = _DownloadToolsNormalizeMirror($GithubDirectMirror)
+	Local $Jsd = _DownloadToolsNormalizeMirror($GithubJsDelivrMirror)
+	Local $Api = _DownloadToolsNormalizeMirror($GithubApiMirror)
+	Local $Accelerated = ""
+	If _DownloadToolsIsGithubApiUrl($Url) Then
+		If $Api = "" And $Lang = "zh-cn" Then $Api = $DT_DEFAULT_GITHUB_API_MIRROR
+		If $Api <> "" Then $Accelerated = $Api & $Url
+	Else
+		Local $JsdUrl = _DownloadToolsBuildGithubJsMirrorUrl($Url)
+		If $JsdUrl <> "" And ($Lang = "zh-cn" Or $Jsd <> "") Then
+			If $Lang = "zh-cn" Then
+				$Accelerated = $JsdUrl
+			Else
+				If $Jsd = "" Then $Jsd = $DT_DEFAULT_GITHUB_JSDELIVR_MIRROR
+				$Accelerated = StringReplace($JsdUrl, "https://cdn.jsdmirror.com/gh/", $Jsd, 1)
+			EndIf
+		ElseIf _DownloadToolsIsGithubUrl($Url) Then
+			If $Direct = "" And $Lang = "zh-cn" Then $Direct = $DT_DEFAULT_GITHUB_DIRECT_MIRROR
+			If $Direct <> "" Then $Accelerated = $Direct & $Url
+		ElseIf _DownloadToolsIsGenericProxyUrl($Url) And ($Lang = "zh-cn" Or $GenericProxy <> "") Then
+			_DownloadToolsAddGenericProxyCandidates($Urls, $Count, $Url, $Lang, $GenericProxy)
+		EndIf
+	EndIf
+	_DownloadToolsAddCandidate($Urls, $Count, $Accelerated)
+	_DownloadToolsAddCandidate($Urls, $Count, $Url)
+	ReDim $Urls[$Count]
+	Return $Urls
+EndFunc   ;==>BuildUrlCandidatesForConfig
+
+Func _DownloadToolsBuildUrlCandidates($Url)
+	Return _DownloadToolsBuildUrlCandidatesForConfig($Url, $DT_Language, $DT_GithubDirectMirror, $DT_GithubJsDelivrMirror, $DT_GithubApiMirror)
+EndFunc   ;==>BuildUrlCandidates
 
 Func _DownloadToolsFindCurl()
 	If $DT_CurlDetected Then Return $DT_CurlPath
@@ -65,8 +222,7 @@ EndFunc   ;==>CurlCommand
 Func _DownloadToolsHttpComError($oError)
 EndFunc
 
-Func _DownloadToolsHttpGetTextDiagnostic($Url, $UserAgent, $Accept, ByRef $Diagnostic, $Referer = "")
-	$Diagnostic = "GET " & $Url & @CRLF
+Func _DownloadToolsHttpGetTextSingle($Url, $UserAgent, $Accept, ByRef $Diagnostic, $Referer = "")
 	If _DownloadToolsHasCurl() Then
 		Local $OutputFile = @TempDir & "\RunFirefox_CurlText_" & @AutoItPID & "_" & Random(1000, 999999, 1) & ".tmp"
 		Local $ExtraArgs = ' --max-time 60 --output "' & $OutputFile & '"'
@@ -76,64 +232,44 @@ Func _DownloadToolsHttpGetTextDiagnostic($Url, $UserAgent, $Accept, ByRef $Diagn
 		Local $ExitCode = RunWait(_DownloadToolsCurlCommand($ExtraArgs, $Url), @TempDir, @SW_HIDE)
 		Local $ResponseText = FileRead($OutputFile)
 		FileDelete($OutputFile)
-		$Diagnostic &= "curl exit code: " & $ExitCode & @CRLF
-		$Diagnostic &= "Response length: " & StringLen($ResponseText) & @CRLF
+		$Diagnostic &= $Url & " (curl " & $ExitCode & ", " & StringLen($ResponseText) & " bytes)" & @CRLF
 		If $ExitCode <> 0 Then Return SetError(2, $ExitCode, "")
 		Return $ResponseText
 	EndIf
-	If _DownloadToolsUsesProxy() Then
-		$Diagnostic &= "curl.exe is required for proxy connections." & @CRLF
-		Return SetError(4, 0, "")
-	EndIf
+	If _DownloadToolsUsesProxy() Then Return SetError(4, 0, "")
 	Local $oError = ObjEvent("AutoIt.Error", "_DownloadToolsHttpComError")
 	Local $oHTTP = ObjCreate("WinHttp.WinHttpRequest.5.1")
-	If @error Or Not IsObj($oHTTP) Then
-		$Diagnostic &= "Failed to create WinHttpRequest. @error=" & @error & @CRLF
-		Return SetError(1, 0, "")
-	EndIf
-
+	If @error Or Not IsObj($oHTTP) Then Return SetError(1, 0, "")
 	$oHTTP.SetTimeouts(5000, 5000, 15000, 30000)
 	$oHTTP.Open("GET", $Url, False)
 	If $UserAgent <> "" Then $oHTTP.SetRequestHeader("User-Agent", $UserAgent)
 	If $Accept <> "" Then $oHTTP.SetRequestHeader("Accept", $Accept)
 	If $Referer <> "" Then $oHTTP.SetRequestHeader("Referer", $Referer)
 	$oHTTP.Send()
-	If @error Then
-		$Diagnostic &= "HTTP send failed. @error=" & @error & ", @extended=" & @extended & @CRLF
-		Return SetError(2, 0, "")
-	EndIf
-
-	Local $Status = $oHTTP.Status
-	Local $ResponseText = $oHTTP.ResponseText
-	$Diagnostic &= "HTTP status: " & $Status & @CRLF
-	$Diagnostic &= "Response length: " & StringLen($ResponseText) & @CRLF
-	If $Status < 200 Or $Status >= 300 Then
-		$Diagnostic &= "Response preview: " & StringLeft(StringReplace($ResponseText, @CRLF, "\n"), 500) & @CRLF
-		Return SetError(3, $Status, "")
-	EndIf
-
+	If @error Then Return SetError(2, 0, "")
+	Local $Status = $oHTTP.Status, $ResponseText = $oHTTP.ResponseText
+	$Diagnostic &= $Url & " (HTTP " & $Status & ", " & StringLen($ResponseText) & " bytes)" & @CRLF
+	If $Status < 200 Or $Status >= 300 Then Return SetError(3, $Status, "")
 	Return $ResponseText
+EndFunc   ;==>HttpGetTextSingle
+
+Func _DownloadToolsHttpGetTextDiagnostic($Url, $UserAgent, $Accept, ByRef $Diagnostic, $Referer = "")
+	$Diagnostic = "GET candidates:" & @CRLF
+	Local $Urls = _DownloadToolsBuildUrlCandidates($Url)
+	If Not IsArray($Urls) Then Return SetError(1, 0, "")
+	For $i = 0 To UBound($Urls) - 1
+		Local $Response = _DownloadToolsHttpGetTextSingle($Urls[$i], $UserAgent, $Accept, $Diagnostic, $Referer)
+		If Not @error Then Return $Response
+	Next
+	Return SetError(2, 0, "")
 EndFunc   ;==>HttpGetTextDiagnostic
 
 Func _DownloadToolsHttpGetText($Url, $UserAgent = "", $Accept = "")
 	Local $Diagnostic = ""
-	If _DownloadToolsHasCurl() Or _DownloadToolsUsesProxy() Then Return _DownloadToolsHttpGetTextDiagnostic($Url, $UserAgent, $Accept, $Diagnostic)
-	Local $oError = ObjEvent("AutoIt.Error", "_DownloadToolsHttpComError")
-	Local $oHTTP = ObjCreate("WinHttp.WinHttpRequest.5.1")
-	If @error Or Not IsObj($oHTTP) Then Return SetError(1, 0, "")
-
-	$oHTTP.SetTimeouts(5000, 5000, 15000, 30000)
-	$oHTTP.Open("GET", $Url, False)
-	If $UserAgent <> "" Then $oHTTP.SetRequestHeader("User-Agent", $UserAgent)
-	If $Accept <> "" Then $oHTTP.SetRequestHeader("Accept", $Accept)
-	$oHTTP.Send()
-	If @error Then Return SetError(2, 0, "")
-	If $oHTTP.Status < 200 Or $oHTTP.Status >= 300 Then Return SetError(3, 0, "")
-
-	Return $oHTTP.ResponseText
+	Return _DownloadToolsHttpGetTextDiagnostic($Url, $UserAgent, $Accept, $Diagnostic)
 EndFunc   ;==>HttpGetText
 
-Func _DownloadToolsHttpPostText($Url, $Body, $UserAgent = "", $ContentType = "application/octet-stream")
+Func _DownloadToolsHttpPostTextSingle($Url, $Body, $UserAgent, $ContentType)
 	If _DownloadToolsHasCurl() Then
 		Local $Token = @AutoItPID & "_" & Random(1000, 999999, 1)
 		Local $RequestFile = @TempDir & "\RunFirefox_CurlPostRequest_" & $Token & ".tmp"
@@ -152,37 +288,79 @@ Func _DownloadToolsHttpPostText($Url, $Body, $UserAgent = "", $ContentType = "ap
 		Return $ResponseText
 	EndIf
 	If _DownloadToolsUsesProxy() Then Return SetError(3, 0, "")
-	Return SetError(4, 0, "")
+	Local $oError = ObjEvent("AutoIt.Error", "_DownloadToolsHttpComError")
+	Local $oHTTP = ObjCreate("WinHttp.WinHttpRequest.5.1")
+	If @error Or Not IsObj($oHTTP) Then Return SetError(1, 0, "")
+	$oHTTP.SetTimeouts(5000, 5000, 15000, 30000)
+	$oHTTP.Open("POST", $Url, False)
+	If $UserAgent <> "" Then $oHTTP.SetRequestHeader("User-Agent", $UserAgent)
+	$oHTTP.SetRequestHeader("Content-Type", $ContentType)
+	$oHTTP.Send($Body)
+	If @error Then Return SetError(2, 0, "")
+	If $oHTTP.Status < 200 Or $oHTTP.Status >= 300 Then Return SetError(3, $oHTTP.Status, "")
+	Return $oHTTP.ResponseText
+EndFunc   ;==>HttpPostTextSingle
+
+Func _DownloadToolsHttpPostText($Url, $Body, $UserAgent = "", $ContentType = "application/octet-stream")
+	Local $Urls = _DownloadToolsBuildUrlCandidates($Url)
+	If Not IsArray($Urls) Then Return SetError(1, 0, "")
+	For $i = 0 To UBound($Urls) - 1
+		Local $Response = _DownloadToolsHttpPostTextSingle($Urls[$i], $Body, $UserAgent, $ContentType)
+		If Not @error Then Return $Response
+	Next
+	Return SetError(2, 0, "")
 EndFunc   ;==>HttpPostText
 
 Func _DownloadToolsReadUrl($Url)
-	If _DownloadToolsHasCurl() Then
-		Local $OutputFile = @TempDir & "\RunFirefox_CurlRead_" & @AutoItPID & "_" & Random(1000, 999999, 1) & ".tmp"
-		Local $ExitCode = RunWait(_DownloadToolsCurlCommand(' --max-time 60 --output "' & $OutputFile & '"', $Url), @TempDir, @SW_HIDE)
-		If $ExitCode <> 0 Then
+	Local $Urls = _DownloadToolsBuildUrlCandidates($Url)
+	If Not IsArray($Urls) Then Return SetError(1, 0, Binary(""))
+	For $i = 0 To UBound($Urls) - 1
+		If _DownloadToolsHasCurl() Then
+			Local $OutputFile = @TempDir & "\RunFirefox_CurlRead_" & @AutoItPID & "_" & Random(1000, 999999, 1) & ".tmp"
+			Local $ExitCode = RunWait(_DownloadToolsCurlCommand(' --max-time 60 --output "' & $OutputFile & '"', $Urls[$i]), @TempDir, @SW_HIDE)
+			If $ExitCode = 0 Then
+				Local $FileHandle = FileOpen($OutputFile, 16), $Data = FileRead($FileHandle)
+				FileClose($FileHandle)
+				FileDelete($OutputFile)
+				Return $Data
+			EndIf
 			FileDelete($OutputFile)
-			Return SetError(1, $ExitCode, Binary(""))
+		ElseIf Not _DownloadToolsUsesProxy() Then
+			Local $Data = InetRead($Urls[$i], 1)
+			If Not @error Then Return $Data
 		EndIf
-		Local $FileHandle = FileOpen($OutputFile, 16)
-		Local $Data = FileRead($FileHandle)
-		FileClose($FileHandle)
-		FileDelete($OutputFile)
-		Return $Data
-	EndIf
-	If _DownloadToolsUsesProxy() Then Return SetError(2, 0, Binary(""))
-	Return InetRead($Url, 1)
+	Next
+	Return SetError(2, 0, Binary(""))
 EndFunc   ;==>ReadUrl
 
 Func _DownloadToolsStartUrlToFile($Url, $Destination, ByRef $Kind)
 	FileDelete($Destination)
+	Local $Urls = _DownloadToolsBuildUrlCandidates($Url)
+	If Not IsArray($Urls) Or UBound($Urls) = 0 Then Return SetError(1, 0, 0)
+	$DT_AsyncUrls = $Urls
+	$DT_AsyncIndex = 0
+	$DT_AsyncDestination = $Destination
 	If _DownloadToolsHasCurl() Then
 		$Kind = "curl"
-		Return Run(_DownloadToolsCurlCommand(' --max-time 60 --output "' & $Destination & '"', $Url), @TempDir, @SW_HIDE)
+		Return Run(_DownloadToolsCurlCommand(' --max-time 60 --output "' & $Destination & '"', $Urls[0]), @TempDir, @SW_HIDE)
 	EndIf
 	If _DownloadToolsUsesProxy() Then Return SetError(1, 0, 0)
 	$Kind = "inet"
-	Return InetGet($Url, $Destination, 1, 1)
+	Return InetGet($Urls[0], $Destination, 1, 1)
 EndFunc   ;==>StartUrlToFile
+
+Func _DownloadToolsAdvanceUrlToFile(ByRef $Kind)
+	If Not IsArray($DT_AsyncUrls) Or $DT_AsyncIndex < 0 Or $DT_AsyncIndex + 1 >= UBound($DT_AsyncUrls) Then Return 0
+	$DT_AsyncIndex += 1
+	FileDelete($DT_AsyncDestination)
+	If _DownloadToolsHasCurl() Then
+		$Kind = "curl"
+		Return Run(_DownloadToolsCurlCommand(' --max-time 60 --output "' & $DT_AsyncDestination & '"', $DT_AsyncUrls[$DT_AsyncIndex]), @TempDir, @SW_HIDE)
+	EndIf
+	If _DownloadToolsUsesProxy() Then Return SetError(1, 0, 0)
+	$Kind = "inet"
+	Return InetGet($DT_AsyncUrls[$DT_AsyncIndex], $DT_AsyncDestination, 1, 1)
+EndFunc   ;==>AdvanceUrlToFile
 
 Func _DownloadToolsShowDownloadProgress($TitleText, $StatusText, $DetailText, $Parent = 0, $CancelText = "Cancel")
 	If $DT_hProgress Then _DownloadToolsCloseDownloadProgress()
@@ -399,52 +577,64 @@ Func _DownloadToolsDownloadUrls($Urls, $Destination, $StatusText, $KnownProgress
 	$TriedUrls = ""
 	If Not IsArray($Urls) Or UBound($Urls) = 0 Then Return SetError(1, 0, False)
 
-	Local $i, $Url, $hDownload, $DownloadedBytes, $TotalBytes, $Percent, $DetailText, $DownloadSuccessful = False, $Timer
+	Local $i, $r, $Url, $RoutedUrls, $hDownload, $DownloadedBytes, $TotalBytes, $Percent, $DetailText, $DownloadSuccessful = False, $Timer
+	Local $Attempted[1], $AttemptedCount = 0, $AlreadyAttempted
 	For $i = 0 To UBound($Urls) - 1
-		$Url = $Urls[$i]
-		If $TriedUrls <> "" Then $TriedUrls &= @CRLF
-		$TriedUrls &= $Url
-		FileDelete($Destination)
-		_DownloadToolsUpdateDownloadProgress($StatusText, $Url, 0)
-		If _DownloadToolsHasCurl() Then
-			_DownloadToolsSetDownloadProgressMarquee(True)
-			If $DT_DownloadThreads > 1 And _DownloadToolsCurlSegmentedDownload($Url, $Destination, $StatusText, $KnownProgressTemplate, $TimeoutMs) Then Return True
-			If _DownloadToolsIsDownloadProgressCancelled() Then Return SetError(2, 0, False)
-			If _DownloadToolsCurlSingleDownload($Url, $Destination, $StatusText, $KnownProgressTemplate, $UnknownProgressTemplate, $TimeoutMs) Then Return True
-			If _DownloadToolsIsDownloadProgressCancelled() Then Return SetError(2, 0, False)
-			ContinueLoop
-		EndIf
-		_DownloadToolsSetDownloadProgressMarquee(False)
-		If _DownloadToolsUsesProxy() Then Return SetError(4, 0, False)
-		$hDownload = InetGet($Url, $Destination, 19, 1)
-		If @error Or $hDownload = 0 Then ContinueLoop
-		$Timer = TimerInit()
-
-		Do
-			$DownloadedBytes = InetGetInfo($hDownload, 0)
-			$TotalBytes = InetGetInfo($hDownload, 1)
-			If $TotalBytes > 0 Then
-				$Percent = Int($DownloadedBytes * 100 / $TotalBytes)
-				If $Percent > 100 Then $Percent = 100
-				$DetailText = StringReplace($KnownProgressTemplate, "{Downloaded}", _DownloadToolsFormatBytes($DownloadedBytes))
-				$DetailText = StringReplace($DetailText, "{Total}", _DownloadToolsFormatBytes($TotalBytes))
-			Else
-				$Percent = Mod(Int($DownloadedBytes / 65536), 100)
-				$DetailText = StringReplace($UnknownProgressTemplate, "%s", _DownloadToolsFormatBytes($DownloadedBytes))
+		$RoutedUrls = _DownloadToolsBuildUrlCandidates($Urls[$i])
+		If Not IsArray($RoutedUrls) Then ContinueLoop
+		For $r = 0 To UBound($RoutedUrls) - 1
+			$Url = $RoutedUrls[$r]
+			$AlreadyAttempted = False
+			For $j = 0 To $AttemptedCount - 1
+				If $Attempted[$j] = $Url Then
+					$AlreadyAttempted = True
+					ExitLoop
+				EndIf
+			Next
+			If $AlreadyAttempted Then ContinueLoop
+			ReDim $Attempted[$AttemptedCount + 1]
+			$Attempted[$AttemptedCount] = $Url
+			$AttemptedCount += 1
+			If $TriedUrls <> "" Then $TriedUrls &= @CRLF
+			$TriedUrls &= $Url
+			FileDelete($Destination)
+			_DownloadToolsUpdateDownloadProgress($StatusText, $Url, 0)
+			If _DownloadToolsHasCurl() Then
+				_DownloadToolsSetDownloadProgressMarquee(True)
+				If $DT_DownloadThreads > 1 And _DownloadToolsCurlSegmentedDownload($Url, $Destination, $StatusText, $KnownProgressTemplate, $TimeoutMs) Then Return True
+				If _DownloadToolsIsDownloadProgressCancelled() Then Return SetError(2, 0, False)
+				If _DownloadToolsCurlSingleDownload($Url, $Destination, $StatusText, $KnownProgressTemplate, $UnknownProgressTemplate, $TimeoutMs) Then Return True
+				If _DownloadToolsIsDownloadProgressCancelled() Then Return SetError(2, 0, False)
+				ContinueLoop
 			EndIf
-			_DownloadToolsUpdateDownloadProgress($StatusText, $DetailText, $Percent)
-			_DownloadToolsPumpDownloadProgressEvents()
-			If _DownloadToolsIsDownloadProgressCancelled() Then ExitLoop
-			; An unreachable source must not stall the whole download flow, so a
-			; single URL never keeps the loop busy beyond the overall timeout.
-			If TimerDiff($Timer) >= $TimeoutMs Then ExitLoop
-			Sleep(200)
-		Until InetGetInfo($hDownload, 2)
-
-		$DownloadSuccessful = InetGetInfo($hDownload, 3)
-		InetClose($hDownload)
-		If _DownloadToolsIsDownloadProgressCancelled() Then Return SetError(2, 0, False)
-		If $DownloadSuccessful And FileExists($Destination) Then Return True
+			_DownloadToolsSetDownloadProgressMarquee(False)
+			If _DownloadToolsUsesProxy() Then Return SetError(4, 0, False)
+			$hDownload = InetGet($Url, $Destination, 19, 1)
+			If @error Or $hDownload = 0 Then ContinueLoop
+			$Timer = TimerInit()
+			Do
+				$DownloadedBytes = InetGetInfo($hDownload, 0)
+				$TotalBytes = InetGetInfo($hDownload, 1)
+				If $TotalBytes > 0 Then
+					$Percent = Int($DownloadedBytes * 100 / $TotalBytes)
+					If $Percent > 100 Then $Percent = 100
+					$DetailText = StringReplace($KnownProgressTemplate, "{Downloaded}", _DownloadToolsFormatBytes($DownloadedBytes))
+					$DetailText = StringReplace($DetailText, "{Total}", _DownloadToolsFormatBytes($TotalBytes))
+				Else
+					$Percent = Mod(Int($DownloadedBytes / 65536), 100)
+					$DetailText = StringReplace($UnknownProgressTemplate, "%s", _DownloadToolsFormatBytes($DownloadedBytes))
+				EndIf
+				_DownloadToolsUpdateDownloadProgress($StatusText, $DetailText, $Percent)
+				_DownloadToolsPumpDownloadProgressEvents()
+				If _DownloadToolsIsDownloadProgressCancelled() Then ExitLoop
+				If TimerDiff($Timer) >= $TimeoutMs Then ExitLoop
+				Sleep(200)
+			Until InetGetInfo($hDownload, 2)
+			$DownloadSuccessful = InetGetInfo($hDownload, 3)
+			InetClose($hDownload)
+			If _DownloadToolsIsDownloadProgressCancelled() Then Return SetError(2, 0, False)
+			If $DownloadSuccessful And FileExists($Destination) Then Return True
+		Next
 	Next
 
 	Return SetError(3, 0, False)

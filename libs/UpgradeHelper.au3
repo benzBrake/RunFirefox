@@ -2,13 +2,30 @@
 #include "DownloadTools.au3"
 
 Global Const $UPGRADE_DEFAULT_GITHUB_JSDELIVR_MIRROR_CHINA = "https://cdn.jsdmirror.com/gh"
-Global Const $UPGRADE_DEFAULT_GITHUB_JSDELIVR_MIRROR_GLOBAL = "https://gocre.jsdelivr.net/gh"
-Global Const $UPGRADE_DEFAULT_GITHUB_DIRECT_MIRROR = "https://box.w0x7ce.eu/proxy/"
-Global Const $UPGRADE_FALLBACK_GITHUB_DIRECT_MIRRORS = "https://gh-proxy.org/|https://gh.llkk.cc/|https://ghproxy.net/"
+Global Const $UPGRADE_DEFAULT_GITHUB_JSDELIVR_MIRROR_GLOBAL = "https://gcore.jsdelivr.net/gh"
+; This endpoint accepts a complete upstream URL and is not limited to GitHub.
+Global Const $UPGRADE_DEFAULT_URL_PROXY = $DT_DEFAULT_GENERIC_URL_PROXY
+; Keep the old name for settings and callers that still describe it as a GitHub mirror.
+Global Const $UPGRADE_DEFAULT_GITHUB_DIRECT_MIRROR = "https://v6.gh-proxy.org/"
+; Dedicated proxy for GitHub API requests (for example, gh.llkk.cc).
+Global Const $UPGRADE_DEFAULT_GITHUB_API_MIRROR = "https://gh.dpik.top/"
+
+; Swallow WinHttp COM failures raised by mirror probes.  A mirror being
+; unavailable must never surface an AutoIt error dialog to the user.
+Func _UpgradeHttpComError($oError)
+    Return
+EndFunc
+
+; Probe GitHub mirror candidates with a short HEAD request and move the
+; fastest reachable endpoint to the front.  Failure is deliberately ignored
+; so the existing fallback order remains available when a probe is blocked.
+Func _UpgradePrioritizeGithubUrls(ByRef $aUrls, $iTimeoutMs = 1800)
+    ; Candidate ordering is deterministic and handled by DownloadTools.
+    Return
+EndFunc
 
 Func _UpgradeIsChineseLanguage($sLanguage = "")
-    If StringRegExp($sLanguage, "(?i)^zh") Then Return True
-    Return StringRegExp(@OSLang, "^(0804|0404|0C04|1004|1404)$")
+    Return StringLower(StringReplace(StringStripWS($sLanguage, 3), "_", "-")) = "zh-cn"
 EndFunc
 
 Func _UpgradeGetDefaultGithubMirror($sLanguage = "")
@@ -16,12 +33,36 @@ Func _UpgradeGetDefaultGithubMirror($sLanguage = "")
 EndFunc
 
 Func _UpgradeGetDefaultGithubJsDelivrMirror($sLanguage = "")
-    If _UpgradeIsChineseLanguage($sLanguage) Then Return $UPGRADE_DEFAULT_GITHUB_JSDELIVR_MIRROR_CHINA
-    Return $UPGRADE_DEFAULT_GITHUB_JSDELIVR_MIRROR_GLOBAL
+    If Not _UpgradeIsChineseLanguage($sLanguage) Then Return $UPGRADE_DEFAULT_GITHUB_JSDELIVR_MIRROR_GLOBAL
+    Return $UPGRADE_DEFAULT_GITHUB_JSDELIVR_MIRROR_CHINA
+EndFunc
+
+Func _UpgradeGetGithubJsDelivrMirrors($sConfiguredMirror = "", $sLanguage = "")
+    Local $aMirrors[1], $iCount = 0, $sConfigured = _UpgradeNormalizeMirrorAddress($sConfiguredMirror)
+    If _UpgradeIsChineseLanguage($sLanguage) Then
+        ; Simplified Chinese always uses the domestic jsDelivr mirror.
+        _UpgradeAddUrl($aMirrors, $iCount, "https://cdn.jsdmirror.com/gh/")
+    ElseIf _UpgradeIsJsDelivrGithubMirror($sConfigured) Then
+        ; Other locales only use an explicitly configured mirror.
+        _UpgradeAddUrl($aMirrors, $iCount, $sConfigured)
+    EndIf
+    ReDim $aMirrors[$iCount]
+    Return $aMirrors
 EndFunc
 
 Func _UpgradeGetDefaultGithubDirectMirror()
     Return $UPGRADE_DEFAULT_GITHUB_DIRECT_MIRROR
+EndFunc
+
+; The built-in GitHub API proxy is intended for Simplified Chinese users only.
+; Keep the setting itself empty unless the user explicitly configures it.
+Func _UpgradeGetDefaultGithubApiMirror($sLanguage = "")
+	If StringLower($sLanguage) = "zh-cn" Then Return $UPGRADE_DEFAULT_GITHUB_API_MIRROR
+	Return ""
+EndFunc
+
+Func _UpgradeGetDefaultUrlProxy()
+    Return $UPGRADE_DEFAULT_URL_PROXY
 EndFunc
 
 Func _UpgradeNormalizeMirrorAddress($sMirrorAddress)
@@ -37,9 +78,9 @@ Func _UpgradeIsJsDelivrGithubMirror($sMirrorAddress)
 EndFunc
 
 Func _UpgradeBuildGithubPageUrl($sGithubUrl, $sMirrorAddress)
-    $sMirrorAddress = _UpgradeNormalizeMirrorAddress($sMirrorAddress)
-    If $sMirrorAddress = "" Or _UpgradeIsJsDelivrGithubMirror($sMirrorAddress) Then Return $sGithubUrl
-    Return $sMirrorAddress & $sGithubUrl
+    ; URL routing is applied by DownloadTools at request time so failure can
+    ; fall back to the original upstream URL.
+    Return $sGithubUrl
 EndFunc
 
 Func _UpgradeAddUrl(ByRef $aUrls, ByRef $iCount, $sUrl)
@@ -53,33 +94,23 @@ Func _UpgradeAddUrl(ByRef $aUrls, ByRef $iCount, $sUrl)
 EndFunc
 
 Func _UpgradeBuildGithubDirectUrls($sGithubUrl, $sDirectMirror)
-    Local $aUrls[1], $iCount = 0
-	If _DownloadToolsUsesProxy() Then
-		_UpgradeAddUrl($aUrls, $iCount, $sGithubUrl)
-		ReDim $aUrls[$iCount]
-		Return $aUrls
-	EndIf
-    $sDirectMirror = _UpgradeNormalizeMirrorAddress($sDirectMirror)
-    If $sDirectMirror <> "" And Not _UpgradeIsJsDelivrGithubMirror($sDirectMirror) Then _UpgradeAddUrl($aUrls, $iCount, $sDirectMirror & $sGithubUrl)
-    Local $aFallbackMirrors = StringSplit($UPGRADE_FALLBACK_GITHUB_DIRECT_MIRRORS, "|", 2)
-    For $i = 0 To UBound($aFallbackMirrors) - 1
-        Local $sFallbackMirror = _UpgradeNormalizeMirrorAddress($aFallbackMirrors[$i])
-        If $sFallbackMirror <> "" Then _UpgradeAddUrl($aUrls, $iCount, $sFallbackMirror & $sGithubUrl)
-    Next
-    _UpgradeAddUrl($aUrls, $iCount, $sGithubUrl)
-    ReDim $aUrls[$iCount]
-    Return $aUrls
+    Return _DownloadToolsBuildUrlCandidatesForConfig($sGithubUrl, $DT_Language, $sDirectMirror, "", "")
+EndFunc
+
+; Build a proxy-first chain for any absolute upstream URL. GitHub-only fallback
+; mirrors are intentionally excluded because they may reject non-GitHub hosts.
+Func _UpgradeBuildUrlProxyUrls($sUrl, $sConfiguredProxy = "")
+    Return _DownloadToolsBuildUrlCandidatesForConfig($sUrl, $DT_Language, "", "", "", $sConfiguredProxy)
+EndFunc
+
+; Build GitHub API request URLs with a dedicated API proxy first, then the
+; configured/default direct mirror and finally the official endpoint.
+Func _UpgradeBuildGithubApiUrls($sGithubUrl, $sApiMirror = "", $sDirectMirror = $UPGRADE_DEFAULT_GITHUB_DIRECT_MIRROR)
+    Return _DownloadToolsBuildUrlCandidatesForConfig($sGithubUrl, $DT_Language, $sDirectMirror, "", $sApiMirror)
 EndFunc
 
 Func _UpgradeBuildGithubReleaseDownloadUrls($sGithubUrl, $sDirectMirror, $sJsDelivrMirror = "")
-    $sDirectMirror = _UpgradeNormalizeMirrorAddress($sDirectMirror)
-    $sJsDelivrMirror = _UpgradeNormalizeMirrorAddress($sJsDelivrMirror)
-    If _UpgradeIsJsDelivrGithubMirror($sDirectMirror) Then
-        $sJsDelivrMirror = $sDirectMirror
-        $sDirectMirror = ""
-    EndIf
-    ; jsDelivr-style /gh mirrors repository files; release assets need a direct GitHub URL mirror.
-    Return _UpgradeBuildGithubDirectUrls($sGithubUrl, $sDirectMirror)
+    Return _DownloadToolsBuildUrlCandidatesForConfig($sGithubUrl, $DT_Language, $sDirectMirror, $sJsDelivrMirror, "")
 EndFunc
 
 Func RemoveHTMLTags($str)
@@ -94,7 +125,7 @@ Func GetLatestReleaseVersion($sRepositoryName, $sDirectMirror = $UPGRADE_DEFAULT
     EndIf
 
     If _UpgradeIsJsDelivrGithubMirror($sJsDelivrMirror) Then
-        Local $sJsDelivrVersion = GetLatestReleaseVersionByJsDelivr($sRepositoryName)
+        Local $sJsDelivrVersion = GetLatestReleaseVersionByJsDelivr($sRepositoryName, $sJsDelivrMirror, $sDirectMirror)
         If $sJsDelivrVersion Then Return $sJsDelivrVersion
     EndIf
 
@@ -105,7 +136,7 @@ Func GetLatestReleaseVersion($sRepositoryName, $sDirectMirror = $UPGRADE_DEFAULT
 
     If @error Then
 ;~ 		TrayTip("", StringFormat(_t("GetReleaseTagFailed", "获取更新信息失败！")))
-		If $sJsDelivrMirror <> "" Then Return GetLatestReleaseVersionByJsDelivr($sRepositoryName)
+		If $sJsDelivrMirror <> "" Then Return GetLatestReleaseVersionByJsDelivr($sRepositoryName, $sJsDelivrMirror, $sDirectMirror)
 		Return ""
     EndIf
 
@@ -114,7 +145,7 @@ Func GetLatestReleaseVersion($sRepositoryName, $sDirectMirror = $UPGRADE_DEFAULT
 
     If @error Then
 ;~         TrayTip("", StringFormat(_t("GetReleaseTagFailed", "获取更新信息失败！"))) ''
-		If $sJsDelivrMirror <> "" Then Return GetLatestReleaseVersionByJsDelivr($sRepositoryName)
+		If $sJsDelivrMirror <> "" Then Return GetLatestReleaseVersionByJsDelivr($sRepositoryName, $sJsDelivrMirror, $sDirectMirror)
 		Return ""
     EndIf
 
@@ -124,15 +155,14 @@ Func GetLatestReleaseVersion($sRepositoryName, $sDirectMirror = $UPGRADE_DEFAULT
     Return $sLatestVersion
 EndFunc
 
-Func GetLatestReleaseVersionByJsDelivr($sRepositoryName)
+Func GetLatestReleaseVersionByJsDelivr($sRepositoryName, $sConfiguredMirror = "", $sDirectMirror = "")
+    ; jsDelivr release metadata is served only by the official data API.
     Local $sURL = "https://data.jsdelivr.com/v1/package/gh/" & $sRepositoryName
-	Local $sPageContent = BinaryToString(_DownloadToolsReadUrl($sURL), 4)
+    Local $sPageContent = BinaryToString(_DownloadToolsReadUrl($sURL), 4)
     If @error Then Return ''
-
     Local $aMatches = StringRegExp($sPageContent, '"versions"\s*:\s*\[\s*"v?(\d+\.\d+\.\d+)"', 1)
-    If @error Then Return ''
-
-    Return "v" & $aMatches[0]
+    If Not @error Then Return "v" & $aMatches[0]
+    Return ''
 EndFunc
 
 Func GetReleaseNotesByVersion($sRepositoryName, $version, $sMirrorAddress = $UPGRADE_DEFAULT_GITHUB_DIRECT_MIRROR)

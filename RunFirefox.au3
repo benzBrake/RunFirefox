@@ -3735,6 +3735,10 @@ Func InstallChromePlusPatchInteractive($BrowserPath, $PreferredArch = "")
 			$InstallLog &= "version.dll was not found in source dir." & @CRLF
 			$ErrorMessage = _t("FailToExtractChromePlusPatch", "解压或安装 Chrome++ 补丁失败。")
 		EndIf
+		If $ErrorMessage = "" And Not FileExists($SourceDir & "\chrome++.ini") Then
+			$InstallLog &= "chrome++.ini was not found in source dir." & @CRLF
+			$ErrorMessage = _t("FailToExtractChromePlusPatch", "解压或安装 Chrome++ 补丁失败。")
+		EndIf
 		If $ErrorMessage = "" Then
 			Local $CopiedVersionDll = FileCopy($SourceDir & "\version.dll", $BrowserDir & "\version.dll", 9)
 			If $CopiedVersionDll = 0 Or Not FileExists($BrowserDir & "\version.dll") Then
@@ -3742,8 +3746,8 @@ Func InstallChromePlusPatchInteractive($BrowserPath, $PreferredArch = "")
 				$ErrorMessage = _t("FailToExtractChromePlusPatch", "解压或安装 Chrome++ 补丁失败。")
 			EndIf
 		EndIf
-		If $ErrorMessage = "" And Not WriteChromePlusManagedConfig($BrowserDir & "\chrome++.ini") Then
-			$InstallLog &= "Failed to write chrome++.ini." & @CRLF
+		If $ErrorMessage = "" And Not InstallChromePlusConfig($SourceDir & "\chrome++.ini", $BrowserDir & "\chrome++.ini") Then
+			$InstallLog &= "Failed to install chrome++.ini from release archive." & @CRLF
 			$ErrorMessage = _t("FailToExtractChromePlusPatch", "解压或安装 Chrome++ 补丁失败。")
 		EndIf
 		If $ErrorMessage = "" Then $Success = True
@@ -3922,6 +3926,19 @@ Func BuildChromePlusArchiveUrlFromTag($ReleaseTag)
 	Local $Version = StringRegExpReplace($ReleaseTag, "^[vV]", "")
 	Return "https://github.com/" & $ChromePlusRepo & "/releases/download/" & $ReleaseTag & "/Chrome%2B%2B_v" & $Version & "_x86_x64_arm64.7z"
 EndFunc   ;==>BuildChromePlusArchiveUrlFromTag
+
+Func InstallChromePlusConfig($SourcePath, $ConfigPath)
+	If $SourcePath = "" Or $ConfigPath = "" Or Not FileExists($SourcePath) Then Return False
+
+	Local $ManagedHeader = "; Managed by RunFirefox for Chrome++"
+	If FileExists($ConfigPath) Then
+		Local $Existing = FileRead($ConfigPath)
+		If StringLeft($Existing, StringLen($ManagedHeader)) <> $ManagedHeader Then Return True
+	EndIf
+
+	If Not FileCopy($SourcePath, $ConfigPath, 9) Then Return False
+	Return WriteChromePlusPortablePaths($ConfigPath)
+EndFunc   ;==>InstallChromePlusConfig
 
 Func WriteChromePlusManagedConfig($ConfigPath)
 	Local $ManagedHeader = "; Managed by RunFirefox for Chrome++"

@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- Chrome++ online installations now use the complete `chrome++.ini` from the Bush2021 release archive, while bundled patch installations use the complete bundled template. Existing custom configurations are preserved, and legacy compact RunFirefox-managed configurations are migrated automatically.
+
 - Restored BrowserArchive's `helium.json` as the preferred source for the latest Helium version, with GitHub Releases as fallback.
 
 - Switched Opera update metadata to BrowserArchive's `opera.json` with the official version API as fallback; installer downloads now use the common proxy with the official URL as fallback, removing the legacy dedicated mirror dependency.

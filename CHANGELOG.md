@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- Chrome++ 在线安装改为使用 Bush2021 发布包中的完整 `chrome++.ini`，内置补丁安装改为使用随程序内置的完整配置模板；保留原有用户自定义配置，并自动迁移旧版 RunFirefox 生成的精简托管配置。
+
 - Helium 最新版本号恢复优先从 BrowserArchive 的 `helium.json` 获取，失败时回退 GitHub Release。
 
 - Opera 更新信息改用 BrowserArchive 的 `opera.json`，失败时回退官方版本 API；安装包下载改用通用代理并回退官方地址，移除旧专用镜像依赖。

@@ -57,6 +57,20 @@ Func PrepareBundledChromePlus($Arch)
 	Return $Path
 EndFunc
 
+Func PrepareBundledChromePlusConfig()
+	Local $Path = @ScriptDir & "\libs\chrome_plus\chrome++.ini"
+	If @Compiled Then
+		If $ChromePlusBundledDir = "" Then $ChromePlusBundledDir = _TempFile(@TempDir, "RunFirefox_ChromePlus_" & @AutoItPID & "_", "")
+		If Not FileExists($ChromePlusBundledDir) And Not DirCreate($ChromePlusBundledDir) Then Return ""
+		$Path = $ChromePlusBundledDir & "\chrome++.ini"
+		If Not FileExists($Path) Then
+			If Not FileInstall("libs\chrome_plus\chrome++.ini", $Path, 1) Then Return ""
+		EndIf
+	EndIf
+	If Not FileExists($Path) Then Return ""
+	Return $Path
+EndFunc
+
 Func ChromePlusFilesMatch($First, $Second)
 	If $First = "" Or $Second = "" Or Not FileExists($First) Or Not FileExists($Second) Then Return False
 	Local $Hash = _Crypt_HashFile($First, $CALG_SHA_256)
@@ -95,20 +109,21 @@ EndFunc
 
 Func InstallBundledChromePlus($BrowserPath)
 	Local $Arch = GetChromePlusPEArch($BrowserPath)
-	Local $Source = "", $ErrorMessage = "", $Target = GetChromePlusPatchPath($BrowserPath)
+	Local $Source = "", $ConfigSource = "", $ErrorMessage = "", $Target = GetChromePlusPatchPath($BrowserPath)
 	Local $Log = "Chrome++ bundled install" & @CRLF & "Browser: " & $BrowserPath & @CRLF & "Architecture: " & $Arch & @CRLF
 	If $Arch <> "x86" And $Arch <> "x64" Then
 		$ErrorMessage = _t("ChromePlusBundledUnsupportedArch", "内置 Chrome++ 仅支持 x86/x64，无法识别或不支持当前浏览器架构。")
 	Else
 		$Source = PrepareBundledChromePlus($Arch)
-		$Log &= "Source: " & $Source & @CRLF & "Target: " & $Target & @CRLF
-		If $Source = "" Then
+		$ConfigSource = PrepareBundledChromePlusConfig()
+		$Log &= "Source: " & $Source & @CRLF & "Config source: " & $ConfigSource & @CRLF & "Target: " & $Target & @CRLF
+		If $Source = "" Or $ConfigSource = "" Then
 			$ErrorMessage = _t("ChromePlusBundledResourceFailed", "内置 Chrome++ DLL 缺失、提取失败或架构不匹配。")
 		ElseIf $Target = "" Or Not FileCopy($Source, $Target, 9) Then
 			$ErrorMessage = _t("FailToExtractChromePlusPatch", "解压或安装 Chrome++ 补丁失败。")
 		ElseIf Not ChromePlusFilesMatch($Source, $Target) Then
 			$ErrorMessage = _t("ChromePlusBundledResourceFailed", "内置 Chrome++ DLL 缺失、提取失败或架构不匹配。")
-		ElseIf Not WriteChromePlusManagedConfig(GetChromePlusConfigPath($BrowserPath)) Then
+		ElseIf Not InstallChromePlusConfig($ConfigSource, GetChromePlusConfigPath($BrowserPath)) Then
 			$ErrorMessage = _t("ChromePlusTabsSaveFailed", "保存 Chrome++ 标签页设置失败：\n%s", GetChromePlusConfigPath($BrowserPath))
 		EndIf
 	EndIf

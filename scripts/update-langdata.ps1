@@ -21,14 +21,29 @@ $parts = foreach ($line in $lines) {
     '"' + ($line -replace '"', '""') + '"'
 }
 
-$body = ($parts -join ' & @CRLF & _' + "`n")
-
 $out = @()
 $out += '; 本文件由 scripts/update-langdata.ps1 从 Lang.ini 自动生成，请勿手工编辑。'
 $out += '; 修改 Lang.ini 后重新运行该脚本即可同步。'
 $out += ''
+
+# AutoIt 3.3.14 overflows its parser stack on one very long concatenation.
+$chunkSize = 120
+$chunkNames = @()
+for ($start = 0; $start -lt $parts.Count; $start += $chunkSize) {
+    $end = [Math]::Min($start + $chunkSize - 1, $parts.Count - 1)
+    $chunkName = '$g_sLangDataIniPart' + ($chunkNames.Count + 1)
+    $chunkNames += $chunkName
+    $chunkBody = (@($parts[$start..$end]) -join ' & @CRLF & _' + "`n")
+    if ($end -lt $parts.Count - 1) {
+        $chunkBody += ' & @CRLF'
+    }
+    $out += "Global Const $chunkName = _"
+    $out += $chunkBody
+    $out += ''
+}
+
 $out += 'Global Const $g_sLangDataIni = _'
-$out += $body
+$out += ($chunkNames -join ' & _' + "`n")
 
 $utf8Bom = [System.Text.UTF8Encoding]::new($true)
 [System.IO.File]::WriteAllText($target, ($out -join "`n") + "`n", $utf8Bom)

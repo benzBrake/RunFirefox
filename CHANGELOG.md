@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- “高级”页新增按浏览器内核切换的 Firefox 设置区域，可为 Firefox 系浏览器独立启用 WebDriver BiDi 远程调试端口，启动时自动追加 `--remote-debugging-port` 和兼容参数 `--no-remote`，并检测与自定义命令行参数的冲突。
+
 - 设置窗口“高级”页的“自动控制缓存大小”恢复为单行复选框，并精简西班牙语文案，避免双行布局异常。
 
 - 新增 Cốc Cốc 浏览器支持：仅从 BrowserArchive 的 `coccoc.json` 获取 Windows x64 便携 ZIP，下载时校验 SHA-256，支持自动识别、系统配置提取、内置下载解压、RunFirefox 托管更新、Bush2021 版 Chrome++ 可选安装及专属启动器图标。

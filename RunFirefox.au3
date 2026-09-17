@@ -110,7 +110,7 @@ Global $JumpListLastRefresh = 0, $JumpListContentSignature = ""
 Global $AllowBrowserUpdate, $AppUpdateCheckEnabled, $AppUpdateLastCheck, $BackgroundModeEnabled, $BrowserType, $BrowserPath, $ProfileDir
 Global $BrowserUpdateCheckMode, $BrowserUpdateLastCheck, $BrowserUpdateChannel
 Global $CustomPluginsDir, $CustomCacheDir, $CacheSize, $CacheSizeSmart, $DefaultBrowserCheckEnabled, $Params
-Global $ChromiumDebugPortEnabled, $ChromiumDebugPort
+Global $ChromiumDebugPortEnabled, $ChromiumDebugPort, $FirefoxDebugPortEnabled, $FirefoxDebugPort
 Global $BrowserStartApps, $CloseStartAppsAfterBrowserExit, $BrowserExitApps
 Global $BossKeyEnabled, $BossKey, $BossKeyHideToTray, $BossKeyBrowserHidden = 0, $BossKeyTrayVisible = 0
 Global $GithubDirectMirror, $GithubJsDelivrMirror, $GithubApiMirror
@@ -127,8 +127,9 @@ Global $idChromePlusWheelTab, $idChromePlusWheelTabWhenPressRButton, $idChromePl
 Global $idChromePlusHoverTab, $idChromePlusHoverTabDelay, $idChromePlusHoverTabDelayLabel
 Global $idChromePlusNewTabDisable, $idChromePlusNewTabDisableName, $idChromePlusNewTabDisableNameLabel
 Global $idChromePlusSuppressFalseUpgradeNotification
-Global $idChromiumGoogleApiImport, $idChromiumGoogleApiSuppress, $idChromiumGoogleApiClear
-Global $idChromiumDebugPortEnabled, $idChromiumDebugPort, $idChromiumDebugPortLabel
+Global $idChromiumSettingsGroup, $idChromiumGoogleApiImport, $idChromiumGoogleApiSuppress, $idChromiumGoogleApiClear
+Global $idChromiumDebugPortEnabled, $idChromiumDebugPort, $idChromiumDebugPortLabel, $idChromiumDebugPortHelp
+Global $idFirefoxSettingsGroup, $idFirefoxDebugPortEnabled, $idFirefoxDebugPort, $idFirefoxDebugPortLabel, $idFirefoxDebugPortHelp
 Global $idDownloadThreads, $idDownloadThreadsUpDown, $idProxyType, $idProxyServer, $idProxyPort, $idGithubApiMirror, $idNetworkCurlHint
 Global $LANG_DATA, $LANGUAGE, $LANGUAGES
 Global $ChromePlusReleaseInfoLoaded = False, $ChromePlusReleaseTag = "", $ChromePlusArchiveUrl = ""
@@ -196,6 +197,8 @@ If Not FileExists($inifile) Then
 	IniWrite($inifile, "Settings", "Params", "")
 	IniWrite($inifile, "Settings", "ChromiumDebugPortEnabled", 0)
 	IniWrite($inifile, "Settings", "ChromiumDebugPort", 9222)
+	IniWrite($inifile, "Settings", "FirefoxDebugPortEnabled", 0)
+	IniWrite($inifile, "Settings", "FirefoxDebugPort", 9222)
 	IniWrite($inifile, "Settings", "ExApp", "")
 	IniWrite($inifile, "Settings", "ExAppAutoExit", 1)
 	IniWrite($inifile, "Settings", "ExApp2", "")
@@ -242,6 +245,9 @@ $Params = IniRead($inifile, "Settings", "Params", "")
 $ChromiumDebugPortEnabled = IniRead($inifile, "Settings", "ChromiumDebugPortEnabled", 0) * 1
 $ChromiumDebugPort = IniRead($inifile, "Settings", "ChromiumDebugPort", 9222) * 1
 If $ChromiumDebugPort < 1 Or $ChromiumDebugPort > 65535 Then $ChromiumDebugPort = 9222
+$FirefoxDebugPortEnabled = IniRead($inifile, "Settings", "FirefoxDebugPortEnabled", 0) * 1
+$FirefoxDebugPort = IniRead($inifile, "Settings", "FirefoxDebugPort", 9222) * 1
+If $FirefoxDebugPort < 1 Or $FirefoxDebugPort > 65535 Then $FirefoxDebugPort = 9222
 $BrowserStartApps = IniRead($inifile, "Settings", "ExApp", "")
 $CloseStartAppsAfterBrowserExit = IniRead($inifile, "Settings", "ExAppAutoExit", 1) * 1
 $BrowserExitApps = IniRead($inifile, "Settings", "ExApp2", "")
@@ -1834,12 +1840,15 @@ Func Settings()
 	$idCacheSizeSmart = GUICtrlCreateCheckbox(_t("CacheSizeControl", " 自动控制缓存大小"), 250, 163, 225, 20)
 	If $CacheSizeSmart Then GUICtrlSetState(-1, $GUI_CHECKED)
 
-	; CDP 帮助文案按实测宽度计算行数：字母语言可能需要 3 行
-	Local $iCdpHelpH = Ceiling((_ALMeasure(_t("ChromiumDebugPortConflictHelp", "启用后会自动添加 CDP 参数，请勿在下方命令行参数中重复设置调试端口或调试管道。")) + 459) / 460) * 14
-	If $iCdpHelpH < 28 Then $iCdpHelpH = 28
+	; 两种内核共用同一区域，按最长的本地化说明预留稳定高度
+	Local $sChromiumDebugHelp = _t("ChromiumDebugPortConflictHelp", "启用后会自动添加 CDP 参数，请勿在下方命令行参数中重复设置调试端口或调试管道。")
+	Local $sFirefoxDebugHelp = _t("FirefoxDebugPortConflictHelp", "启用后会自动添加 Firefox Remote Agent（WebDriver BiDi）端口参数和 --no-remote，请勿在下方命令行参数中重复设置。")
+	Local $iBrowserDebugHelpH = Ceiling((_ALMeasure($sChromiumDebugHelp) + 459) / 460) * 14
+	Local $iFirefoxDebugHelpH = Ceiling((_ALMeasure($sFirefoxDebugHelp) + 459) / 460) * 14
+	If $iFirefoxDebugHelpH > $iBrowserDebugHelpH Then $iBrowserDebugHelpH = $iFirefoxDebugHelpH
+	If $iBrowserDebugHelpH < 28 Then $iBrowserDebugHelpH = 28
 
-	; CDP 帮助文案换三行时，Chromium 设置分组框同步加高
-	GUICtrlCreateGroup(_t("ChromiumSettings", "Chromium设置"), 10, 210, 480, 125 + $iCdpHelpH - 28)
+	$idChromiumSettingsGroup = GUICtrlCreateGroup(_t("ChromiumSettings", "Chromium设置"), 10, 210, 480, 125 + $iBrowserDebugHelpH - 28)
 	$idChromiumGoogleApiImport = GUICtrlCreateButton(_t("ImportGoogleApi", "导入GoogleAPI"), 20, 233, 140, 22)
 	GUICtrlSetOnEvent(-1, "ImportChromiumGoogleApi")
 	GUICtrlSetTip(-1, _t("ImportGoogleApiTooltip", "导入GoogleAPI密钥后，Chromium 才能登录 Google 账号"))
@@ -1855,12 +1864,22 @@ Func Settings()
 	$idChromiumDebugPortLabel = GUICtrlCreateLabel(_t("ChromiumDebugPort", "端口"), 275, 273, 45, 20)
 	$idChromiumDebugPort = GUICtrlCreateInput($ChromiumDebugPort, 325, 268, 80, 20, BitOR($ES_NUMBER, $ES_AUTOHSCROLL))
 	GUICtrlSetTip(-1, _t("ChromiumDebugPortTooltip", "CDP 远程调试端口，范围为 1-65535。"))
-	GUICtrlCreateLabel(_t("ChromiumDebugPortConflictHelp", "启用后会自动添加 CDP 参数，请勿在下方命令行参数中重复设置调试端口或调试管道。"), 20, 298, 460, $iCdpHelpH)
-	GUICtrlSetColor(-1, 0x666666)
+	$idChromiumDebugPortHelp = GUICtrlCreateLabel($sChromiumDebugHelp, 20, 298, 460, $iBrowserDebugHelpH)
+	GUICtrlSetColor($idChromiumDebugPortHelp, 0x666666)
+
+	$idFirefoxSettingsGroup = GUICtrlCreateGroup(_t("FirefoxSettings", "Firefox 设置"), 10, 210, 480, 125 + $iBrowserDebugHelpH - 28)
+	$idFirefoxDebugPortEnabled = GUICtrlCreateCheckbox(_t("EnableFirefoxDebugPort", " 启用 Firefox 远程调试端口"), 20, 233, 230, 20)
+	GUICtrlSetOnEvent(-1, "RefreshFirefoxDebugPortState")
+	If $FirefoxDebugPortEnabled Then GUICtrlSetState(-1, $GUI_CHECKED)
+	$idFirefoxDebugPortLabel = GUICtrlCreateLabel(_t("FirefoxDebugPort", "端口"), 275, 238, 45, 20)
+	$idFirefoxDebugPort = GUICtrlCreateInput($FirefoxDebugPort, 325, 233, 80, 20, BitOR($ES_NUMBER, $ES_AUTOHSCROLL))
+	GUICtrlSetTip(-1, _t("FirefoxDebugPortTooltip", "Firefox Remote Agent（WebDriver BiDi）端口，范围为 1-65535。"))
+	$idFirefoxDebugPortHelp = GUICtrlCreateLabel($sFirefoxDebugHelp, 20, 263, 460, $iBrowserDebugHelpH)
+	GUICtrlSetColor($idFirefoxDebugPortHelp, 0x666666)
 
 	Local $sCommandLineCaption = _t("CommandLineArguments", "命令行参数")
-	$idCommandLineCaption = GUICtrlCreateLabel($sCommandLineCaption, 20, 345 + $iCdpHelpH - 28, -1, 20)
-	$idParams = GUICtrlCreateEdit("", 20, 365 + $iCdpHelpH - 28, 460, 50, BitOR($ES_WANTRETURN, $WS_VSCROLL, $ES_AUTOVSCROLL))
+	$idCommandLineCaption = GUICtrlCreateLabel($sCommandLineCaption, 20, 345 + $iBrowserDebugHelpH - 28, -1, 20)
+	$idParams = GUICtrlCreateEdit("", 20, 365 + $iBrowserDebugHelpH - 28, 460, 50, BitOR($ES_WANTRETURN, $WS_VSCROLL, $ES_AUTOVSCROLL))
 	If $Params <> "" Then
 		GUICtrlSetData(-1, StringReplace($Params, " -", @CRLF & "-"))
 	EndIf
@@ -2098,6 +2117,45 @@ Func RefreshChromiumDebugPortState()
 	GUICtrlSetState($idChromiumDebugPortLabel, $PortState)
 	GUICtrlSetState($idChromiumDebugPort, $PortState)
 EndFunc   ;==>RefreshChromiumDebugPortState
+
+Func RefreshFirefoxDebugPortState()
+	If Not $idFirefoxDebugPortEnabled Then Return
+	Local $Enabled = IsMozillaBrowser(GetSelectedBrowserType())
+	If $Enabled Then
+		GUICtrlSetState($idFirefoxDebugPortEnabled, $GUI_ENABLE)
+	Else
+		GUICtrlSetState($idFirefoxDebugPortEnabled, $GUI_DISABLE)
+	EndIf
+	Local $PortState = $GUI_DISABLE
+	If $Enabled And GUICtrlRead($idFirefoxDebugPortEnabled) = $GUI_CHECKED Then $PortState = $GUI_ENABLE
+	GUICtrlSetState($idFirefoxDebugPortLabel, $PortState)
+	GUICtrlSetState($idFirefoxDebugPort, $PortState)
+EndFunc   ;==>RefreshFirefoxDebugPortState
+
+Func RefreshBrowserSpecificSettingsGroups()
+	If Not $idChromiumSettingsGroup Or Not $idFirefoxSettingsGroup Then Return
+	Local $ChromiumVisibility = $GUI_HIDE
+	Local $FirefoxVisibility = $GUI_SHOW
+	If IsChromeBrowser(GetSelectedBrowserType()) Then
+		$ChromiumVisibility = $GUI_SHOW
+		$FirefoxVisibility = $GUI_HIDE
+	EndIf
+
+	GUICtrlSetState($idChromiumSettingsGroup, $ChromiumVisibility)
+	GUICtrlSetState($idChromiumGoogleApiImport, $ChromiumVisibility)
+	GUICtrlSetState($idChromiumGoogleApiSuppress, $ChromiumVisibility)
+	GUICtrlSetState($idChromiumGoogleApiClear, $ChromiumVisibility)
+	GUICtrlSetState($idChromiumDebugPortEnabled, $ChromiumVisibility)
+	GUICtrlSetState($idChromiumDebugPortLabel, $ChromiumVisibility)
+	GUICtrlSetState($idChromiumDebugPort, $ChromiumVisibility)
+	GUICtrlSetState($idChromiumDebugPortHelp, $ChromiumVisibility)
+
+	GUICtrlSetState($idFirefoxSettingsGroup, $FirefoxVisibility)
+	GUICtrlSetState($idFirefoxDebugPortEnabled, $FirefoxVisibility)
+	GUICtrlSetState($idFirefoxDebugPortLabel, $FirefoxVisibility)
+	GUICtrlSetState($idFirefoxDebugPort, $FirefoxVisibility)
+	GUICtrlSetState($idFirefoxDebugPortHelp, $FirefoxVisibility)
+EndFunc   ;==>RefreshBrowserSpecificSettingsGroups
 
 Func BossKeyHotkeyInputProc($hWnd, $iMsg, $wParam, $lParam)
 	Switch $iMsg
@@ -2986,6 +3044,9 @@ Func BuildBrowserLaunchParams($Value)
 	If $isZotero Then
 		$MozillaParams &= '-datadir "' & $ProfileDir & '\Library" '
 	EndIf
+	If $FirefoxDebugPortEnabled And IsValidDebugPort($FirefoxDebugPort) Then
+		$MozillaParams &= "--remote-debugging-port=" & $FirefoxDebugPort & " --no-remote "
+	EndIf
 	Return $MozillaParams
 EndFunc   ;==>BuildBrowserLaunchParams
 
@@ -3004,6 +3065,15 @@ EndFunc   ;==>RunBrowserProcess
 Func HasCustomCdpParameter($Value)
 	Return StringRegExp($Value, "(?i)(^|\s)--remote-debugging-(?:port(?:=|\s|$)|pipe(?:\s|$))")
 EndFunc   ;==>HasCustomCdpParameter
+
+Func HasCustomFirefoxRemoteParameter($Value)
+	Return StringRegExp($Value, "(?i)(^|\s)-{1,2}(?:remote-debugging-port(?:=|\s|$)|no-remote(?:\s|$))")
+EndFunc   ;==>HasCustomFirefoxRemoteParameter
+
+Func IsValidDebugPort($Value)
+	Local $Port = StringStripWS($Value, 3)
+	Return StringRegExp($Port, "^\d+$") And Number($Port) >= 1 And Number($Port) <= 65535
+EndFunc   ;==>IsValidDebugPort
 
 Func NeedsOutdatedBuildDetectorParam()
 	If Not IsChromeBrowser($BrowserType) Then Return False
@@ -3051,9 +3121,7 @@ Func UpdateBrowserSpecificControls()
 	Local $DownloadSupported = _BrowserDownloadIsSupported($SelectedBrowserType)
 	UpdateBrowserBitnessControl($SelectedBrowserType)
 	Local $MozillaState = $GUI_ENABLE
-	Local $ChromiumState = $GUI_DISABLE
 	If $IsChrome Then $MozillaState = $GUI_DISABLE
-	If $IsChrome Then $ChromiumState = $GUI_ENABLE
 	; Browser auto update works either through the browser's own updater
 	; (Mozilla) or through RunFirefox's managed update (Chrome for now).
 	Local $AutoUpdateSupported = IsBrowserUpdateControlSupported($SelectedBrowserType)
@@ -3069,10 +3137,9 @@ Func UpdateBrowserSpecificControls()
 	GUICtrlSetState($idCustomPluginsDir, $MozillaState)
 	GUICtrlSetState($idGetPluginsDir, $MozillaState)
 	GUICtrlSetState($idCacheSizeSmart, $MozillaState)
-	GUICtrlSetState($idChromiumGoogleApiImport, $ChromiumState)
-	GUICtrlSetState($idChromiumGoogleApiSuppress, $ChromiumState)
-	GUICtrlSetState($idChromiumGoogleApiClear, $ChromiumState)
+	RefreshBrowserSpecificSettingsGroups()
 	RefreshChromiumDebugPortState()
+	RefreshFirefoxDebugPortState()
 
 	If $IsChrome Then
 		UpdateBrowserDownloadLabels(False)
@@ -4423,10 +4490,10 @@ Func ApplySettings()
 	Else
 		$ChromiumDebugPortEnabled = 0
 	EndIf
-	Local $DebugPortInput = StringStripWS(GUICtrlRead($idChromiumDebugPort), 3)
-	Local $DebugPortValid = StringRegExp($DebugPortInput, "^\d+$") And Number($DebugPortInput) >= 1 And Number($DebugPortInput) <= 65535
+	Local $ChromiumDebugPortInput = StringStripWS(GUICtrlRead($idChromiumDebugPort), 3)
+	Local $ChromiumDebugPortValid = IsValidDebugPort($ChromiumDebugPortInput)
 	If IsChromeBrowser($BrowserType) And $ChromiumDebugPortEnabled Then
-		If Not $DebugPortValid Then
+		If Not $ChromiumDebugPortValid Then
 			MsgBox(16, "RunFirefox", _t("ChromiumDebugPortInvalid", "CDP 调试端口必须是 1-65535 之间的整数。"), 0, $hSettings)
 			GUICtrlSetState($idChromiumDebugPort, $GUI_FOCUS)
 			Return SetError(1)
@@ -4437,10 +4504,34 @@ Func ApplySettings()
 			Return SetError(1)
 		EndIf
 	EndIf
-	If $DebugPortValid Then
-		$ChromiumDebugPort = Number($DebugPortInput)
+	If $ChromiumDebugPortValid Then
+		$ChromiumDebugPort = Number($ChromiumDebugPortInput)
 	Else
 		$ChromiumDebugPort = 9222
+	EndIf
+	If GUICtrlRead($idFirefoxDebugPortEnabled) = $GUI_CHECKED Then
+		$FirefoxDebugPortEnabled = 1
+	Else
+		$FirefoxDebugPortEnabled = 0
+	EndIf
+	Local $FirefoxDebugPortInput = StringStripWS(GUICtrlRead($idFirefoxDebugPort), 3)
+	Local $FirefoxDebugPortValid = IsValidDebugPort($FirefoxDebugPortInput)
+	If IsMozillaBrowser($BrowserType) And $FirefoxDebugPortEnabled Then
+		If Not $FirefoxDebugPortValid Then
+			MsgBox(16, "RunFirefox", _t("FirefoxDebugPortInvalid", "Firefox 远程调试端口必须是 1-65535 之间的整数。"), 0, $hSettings)
+			GUICtrlSetState($idFirefoxDebugPort, $GUI_FOCUS)
+			Return SetError(1)
+		EndIf
+		If HasCustomFirefoxRemoteParameter($Params) Then
+			MsgBox(16, "RunFirefox", _t("FirefoxDebugPortConflict", "Firefox 远程调试设置与命令行参数冲突。请关闭此设置，或删除命令行参数中的 --remote-debugging-port / --no-remote。"), 0, $hSettings)
+			GUICtrlSetState($idParams, $GUI_FOCUS)
+			Return SetError(1)
+		EndIf
+	EndIf
+	If $FirefoxDebugPortValid Then
+		$FirefoxDebugPort = Number($FirefoxDebugPortInput)
+	Else
+		$FirefoxDebugPort = 9222
 	EndIf
 	If GUICtrlRead($idAppUpdateCheckEnabled) = $GUI_CHECKED Then
 		$AppUpdateCheckEnabled = 1
@@ -4496,6 +4587,8 @@ Func ApplySettings()
 	IniWrite($inifile, "Settings", "Params", $Params)
 	IniWrite($inifile, "Settings", "ChromiumDebugPortEnabled", $ChromiumDebugPortEnabled)
 	IniWrite($inifile, "Settings", "ChromiumDebugPort", $ChromiumDebugPort)
+	IniWrite($inifile, "Settings", "FirefoxDebugPortEnabled", $FirefoxDebugPortEnabled)
+	IniWrite($inifile, "Settings", "FirefoxDebugPort", $FirefoxDebugPort)
 	IniWrite($inifile, "Settings", "BossKeyEnabled", $BossKeyEnabled)
 	IniWrite($inifile, "Settings", "BossKey", $BossKey)
 	IniWrite($inifile, "Settings", "BossKeyHideToTray", $BossKeyHideToTray)

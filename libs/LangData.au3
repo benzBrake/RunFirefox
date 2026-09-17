@@ -1,7 +1,7 @@
 ﻿; 本文件由 scripts/update-langdata.ps1 从 Lang.ini 自动生成，请勿手工编辑。
 ; 修改 Lang.ini 后重新运行该脚本即可同步。
 
-Global Const $g_sLangDataIni = _
+Global Const $g_sLangDataIniPart1 = _
 "[en-US]" & @CRLF & _
 "    LangTitle=English" & @CRLF & _
 "    ChromePlusInstalledVersion=Installed:" & @CRLF & _
@@ -121,7 +121,9 @@ Global Const $g_sLangDataIni = _
 "    ChromePlusDisableNewTab=Disable the two options above on new tabs" & @CRLF & _
 "    ChromePlusDisableNewTabName=Extra matched titles" & @CRLF & _
 "    ChromePlusDisableNewTabNameTooltip=Raw value for chrome++.ini new_tab_disable_name. These titles are also treated as new tabs. You can enter multiple titles and keep the quotes and commas, for example ""about:blank"",""New Tab""" & @CRLF & _
-"    ChromePlusNewTabDisableHelp=When checked, on a recognized new tab Chrome++ temporarily disables the two options above, so typed URLs and bookmarks reuse the current new tab.\n""Extra matched titles"" adds titles that are also treated as new tabs." & @CRLF & _
+"    ChromePlusNewTabDisableHelp=When checked, on a recognized new tab Chrome++ temporarily disables the two options above, so typed URLs and bookmarks reuse the current new tab.\n""Extra matched titles"" adds titles that are also treated as new tabs." & @CRLF
+
+Global Const $g_sLangDataIniPart2 = _
 "    ChromePlusSuppressFalseUpgradeNotification=Suppress the false ""out of date"" upgrade prompt" & @CRLF & _
 "    ChromePlusSuppressFalseUpgradeNotificationHelp=Portable builds have no updater, so the browser shows an ""out of date / relaunch"" prompt that relaunching cannot clear. Only that false prompt is removed; genuine update notices are unaffected.\nWithout Chrome++, --disable-features=OutdatedBuildDetector is appended automatically at launch." & @CRLF & _
 "    ChromePlusTabsSaveFailed=Failed to save Chrome++ tab settings:\n%s" & @CRLF & _
@@ -150,6 +152,13 @@ Global Const $g_sLangDataIni = _
 "    ChromiumDebugPortConflictHelp=When enabled, a CDP argument is added automatically. Do not repeat a debugging port or pipe in the command line arguments below." & @CRLF & _
 "    ChromiumDebugPortInvalid=The CDP debugging port must be an integer from 1 to 65535." & @CRLF & _
 "    ChromiumDebugPortConflict=The custom CDP debugging port conflicts with a remote debugging argument in the command line parameters. Disable this setting or remove --remote-debugging-port / --remote-debugging-pipe from the command line parameters." & @CRLF & _
+"    FirefoxSettings=Firefox settings" & @CRLF & _
+"    EnableFirefoxDebugPort= Enable Firefox debug port" & @CRLF & _
+"    FirefoxDebugPort=Port" & @CRLF & _
+"    FirefoxDebugPortTooltip=Firefox Remote Agent (WebDriver BiDi) port, from 1 to 65535." & @CRLF & _
+"    FirefoxDebugPortConflictHelp=When enabled, the Firefox Remote Agent port argument and --no-remote are added automatically. Do not repeat them in the command line arguments below." & @CRLF & _
+"    FirefoxDebugPortInvalid=The Firefox remote debugging port must be an integer from 1 to 65535." & @CRLF & _
+"    FirefoxDebugPortConflict=The Firefox remote debugging setting conflicts with the command line parameters. Disable this setting or remove --remote-debugging-port / --no-remote from the command line parameters." & @CRLF & _
 "    GoogleApiImportSuccess=Google API keys imported successfully." & @CRLF & _
 "    GoogleApiWarningSuppressSuccess=Google API key warning suppressed successfully." & @CRLF & _
 "    GoogleApiClearSuccess=Google API keys cleared successfully." & @CRLF & _
@@ -234,7 +243,9 @@ Global Const $g_sLangDataIni = _
 "    ExtractProfileFailed=Extracted profile failed!" & @CRLF & _
 "    ChooseBrowserExecutable=Choose browser executable(%s)" & @CRLF & _
 "    ExecutableFile=Executable(*.exe)" & @CRLF & _
-"    SpecifyProfileDirectory=Specify Profile Directory" & @CRLF & _
+"    SpecifyProfileDirectory=Specify Profile Directory" & @CRLF
+
+Global Const $g_sLangDataIniPart3 = _
 "    JumpListFrequent=Frequent" & @CRLF & _
 "    JumpListNewTab=New tab" & @CRLF & _
 "    JumpListNewWindow=New window" & @CRLF & _
@@ -354,7 +365,9 @@ Global Const $g_sLangDataIni = _
 "    ChromePlusHoverTabDelay=延遲（毫秒）" & @CRLF & _
 "    ChromePlusHoverTabDelayTooltip=滑鼠需要在分頁上停留多久才會啟用，範圍為 0-5000 毫秒；無效值會使用 400 毫秒。" & @CRLF & _
 "    ChromePlusHoverTabVersionRequired=滑鼠懸停啟用分頁需要 Chrome++ 1.18.0 或更新版本。目前版本：%s" & @CRLF & _
-"    ChromePlusOpenUrlNewTab=網址列輸入在新分頁開啟" & @CRLF & _
+"    ChromePlusOpenUrlNewTab=網址列輸入在新分頁開啟" & @CRLF
+
+Global Const $g_sLangDataIniPart4 = _
 "    ChromePlusOpenBookmarkNewTab=書籤在新分頁開啟" & @CRLF & _
 "    ChromePlusDisableNewTab=新分頁時停用上兩項" & @CRLF & _
 "    ChromePlusDisableNewTabName=額外匹配標題" & @CRLF & _
@@ -388,6 +401,13 @@ Global Const $g_sLangDataIni = _
 "    ChromiumDebugPortConflictHelp=啟用後會自動加入 CDP 參數，請勿在下方命令列參數中重複設定偵錯連接埠或偵錯管道。" & @CRLF & _
 "    ChromiumDebugPortInvalid=CDP 偵錯連接埠必須是 1-65535 之間的整數。" & @CRLF & _
 "    ChromiumDebugPortConflict=自訂 CDP 偵錯連接埠設定與命令列參數中的遠端偵錯參數衝突。請關閉此設定，或從命令列參數中移除 --remote-debugging-port / --remote-debugging-pipe。" & @CRLF & _
+"    FirefoxSettings=Firefox 設定" & @CRLF & _
+"    EnableFirefoxDebugPort= 啟用 Firefox 遠端偵錯連接埠" & @CRLF & _
+"    FirefoxDebugPort=連接埠" & @CRLF & _
+"    FirefoxDebugPortTooltip=Firefox Remote Agent（WebDriver BiDi）連接埠，範圍為 1-65535。" & @CRLF & _
+"    FirefoxDebugPortConflictHelp=啟用後會自動加入 Firefox Remote Agent 連接埠參數和 --no-remote，請勿在下方命令列參數中重複設定。" & @CRLF & _
+"    FirefoxDebugPortInvalid=Firefox 遠端偵錯連接埠必須是 1-65535 之間的整數。" & @CRLF & _
+"    FirefoxDebugPortConflict=Firefox 遠端偵錯設定與命令列參數衝突。請關閉此設定，或從命令列參數中移除 --remote-debugging-port / --no-remote。" & @CRLF & _
 "    GoogleApiImportSuccess=匯入 Google API 金鑰成功" & @CRLF & _
 "    GoogleApiWarningSuppressSuccess=清除 Google API 金鑰提示成功" & @CRLF & _
 "    GoogleApiClearSuccess=清除 Google API 金鑰成功" & @CRLF & _
@@ -467,7 +487,9 @@ Global Const $g_sLangDataIni = _
 "    BrowserPathErrorMessage=瀏覽器路徑錯誤，請重新設定。\n\n%s" & @CRLF & _
 "    PleaseProfileFolder=請設定設定檔資料夾！" & @CRLF & _
 "    CannotExtratProfileFromSystem=瀏覽器正在執行，無法提取設定檔！\n請關閉瀏覽器後繼續。" & @CRLF & _
-"    ExtractingProfile=正在提取設定檔，請稍候 ..." & @CRLF & _
+"    ExtractingProfile=正在提取設定檔，請稍候 ..." & @CRLF
+
+Global Const $g_sLangDataIniPart5 = _
 "    ExtractProfileSuccess=提取設定檔成功！" & @CRLF & _
 "    ExtractProfileFailed=提取設定檔失敗！" & @CRLF & _
 "    ChooseBrowserExecutable=Choose browser executable(%s)" & @CRLF & _
@@ -478,3 +500,10 @@ Global Const $g_sLangDataIni = _
 "    JumpListNewWindow=新增視窗" & @CRLF & _
 "    JumpListPrivateWindow=新增隱私視窗" & @CRLF & _
 "    JumpListLauncherSettings=啟動器設定"
+
+Global Const $g_sLangDataIni = _
+$g_sLangDataIniPart1 & _
+$g_sLangDataIniPart2 & _
+$g_sLangDataIniPart3 & _
+$g_sLangDataIniPart4 & _
+$g_sLangDataIniPart5

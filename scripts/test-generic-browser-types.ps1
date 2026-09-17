@@ -47,7 +47,54 @@ TestAssert(StringInStr($ChromiumParams, '--user-data-dir="C:\Portable\Profile"')
 TestAssert(StringInStr($ChromiumParams, '--disk-cache-dir="C:\Portable\Cache"'), "other Chromium cache parameter")
 TestAssert(StringInStr($ChromiumParams, "--disk-cache-size=67108864"), "other Chromium cache size parameter")
 TestAssert(StringInStr($ChromiumParams, "--remote-debugging-port=9222"), "other Chromium CDP parameter")
-TestAssert(StringInStr(BuildBrowserLaunchParams($BrowserOtherFirefox), '-profile "C:\Portable\Profile"'), "other Firefox profile parameter")
+
+$FirefoxDebugPortEnabled = 0
+$FirefoxDebugPort = 9222
+Local $FirefoxParams = BuildBrowserLaunchParams($BrowserFirefox)
+TestAssert(StringInStr($FirefoxParams, '-profile "C:\Portable\Profile"'), "Firefox profile parameter")
+TestAssert(Not StringInStr($FirefoxParams, "--remote-debugging-port="), "disabled Firefox remote debugging port")
+TestAssert(Not StringInStr($FirefoxParams, "--no-remote"), "disabled Firefox no-remote parameter")
+
+$FirefoxDebugPortEnabled = 1
+Local $MozillaTypes[6] = [$BrowserFirefox, $BrowserZen, $BrowserFloorp, $BrowserWaterfox, $BrowserLibreWolf, $BrowserOtherFirefox]
+For $MozillaType In $MozillaTypes
+    $FirefoxParams = BuildBrowserLaunchParams($MozillaType)
+    TestAssert(StringInStr($FirefoxParams, "--remote-debugging-port=9222"), $MozillaType & " Firefox Remote Agent parameter")
+    TestAssert(StringInStr($FirefoxParams, "--no-remote"), $MozillaType & " Firefox compatibility parameter")
+Next
+
+$FirefoxParams = BuildBrowserLaunchParams($BrowserOtherFirefox)
+Local $ProfileParamPos = StringInStr($FirefoxParams, '-profile "C:\Portable\Profile"')
+Local $RemoteDebuggingParamPos = StringInStr($FirefoxParams, "--remote-debugging-port=9222")
+Local $NoRemoteParamPos = StringInStr($FirefoxParams, "--no-remote")
+TestAssert($ProfileParamPos > 0 And $ProfileParamPos < $RemoteDebuggingParamPos And $RemoteDebuggingParamPos < $NoRemoteParamPos, "Firefox remote parameters follow portable profile")
+
+$FirefoxDebugPort = 1
+TestAssert(StringInStr(BuildBrowserLaunchParams($BrowserFirefox), "--remote-debugging-port=1"), "Firefox minimum debugging port")
+$FirefoxDebugPort = 65535
+TestAssert(StringInStr(BuildBrowserLaunchParams($BrowserFirefox), "--remote-debugging-port=65535"), "Firefox maximum debugging port")
+$FirefoxDebugPort = 9222
+TestAssert(IsValidDebugPort("1"), "minimum debugging port is valid")
+TestAssert(IsValidDebugPort("65535"), "maximum debugging port is valid")
+TestAssert(Not IsValidDebugPort("0"), "zero debugging port is invalid")
+TestAssert(Not IsValidDebugPort("65536"), "out-of-range debugging port is invalid")
+TestAssert(Not IsValidDebugPort("invalid"), "non-numeric debugging port is invalid")
+
+TestAssert(HasCustomFirefoxRemoteParameter("--remote-debugging-port=9222"), "Firefox conflict equals form")
+TestAssert(HasCustomFirefoxRemoteParameter("--remote-debugging-port 9222"), "Firefox conflict spaced form")
+TestAssert(HasCustomFirefoxRemoteParameter("-remote-debugging-port=9222"), "Firefox conflict single-hyphen form")
+TestAssert(HasCustomFirefoxRemoteParameter("--REMOTE-DEBUGGING-PORT=9222"), "Firefox conflict case-insensitive form")
+TestAssert(HasCustomFirefoxRemoteParameter("--no-remote"), "Firefox no-remote conflict")
+TestAssert(HasCustomFirefoxRemoteParameter("-NO-REMOTE"), "Firefox single-hyphen no-remote conflict")
+TestAssert(Not HasCustomFirefoxRemoteParameter("--remote-debugging-portable=9222"), "similar Firefox port parameter does not conflict")
+TestAssert(Not HasCustomFirefoxRemoteParameter("prefix--no-remote"), "embedded Firefox no-remote text does not conflict")
+TestAssert(Not HasCustomFirefoxRemoteParameter("--no-remotely"), "similar Firefox no-remote parameter does not conflict")
+
+$ChromiumDebugPortEnabled = 0
+Local $ChromiumWithoutCdp = BuildBrowserLaunchParams($BrowserOtherChromium)
+TestAssert(Not StringInStr($ChromiumWithoutCdp, "--remote-debugging-port="), "Firefox setting does not add a Chromium debugging port")
+TestAssert(Not StringInStr($ChromiumWithoutCdp, "--no-remote"), "Firefox setting does not add Chromium no-remote")
+$ChromiumDebugPortEnabled = 1
 
 TestAssert(Not _BrowserDownloadIsSupported($BrowserOtherFirefox), "other Firefox built-in download disabled")
 TestAssert(Not _BrowserDownloadIsSupported($BrowserOtherChromium), "other Chromium built-in download disabled")

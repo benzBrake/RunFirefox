@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- Added “Other Firefox-based Browser” and “Other Chromium-based Browser” options for portable configuration and launching of browsers without built-in integrations, while preventing them from using official Firefox/Chrome version checks, downloads, or managed updates.
+
 - Chrome++ online installations now use the complete `chrome++.ini` from the Bush2021 release archive, while bundled patch installations use the complete bundled template. Existing custom configurations are preserved, and legacy compact RunFirefox-managed configurations are migrated automatically.
 
 - Restored BrowserArchive's `helium.json` as the preferred source for the latest Helium version, with GitHub Releases as fallback.

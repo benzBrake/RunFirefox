@@ -90,7 +90,9 @@ Global Const $BrowserZen = "zen"
 Global Const $BrowserFloorp = "floorp"
 Global Const $BrowserWaterfox = "waterfox"
 Global Const $BrowserLibreWolf = "librewolf"
+Global Const $BrowserOtherFirefox = "other-firefox"
 Global Const $BrowserChrome = "chrome"
+Global Const $BrowserOtherChromium = "other-chromium"
 Global Const $BrowserTurbo = "turbo"
 Global Const $BrowserHelium = "helium"
 Global Const $BrowserWhale = "whale"
@@ -1686,7 +1688,7 @@ Func Settings()
 	$aIt1[2] = _ALIt($AL_BUTTON, _t("Browse", "浏览"))
 	$aIt1[3] = _ALIt($AL_NEWLINE)
 	$aIt1[4] = _ALIt($AL_LABEL, _t("BrowserType", "浏览器"))
-	$aIt1[5] = _ALIt($AL_COMBO, "", 150)
+	$aIt1[5] = _ALIt($AL_COMBO, "", 240)
 	$aIt1[6] = _ALIt($AL_NEWLINE)
 	$aIt1[7] = _ALIt($AL_LABEL, _t("UpdateChannel", "更新通道"))
 	$aIt1[8] = _ALIt($AL_COMBO, "", 120)
@@ -2216,7 +2218,7 @@ EndFunc   ;==>ApplyDetectedBrowserTypeFromPath
 Func ChangeBrowserType()
 	Local $NewBrowserType = GetSelectedBrowserType()
 	Local $CurrentPath = StringLower(GUICtrlRead($idBrowserPath))
-	If $CurrentPath = ".\firefox\firefox.exe" Or $CurrentPath = ".\zenbrowser\zen.exe" Or $CurrentPath = ".\floorp\floorp.exe" Or $CurrentPath = ".\waterfox\waterfox.exe" Or $CurrentPath = ".\librewolf\librewolf.exe" Or $CurrentPath = ".\chrome\chrome.exe" Or $CurrentPath = ".\turbo\turbo.exe" Or $CurrentPath = ".\helium\chrome.exe" Or $CurrentPath = ".\whale\whale.exe" Or $CurrentPath = ".\centbrowser\chrome.exe" Or $CurrentPath = ".\vivaldi\vivaldi.exe" Or $CurrentPath = ".\opera\opera.exe" Or $CurrentPath = ".\brave\brave.exe" Or $CurrentPath = ".\xunlei\xlbrowser.exe" Or $CurrentPath = ".\xunlei\xunleibrowser.exe" Or $CurrentPath = ".\ungoogled-chromium\chrome.exe" Then
+	If $CurrentPath = ".\firefox\firefox.exe" Or $CurrentPath = ".\zenbrowser\zen.exe" Or $CurrentPath = ".\floorp\floorp.exe" Or $CurrentPath = ".\waterfox\waterfox.exe" Or $CurrentPath = ".\librewolf\librewolf.exe" Or $CurrentPath = ".\firefoxfork\firefox.exe" Or $CurrentPath = ".\chrome\chrome.exe" Or $CurrentPath = ".\chromium\chrome.exe" Or $CurrentPath = ".\turbo\turbo.exe" Or $CurrentPath = ".\helium\chrome.exe" Or $CurrentPath = ".\whale\whale.exe" Or $CurrentPath = ".\centbrowser\chrome.exe" Or $CurrentPath = ".\vivaldi\vivaldi.exe" Or $CurrentPath = ".\opera\opera.exe" Or $CurrentPath = ".\brave\brave.exe" Or $CurrentPath = ".\xunlei\xlbrowser.exe" Or $CurrentPath = ".\xunlei\xunleibrowser.exe" Or $CurrentPath = ".\ungoogled-chromium\chrome.exe" Then
 		GUICtrlSetData($idBrowserPath, GetDefaultBrowserPath($NewBrowserType))
 	EndIf
 	$BrowserType = $NewBrowserType
@@ -2379,6 +2381,11 @@ EndFunc   ;==>BrowserAutoUpdateResolveLatestVersion
 Func UpdateBrowserDownloadLabels($LoadVersion, $Unavailable = False)
 	If Not $idBrowserDownloadLink Then Return
 	Local $CurrentBrowserType = GetSelectedBrowserType()
+	If Not _BrowserDownloadIsSupported($CurrentBrowserType) Then
+		GUICtrlSetData($idBrowserDownloadLink, _t("BrowserManagedDownloadUnavailable", "不提供内置下载"))
+		UpdateBrowserDownloadNowState()
+		Return
+	EndIf
 	Local $Channel = GUICtrlRead($idChannel)
 	If $Channel = "default" Then $Channel = "release"
 
@@ -2441,6 +2448,10 @@ EndFunc   ;==>UpdateCurrentBrowserVersionLabel
 
 Func UpdateBrowserDownloadNowState()
 	If Not $idBrowserDownloadNow Or Not $idBrowserDownloadLink Or Not $idCurrentBrowserVersion Then Return
+	If Not _BrowserDownloadIsSupported(GetSelectedBrowserType()) Then
+		GUICtrlSetState($idBrowserDownloadNow, $GUI_HIDE)
+		Return
+	EndIf
 
 	Local $DisplayedLatestVersion = StringStripWS(GUICtrlRead($idBrowserDownloadLink), 3)
 	Local $LatestVersion = NormalizeDisplayedVersionForCompare($DisplayedLatestVersion)
@@ -2560,6 +2571,11 @@ EndFunc   ;==>GetBrowserUpdateCheckModeComboData
 Func BeginBrowserVersionLoad($CurrentBrowserType = "", $Channel = "")
 	If Not $idBrowserDownloadLink Then Return
 	If $CurrentBrowserType = "" Then $CurrentBrowserType = GetSelectedBrowserType()
+	If Not _BrowserDownloadIsSupported($CurrentBrowserType) Then
+		CancelBrowserVersionLoad()
+		UpdateBrowserDownloadLabels(False)
+		Return
+	EndIf
 	If $Channel = "" Then $Channel = GUICtrlRead($idChannel)
 	If $Channel = "default" Then $Channel = "release"
 	Local $Os = "win64"
@@ -2653,9 +2669,14 @@ Func DetectBrowserTypeFromPath($BrowserPath)
 	Local $BrowserDir = ""
 	SplitPath($FullBrowserPath, $BrowserDir, $BrowserExe)
 
+	Local $Identity = GetExecutableIdentityText($FullBrowserPath)
+	Return DetectBrowserTypeFromIdentity($FullBrowserPath, $BrowserExe, $Identity)
+EndFunc   ;==>DetectBrowserTypeFromPath
+
+Func DetectBrowserTypeFromIdentity($FullBrowserPath, $BrowserExe, $Identity)
 	Local $BrowserExeLower = StringLower($BrowserExe)
 	Local $FullBrowserPathLower = StringLower($FullBrowserPath)
-	Local $Identity = GetExecutableIdentityText($FullBrowserPath)
+	$Identity = StringLower($Identity)
 	If StringInStr($FullBrowserPathLower, "\ungoogled-chromium\") Or StringInStr($Identity, "ungoogled chromium") Or StringInStr($Identity, "ungoogled-chromium") Then Return $BrowserUngoogledChromium
 
 	If StringInStr($Identity, "helium") Or StringInStr($Identity, "the helium authors") Then Return $BrowserHelium
@@ -2670,11 +2691,15 @@ Func DetectBrowserTypeFromPath($BrowserPath)
 	If $BrowserExeLower = "waterfox.exe" Or StringInStr($Identity, "waterfox") Then Return $BrowserWaterfox
 	If $BrowserExeLower = "librewolf.exe" Or StringInStr($Identity, "librewolf") Then Return $BrowserLibreWolf
 	If $BrowserExeLower = "opera.exe" Or StringInStr($Identity, "opera") Then Return $BrowserOpera
-	If IsChromiumBrowserIdentity($Identity, $BrowserExeLower) Then Return $BrowserChrome
-	If $BrowserExeLower = "firefox.exe" Or StringInStr($Identity, "firefox") Then Return $BrowserFirefox
+	If $BrowserExeLower = "chrome.exe" And StringRegExp($FullBrowserPathLower, "\\chrome\\chrome[.]exe$") Then Return $BrowserChrome
+	If $BrowserExeLower = "firefox.exe" And StringRegExp($FullBrowserPathLower, "\\firefox\\firefox[.]exe$") Then Return $BrowserFirefox
+	If StringInStr($Identity, "google chrome") Or ($BrowserExeLower = "chrome.exe" And StringInStr($Identity, "google llc")) Then Return $BrowserChrome
+	If StringInStr($Identity, "firefox") And (StringInStr($Identity, "mozilla corporation") Or StringInStr($Identity, "mozilla foundation")) Then Return $BrowserFirefox
+	If IsChromiumBrowserIdentity($Identity, $BrowserExeLower) Then Return $BrowserOtherChromium
+	If $BrowserExeLower = "firefox.exe" Or StringInStr($Identity, "firefox") Then Return $BrowserOtherFirefox
 
 	Return ""
-EndFunc   ;==>DetectBrowserTypeFromPath
+EndFunc   ;==>DetectBrowserTypeFromIdentity
 
 Func GetExecutableIdentityText($ExePath)
 	Local $Identity = ""
@@ -2740,7 +2765,7 @@ EndFunc   ;==>IsChromiumBrowserIdentity
 
 Func IsChromeBrowser($Value)
 	Local $Normalized = NormalizeBrowserType($Value)
-	Return $Normalized = $BrowserChrome Or $Normalized = $BrowserUngoogledChromium Or $Normalized = $BrowserTurbo Or $Normalized = $BrowserHelium Or $Normalized = $BrowserWhale Or $Normalized = $BrowserCent Or $Normalized = $BrowserVivaldi Or $Normalized = $BrowserOpera Or $Normalized = $BrowserBrave Or $Normalized = $BrowserXunlei
+	Return $Normalized = $BrowserChrome Or $Normalized = $BrowserOtherChromium Or $Normalized = $BrowserUngoogledChromium Or $Normalized = $BrowserTurbo Or $Normalized = $BrowserHelium Or $Normalized = $BrowserWhale Or $Normalized = $BrowserCent Or $Normalized = $BrowserVivaldi Or $Normalized = $BrowserOpera Or $Normalized = $BrowserBrave Or $Normalized = $BrowserXunlei
 EndFunc   ;==>IsChromeBrowser
 
 Func IsGoogleChromeBrowser($Value)
@@ -2765,13 +2790,23 @@ Func IsMozillaBrowser($Value)
 	Return Not IsChromeBrowser($Value)
 EndFunc   ;==>IsMozillaBrowser
 
+Func IsBrowserUpdateControlSupported($Value)
+	Return IsMozillaBrowser($Value) Or _BrowserAutoUpdateIsSupported($Value)
+EndFunc   ;==>IsBrowserUpdateControlSupported
+
+Func ShouldManageMozillaUpdateChannel($Value)
+	Return IsMozillaBrowser($Value) And NormalizeBrowserType($Value) <> $BrowserOtherFirefox
+EndFunc   ;==>ShouldManageMozillaUpdateChannel
+
 Func NormalizeBrowserType($Value)
 	$Value = StringLower(StringStripWS($Value, 3))
 	If $Value = $BrowserZen Or $Value = "zenbrowser" Then Return $BrowserZen
 	If $Value = $BrowserFloorp Then Return $BrowserFloorp
 	If $Value = $BrowserWaterfox Then Return $BrowserWaterfox
 	If $Value = $BrowserLibreWolf Then Return $BrowserLibreWolf
+	If $Value = $BrowserOtherFirefox Or $Value = "other firefox" Or $Value = "firefox fork" Then Return $BrowserOtherFirefox
 	If $Value = $BrowserChrome Or $Value = "google chrome" Then Return $BrowserChrome
+	If $Value = $BrowserOtherChromium Or $Value = "other chromium" Or $Value = "chromium" Then Return $BrowserOtherChromium
 	If $Value = $BrowserTurbo Or $Value = "turbo browser" Or $Value = "tbrowser" Or $Value = "涡轮浏览器" Or $Value = "渦輪瀏覽器" Then Return $BrowserTurbo
 	If $Value = $BrowserHelium Then Return $BrowserHelium
 	If $Value = $BrowserWhale Or $Value = "naver whale" Or $Value = "whalebrowser" Then Return $BrowserWhale
@@ -2799,6 +2834,8 @@ Func GetBrowserDisplayName($Value)
 	If NormalizeBrowserType($Value) = $BrowserFloorp Then Return "Floorp"
 	If NormalizeBrowserType($Value) = $BrowserWaterfox Then Return "Waterfox"
 	If NormalizeBrowserType($Value) = $BrowserLibreWolf Then Return "LibreWolf"
+	If NormalizeBrowserType($Value) = $BrowserOtherFirefox Then Return "Other Firefox-based Browser"
+	If NormalizeBrowserType($Value) = $BrowserOtherChromium Then Return "Other Chromium-based Browser"
 	Return "Firefox"
 EndFunc   ;==>GetBrowserDisplayName
 
@@ -2817,6 +2854,8 @@ Func GetBrowserTypeLabel($Value)
 	If NormalizeBrowserType($Value) = $BrowserFloorp Then Return _t("BrowserFloorp", "Floorp")
 	If NormalizeBrowserType($Value) = $BrowserWaterfox Then Return _t("BrowserWaterfox", "Waterfox")
 	If NormalizeBrowserType($Value) = $BrowserLibreWolf Then Return _t("BrowserLibreWolf", "LibreWolf")
+	If NormalizeBrowserType($Value) = $BrowserOtherFirefox Then Return _t("BrowserOtherFirefox", "其他 Firefox 衍生版")
+	If NormalizeBrowserType($Value) = $BrowserOtherChromium Then Return _t("BrowserOtherChromium", "其他 Chromium 浏览器")
 	Return _t("BrowserFirefox", "Firefox 原版")
 EndFunc   ;==>GetBrowserTypeLabel
 
@@ -2835,11 +2874,13 @@ Func GetBrowserTypeByLabel($Label)
 	If $Label = _t("BrowserFloorp", "Floorp") Or StringLower($Label) = "floorp" Then Return $BrowserFloorp
 	If $Label = _t("BrowserWaterfox", "Waterfox") Or StringLower($Label) = "waterfox" Then Return $BrowserWaterfox
 	If $Label = _t("BrowserLibreWolf", "LibreWolf") Or StringLower($Label) = "librewolf" Then Return $BrowserLibreWolf
+	If $Label = _t("BrowserOtherFirefox", "其他 Firefox 衍生版") Or StringLower($Label) = "other firefox-based browser" Or StringLower($Label) = "other firefox" Then Return $BrowserOtherFirefox
+	If $Label = _t("BrowserOtherChromium", "其他 Chromium 浏览器") Or StringLower($Label) = "other chromium-based browser" Or StringLower($Label) = "other chromium" Then Return $BrowserOtherChromium
 	Return $BrowserFirefox
 EndFunc   ;==>GetBrowserTypeByLabel
 
 Func GetBrowserTypeComboData()
-	Return _t("BrowserFirefox", "Firefox 原版") & "|" & _t("BrowserZen", "ZenBrowser") & "|" & _t("BrowserFloorp", "Floorp") & "|" & _t("BrowserWaterfox", "Waterfox") & "|" & _t("BrowserLibreWolf", "LibreWolf") & "|" & _t("BrowserChrome", "Chrome") & "|" & _t("BrowserUngoogledChromium", "Ungoogled Chromium") & "|" & _t("BrowserTurbo", "涡轮浏览器") & "|" & _t("BrowserHelium", "Helium") & "|" & _t("BrowserWhale", "Naver Whale") & "|" & _t("BrowserCent", "百分浏览器") & "|" & _t("BrowserVivaldi", "Vivaldi") & "|" & _t("BrowserOpera", "Opera") & "|" & _t("BrowserBrave", "Brave") & "|" & _t("BrowserXunlei", "迅雷浏览器")
+	Return _t("BrowserFirefox", "Firefox 原版") & "|" & _t("BrowserZen", "ZenBrowser") & "|" & _t("BrowserFloorp", "Floorp") & "|" & _t("BrowserWaterfox", "Waterfox") & "|" & _t("BrowserLibreWolf", "LibreWolf") & "|" & _t("BrowserOtherFirefox", "其他 Firefox 衍生版") & "|" & _t("BrowserChrome", "Chrome") & "|" & _t("BrowserUngoogledChromium", "Ungoogled Chromium") & "|" & _t("BrowserTurbo", "涡轮浏览器") & "|" & _t("BrowserHelium", "Helium") & "|" & _t("BrowserWhale", "Naver Whale") & "|" & _t("BrowserCent", "百分浏览器") & "|" & _t("BrowserVivaldi", "Vivaldi") & "|" & _t("BrowserOpera", "Opera") & "|" & _t("BrowserBrave", "Brave") & "|" & _t("BrowserXunlei", "迅雷浏览器") & "|" & _t("BrowserOtherChromium", "其他 Chromium 浏览器")
 EndFunc   ;==>GetBrowserTypeComboData
 
 Func SetBrowserTypeComboSelection($Value, $ResetList = False)
@@ -2871,6 +2912,7 @@ Func GetBrowserExecutableName($Value)
 	If NormalizeBrowserType($Value) = $BrowserFloorp Then Return "floorp.exe"
 	If NormalizeBrowserType($Value) = $BrowserWaterfox Then Return "waterfox.exe"
 	If NormalizeBrowserType($Value) = $BrowserLibreWolf Then Return "librewolf.exe"
+	If NormalizeBrowserType($Value) = $BrowserOtherChromium Then Return "chrome.exe"
 	Return "firefox.exe"
 EndFunc   ;==>GetBrowserExecutableName
 
@@ -2894,6 +2936,8 @@ Func GetDefaultBrowserPath($Value)
 	If NormalizeBrowserType($Value) = $BrowserFloorp Then Return ".\Floorp\floorp.exe"
 	If NormalizeBrowserType($Value) = $BrowserWaterfox Then Return ".\Waterfox\waterfox.exe"
 	If NormalizeBrowserType($Value) = $BrowserLibreWolf Then Return ".\LibreWolf\librewolf.exe"
+	If NormalizeBrowserType($Value) = $BrowserOtherFirefox Then Return ".\FirefoxFork\firefox.exe"
+	If NormalizeBrowserType($Value) = $BrowserOtherChromium Then Return ".\Chromium\chrome.exe"
 	Return ".\Firefox\firefox.exe"
 EndFunc   ;==>GetDefaultBrowserPath
 
@@ -2993,22 +3037,26 @@ EndFunc   ;==>GetBrowserWindowWait
 
 Func UpdateBrowserSpecificControls()
 	If Not $idBrowserType Then Return
-	Local $IsChrome = IsChromeBrowser(GetSelectedBrowserType())
-	UpdateBrowserBitnessControl(GetSelectedBrowserType())
+	Local $SelectedBrowserType = GetSelectedBrowserType()
+	Local $IsChrome = IsChromeBrowser($SelectedBrowserType)
+	Local $DownloadSupported = _BrowserDownloadIsSupported($SelectedBrowserType)
+	UpdateBrowserBitnessControl($SelectedBrowserType)
 	Local $MozillaState = $GUI_ENABLE
 	Local $ChromiumState = $GUI_DISABLE
 	If $IsChrome Then $MozillaState = $GUI_DISABLE
 	If $IsChrome Then $ChromiumState = $GUI_ENABLE
 	; Browser auto update works either through the browser's own updater
 	; (Mozilla) or through RunFirefox's managed update (Chrome for now).
-	Local $AutoUpdateSupported = IsMozillaBrowser(GetSelectedBrowserType()) Or _BrowserAutoUpdateIsSupported(GetSelectedBrowserType())
+	Local $AutoUpdateSupported = IsBrowserUpdateControlSupported($SelectedBrowserType)
 	Local $AutoUpdateState = $GUI_ENABLE
 	If Not $AutoUpdateSupported Then $AutoUpdateState = $GUI_DISABLE
 
-	GUICtrlSetState($idChannel, $GUI_ENABLE)
+	Local $DownloadState = $GUI_DISABLE
+	If $DownloadSupported Then $DownloadState = $GUI_ENABLE
+	GUICtrlSetState($idChannel, $DownloadState)
 	GUICtrlSetState($idAllowBrowserUpdate, $AutoUpdateState)
 	GUICtrlSetState($idBrowserUpdateCheckMode, $AutoUpdateState)
-	GUICtrlSetState($idBrowserDownloadLink, $GUI_ENABLE)
+	GUICtrlSetState($idBrowserDownloadLink, $DownloadState)
 	GUICtrlSetState($idCustomPluginsDir, $MozillaState)
 	GUICtrlSetState($idGetPluginsDir, $MozillaState)
 	GUICtrlSetState($idCacheSizeSmart, $MozillaState)
@@ -3020,6 +3068,7 @@ Func UpdateBrowserSpecificControls()
 	If $IsChrome Then
 		UpdateBrowserDownloadLabels(False)
 	EndIf
+	If Not $DownloadSupported Then UpdateBrowserDownloadLabels(False)
 	RefreshCopyProfileState()
 
 	RefreshChromePlusTabState()
@@ -3458,6 +3507,8 @@ EndFunc   ;==>GetSystemMozillaProfileDir
 
 Func GetMozillaProfilesIniPath($BrowserTypeValue)
 	Switch NormalizeBrowserType($BrowserTypeValue)
+		Case $BrowserOtherFirefox
+			Return ""
 		Case $BrowserZen
 			Return @AppDataDir & "\zen\profiles.ini"
 		Case $BrowserFloorp
@@ -3503,6 +3554,7 @@ EndFunc   ;==>ResolveProfilesIniProfilePath
 
 Func GetSystemChromiumUserDataDir($BrowserTypeValue, $Channel = "")
 	Local $Normalized = NormalizeBrowserType($BrowserTypeValue)
+	If $Normalized = $BrowserOtherChromium Then Return ""
 	If $Normalized = $BrowserTurbo Then
 		If FileExists(@LocalAppDataDir & "\Turbo\User Data\Local State") Then Return @LocalAppDataDir & "\Turbo\User Data"
 		If FileExists(@LocalAppDataDir & "\TurboBrowser\User Data\Local State") Then Return @LocalAppDataDir & "\TurboBrowser\User Data"
@@ -3581,6 +3633,10 @@ Func UpdateBrowserChannelOptions($Value, $SelectedChannel)
 	$SelectedChannel = _BrowserDownloadNormalizeChannel($Value, $SelectedChannel)
 	Local $Options = "esr|release|beta|dev|nightly"
 	Local $DefaultChannel = "release"
+	If Not _BrowserDownloadIsSupported($Value) Then
+		$Options = "default"
+		$DefaultChannel = "default"
+	EndIf
 	If NormalizeBrowserType($Value) = $BrowserZen Then $Options = "release|twilight"
 	If NormalizeBrowserType($Value) = $BrowserFloorp Then $Options = "release"
 	If NormalizeBrowserType($Value) = $BrowserWaterfox Then $Options = "release"
@@ -4094,6 +4150,7 @@ EndFunc   ;==>ShowCurrentChannel
 
 Func DownloadBrowser()
 	Local $CurrentBrowserType = GetSelectedBrowserType()
+	If Not _BrowserDownloadIsSupported($CurrentBrowserType) Then Return
 	Local $os = "win64"
 	If NormalizeBrowserType($CurrentBrowserType) = $BrowserUngoogledChromium Or NormalizeBrowserType($CurrentBrowserType) = $BrowserWhale Then
 		Local $SelectedArch = StringLower(StringStripWS(GUICtrlRead($idBrowserBitness), 3))
@@ -4449,7 +4506,7 @@ Func ApplySettings()
 		Return SetError(1)
 	EndIf
 
-	If IsMozillaBrowser($BrowserType) Then
+	If ShouldManageMozillaUpdateChannel($BrowserType) Then
 		Local $ChannelString = GUICtrlRead($idChannel)
 		Local $Channel = StringRegExpReplace($ChannelString, " -.*", "")
 		Local $UpdateChannel = $Channel

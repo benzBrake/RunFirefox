@@ -84,8 +84,14 @@ Func _BrowserDownloadConfigure($AppVersion, $Locale, $GithubDirectMirror, $Githu
 	_DownloadToolsSetRouting($Locale, $GithubDirectMirror, $GithubJsDelivrMirror, $DT_GithubApiMirror)
 EndFunc
 
+Func _BrowserDownloadIsSupported($BrowserType)
+	Local $Normalized = NormalizeBrowserType($BrowserType)
+	Return $Normalized <> $BrowserOtherFirefox And $Normalized <> $BrowserOtherChromium
+EndFunc
+
 Func _BrowserDownloadGetLatestVersion($BrowserType, $Channel)
 	$BrowserType = NormalizeBrowserType($BrowserType)
+	If Not _BrowserDownloadIsSupported($BrowserType) Then Return ""
 	$Channel = _BrowserDownloadNormalizeChannel($BrowserType, $Channel)
 
 	If $BrowserType = $BrowserZen Then Return _BrowserDownloadGetLatestZenVersion($Channel)
@@ -107,6 +113,7 @@ EndFunc
 
 Func _BrowserDownloadIsVersionCached($BrowserType, $Channel, $Os = "win64")
 	$BrowserType = NormalizeBrowserType($BrowserType)
+	If Not _BrowserDownloadIsSupported($BrowserType) Then Return False
 	$Channel = _BrowserDownloadNormalizeChannel($BrowserType, $Channel)
 	If $BrowserType = $BrowserTurbo Then Return $TurboReleaseInfoLoaded
 	If $BrowserType = $BrowserHelium Then Return $HeliumReleaseInfoLoaded
@@ -126,6 +133,7 @@ Func _BrowserDownloadIsVersionCached($BrowserType, $Channel, $Os = "win64")
 EndFunc
 
 Func _BrowserDownloadHasFallback($BrowserType, $Channel)
+	If Not _BrowserDownloadIsSupported($BrowserType) Then Return False
 	Switch NormalizeBrowserType($BrowserType)
 		Case $BrowserFirefox, $BrowserZen, $BrowserFloorp, $BrowserWaterfox, $BrowserTurbo, $BrowserHelium, $BrowserWhale, $BrowserVivaldi, $BrowserOpera, $BrowserBrave, $BrowserXunlei, $BrowserUngoogledChromium
 			Return True
@@ -136,6 +144,7 @@ Func _BrowserDownloadHasFallback($BrowserType, $Channel)
 EndFunc
 
 Func _BrowserDownloadGetPageUrl($BrowserType, $Channel)
+	If Not _BrowserDownloadIsSupported($BrowserType) Then Return ""
 	Switch NormalizeBrowserType($BrowserType)
 		Case $BrowserLibreWolf
 			Return $LibreWolfDownloadPageUrl
@@ -153,6 +162,7 @@ EndFunc
 
 Func _BrowserDownloadIsVersionLoadActive($BrowserType, $Channel, $Os = "win64")
 	$BrowserType = NormalizeBrowserType($BrowserType)
+	If Not _BrowserDownloadIsSupported($BrowserType) Then Return False
 	$Channel = _BrowserDownloadNormalizeChannel($BrowserType, $Channel)
 	Return $BD_LoadHandle <> 0 And $BD_LoadBrowserType = $BrowserType And $BD_LoadChannel = $Channel And $BD_LoadOs = $Os
 EndFunc
@@ -163,6 +173,7 @@ EndFunc
 
 Func _BrowserDownloadStartVersionLoad($BrowserType, $Channel, $Os = "win64")
 	$BrowserType = NormalizeBrowserType($BrowserType)
+	If Not _BrowserDownloadIsSupported($BrowserType) Then Return False
 	$Channel = _BrowserDownloadNormalizeChannel($BrowserType, $Channel)
 	If _BrowserDownloadIsVersionLoadActive($BrowserType, $Channel, $Os) Then Return True
 	_BrowserDownloadCancelVersionLoad()
@@ -1504,6 +1515,8 @@ EndFunc   ;==>NormalizeChromeChannel
 Func _BrowserDownloadNormalizeChannel($BrowserType, $Channel)
 	$BrowserType = NormalizeBrowserType($BrowserType)
 	Switch $BrowserType
+		Case $BrowserOtherFirefox, $BrowserOtherChromium
+			Return "default"
 		Case $BrowserChrome
 			Return _BrowserDownloadNormalizeChromeChannel($Channel)
 		Case $BrowserBrave
@@ -1587,6 +1600,7 @@ Func _BrowserDownloadChromeComError($oError)
 EndFunc   ;==>ChromeComError
 
 Func _BrowserDownloadBuildBrowserDownloadUrl($Value, $Channel, $os)
+	If Not _BrowserDownloadIsSupported($Value) Then Return SetError(1, 0, "")
 	If NormalizeBrowserType($Value) = $BrowserUngoogledChromium Then Return _BrowserDownloadBuildUngoogledChromiumDownloadUrl($Channel, $os)
 	If NormalizeBrowserType($Value) = $BrowserTurbo Then Return _BrowserDownloadBuildTurboDownloadUrl($Channel, $os)
 	If NormalizeBrowserType($Value) = $BrowserHelium Then Return _BrowserDownloadBuildHeliumDownloadUrl($Channel, $os)
@@ -1605,6 +1619,7 @@ Func _BrowserDownloadBuildBrowserDownloadUrl($Value, $Channel, $os)
 EndFunc   ;==>BuildBrowserDownloadUrl
 
 Func _BrowserDownloadBuildUrls($Value, $Channel, $os)
+	If Not _BrowserDownloadIsSupported($Value) Then Return SetError(1, 0, 0)
 	$Channel = _BrowserDownloadNormalizeChannel($Value, $Channel)
 	Local $DownloadUrl = _BrowserDownloadBuildBrowserDownloadUrl($Value, $Channel, $os)
 	If @error Or $DownloadUrl = "" Then Return SetError(1, 0, 0)

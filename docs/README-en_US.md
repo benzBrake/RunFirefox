@@ -14,6 +14,8 @@ Features:
 5. Jump Lists for Gecko and Chromium-based browsers include frequent sites, browser launch tasks, and a launcher settings entry.
 6. Network settings support 1–10 concurrent download segments plus HTTP and SOCKS5 proxies; proxy connections use original upstream URLs instead of download mirrors. Multi-threading and proxies require `curl.exe`; when it is unavailable, the thread count is fixed at 1 and the original direct downloader is used.
 
+Built-in downloads include the Windows x64 portable build of Cốc Cốc. Version and ZIP metadata come exclusively from BrowserArchive's `coccoc.json`, and the ZIP is verified with SHA-256 before extraction.
+
 **[View the full changelog](CHANGELOG-en_US.md)**
 
 ### Chrome++ for Brave / Whale

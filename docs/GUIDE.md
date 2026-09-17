@@ -1,7 +1,7 @@
 # 便携版制作指南
 
 现在 `RunFirefox` 的设置界面已经可以直接下载并解压支持的浏览器。
-如果你要制作的是 **Firefox、Chrome、Ungoogled Chromium、迅雷浏览器、涡轮浏览器（Turbo Browser）、Zen、Floorp、Waterfox、LibreWolf、Helium、Naver Whale、百分浏览器（Cent Browser）、Vivaldi、Opera、Brave** 便携版，优先使用内置下载会更省事。
+如果你要制作的是 **Firefox、Chrome、Ungoogled Chromium、迅雷浏览器、涡轮浏览器（Turbo Browser）、Zen、Floorp、Waterfox、LibreWolf、Helium、Naver Whale、百分浏览器（Cent Browser）、Vivaldi、Opera、Cốc Cốc、Brave** 便携版，优先使用内置下载会更省事。
 
 ## 方式一：在设置里直接下载（适用于已支持的浏览器）
 
@@ -18,6 +18,8 @@ LibreWolf 会固定下载官网提供的 Windows x64 portable ZIP；即使压缩
 迅雷浏览器会从迅雷官网解析当前 Windows x64 安装包地址并下载；官网解析失败时可打开官网手动下载。
 
 Opera 会优先从 BrowserArchive 获取所选渠道（stable/beta/dev）的最新版本，失败时回退官方版本 API；Windows x64 离线安装包会依次经内置通用代理下载并在失败时回退官方地址，然后自动解压。
+
+Cốc Cốc 仅支持 Windows x64 和 release 通道。版本、ZIP 地址与 SHA-256 只读取 BrowserArchive 的 `coccoc.json`，不回退其他元数据源；ZIP 下载完成并通过校验后才会解压到 `CocCoc` 目录。
 
 ## 方式二：手动制作（适用于未内置下载的浏览器）
 

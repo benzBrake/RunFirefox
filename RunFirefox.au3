@@ -99,6 +99,7 @@ Global Const $BrowserWhale = "whale"
 Global Const $BrowserCent = "cent"
 Global Const $BrowserVivaldi = "vivaldi"
 Global Const $BrowserOpera = "opera"
+Global Const $BrowserCocCoc = "coccoc"
 Global Const $BrowserBrave = "brave"
 Global Const $BrowserXunlei = "xunlei"
 Global Const $BrowserUngoogledChromium = "ungoogled-chromium"
@@ -2218,7 +2219,7 @@ EndFunc   ;==>ApplyDetectedBrowserTypeFromPath
 Func ChangeBrowserType()
 	Local $NewBrowserType = GetSelectedBrowserType()
 	Local $CurrentPath = StringLower(GUICtrlRead($idBrowserPath))
-	If $CurrentPath = ".\firefox\firefox.exe" Or $CurrentPath = ".\zenbrowser\zen.exe" Or $CurrentPath = ".\floorp\floorp.exe" Or $CurrentPath = ".\waterfox\waterfox.exe" Or $CurrentPath = ".\librewolf\librewolf.exe" Or $CurrentPath = ".\firefoxfork\firefox.exe" Or $CurrentPath = ".\chrome\chrome.exe" Or $CurrentPath = ".\chromium\chrome.exe" Or $CurrentPath = ".\turbo\turbo.exe" Or $CurrentPath = ".\helium\chrome.exe" Or $CurrentPath = ".\whale\whale.exe" Or $CurrentPath = ".\centbrowser\chrome.exe" Or $CurrentPath = ".\vivaldi\vivaldi.exe" Or $CurrentPath = ".\opera\opera.exe" Or $CurrentPath = ".\brave\brave.exe" Or $CurrentPath = ".\xunlei\xlbrowser.exe" Or $CurrentPath = ".\xunlei\xunleibrowser.exe" Or $CurrentPath = ".\ungoogled-chromium\chrome.exe" Then
+	If $CurrentPath = ".\firefox\firefox.exe" Or $CurrentPath = ".\zenbrowser\zen.exe" Or $CurrentPath = ".\floorp\floorp.exe" Or $CurrentPath = ".\waterfox\waterfox.exe" Or $CurrentPath = ".\librewolf\librewolf.exe" Or $CurrentPath = ".\firefoxfork\firefox.exe" Or $CurrentPath = ".\chrome\chrome.exe" Or $CurrentPath = ".\chromium\chrome.exe" Or $CurrentPath = ".\turbo\turbo.exe" Or $CurrentPath = ".\helium\chrome.exe" Or $CurrentPath = ".\whale\whale.exe" Or $CurrentPath = ".\centbrowser\chrome.exe" Or $CurrentPath = ".\vivaldi\vivaldi.exe" Or $CurrentPath = ".\opera\opera.exe" Or $CurrentPath = ".\coccoc\browser.exe" Or $CurrentPath = ".\brave\brave.exe" Or $CurrentPath = ".\xunlei\xlbrowser.exe" Or $CurrentPath = ".\xunlei\xunleibrowser.exe" Or $CurrentPath = ".\ungoogled-chromium\chrome.exe" Then
 		GUICtrlSetData($idBrowserPath, GetDefaultBrowserPath($NewBrowserType))
 	EndIf
 	$BrowserType = $NewBrowserType
@@ -2327,7 +2328,8 @@ Func BrowserAutoUpdateCheck()
 	Local $Urls = _BrowserDownloadBuildUrls($BrowserType, $Channel, $UpdateOs)
 	If @error Or Not IsArray($Urls) Or UBound($Urls) = 0 Then Return
 	Local $TriedUrls = ""
-	Local $Staged = _BrowserAutoUpdateStageUpdate($BrowserType, $Channel, $LatestVersion, $Urls, $TriedUrls)
+	Local $ExpectedSha256 = _BrowserDownloadGetExpectedSha256($BrowserType, $Channel, $UpdateOs)
+	Local $Staged = _BrowserAutoUpdateStageUpdate($BrowserType, $Channel, $LatestVersion, $Urls, $TriedUrls, 0, $ExpectedSha256)
 	If Not $Staged Then
 		If @error = 2 Then Return ; user cancelled the download
 		Local $StageFailedDetail = _t("BrowserUpdateStageFailed", "浏览器更新包下载失败，下次检查时将重试。")
@@ -2684,6 +2686,7 @@ Func DetectBrowserTypeFromIdentity($FullBrowserPath, $BrowserExe, $Identity)
 	If $BrowserExeLower = "whale.exe" Or StringInStr($Identity, "naver whale") Or StringInStr($Identity, "whale browser") Then Return $BrowserWhale
 	If $BrowserExeLower = "chrome.exe" And (StringInStr($Identity, "cent browser") Or StringInStr($Identity, "centbrowser") Or StringInStr($FullBrowserPathLower, "\centbrowser\")) Then Return $BrowserCent
 	If $BrowserExeLower = "vivaldi.exe" Or StringInStr($Identity, "vivaldi") Then Return $BrowserVivaldi
+	If ($BrowserExeLower = "browser.exe" And StringInStr($FullBrowserPathLower, "\coccoc\")) Or StringInStr($Identity, "coccoc") Or StringInStr($Identity, "coc coc") Or StringInStr($Identity, "cốc cốc") Then Return $BrowserCocCoc
 	If $BrowserExeLower = "brave.exe" Or StringInStr($Identity, "brave") Then Return $BrowserBrave
 	If $BrowserExeLower = "xunleibrowser.exe" Or $BrowserExeLower = "xlbrowser.exe" Or StringInStr($Identity, "xunlei browser") Or StringInStr($Identity, "迅雷浏览器") Then Return $BrowserXunlei
 	If $BrowserExeLower = "zen.exe" Or StringInStr($Identity, "zen browser") Or StringInStr($Identity, "zenbrowser") Then Return $BrowserZen
@@ -2765,7 +2768,7 @@ EndFunc   ;==>IsChromiumBrowserIdentity
 
 Func IsChromeBrowser($Value)
 	Local $Normalized = NormalizeBrowserType($Value)
-	Return $Normalized = $BrowserChrome Or $Normalized = $BrowserOtherChromium Or $Normalized = $BrowserUngoogledChromium Or $Normalized = $BrowserTurbo Or $Normalized = $BrowserHelium Or $Normalized = $BrowserWhale Or $Normalized = $BrowserCent Or $Normalized = $BrowserVivaldi Or $Normalized = $BrowserOpera Or $Normalized = $BrowserBrave Or $Normalized = $BrowserXunlei
+	Return $Normalized = $BrowserChrome Or $Normalized = $BrowserOtherChromium Or $Normalized = $BrowserUngoogledChromium Or $Normalized = $BrowserTurbo Or $Normalized = $BrowserHelium Or $Normalized = $BrowserWhale Or $Normalized = $BrowserCent Or $Normalized = $BrowserVivaldi Or $Normalized = $BrowserOpera Or $Normalized = $BrowserCocCoc Or $Normalized = $BrowserBrave Or $Normalized = $BrowserXunlei
 EndFunc   ;==>IsChromeBrowser
 
 Func IsGoogleChromeBrowser($Value)
@@ -2813,6 +2816,7 @@ Func NormalizeBrowserType($Value)
 	If $Value = $BrowserCent Or $Value = "cent browser" Or $Value = "centbrowser" Or $Value = "百分浏览器" Or $Value = "百分瀏覽器" Then Return $BrowserCent
 	If $Value = $BrowserVivaldi Then Return $BrowserVivaldi
 	If $Value = $BrowserOpera Or $Value = "opera browser" Then Return $BrowserOpera
+	If $Value = $BrowserCocCoc Or $Value = "coc coc" Or $Value = "cốc cốc" Or $Value = "coccoc browser" Then Return $BrowserCocCoc
 	If $Value = $BrowserBrave Or $Value = "brave browser" Then Return $BrowserBrave
 	If $Value = $BrowserXunlei Or $Value = "xunlei browser" Or $Value = "迅雷浏览器" Or $Value = "迅雷瀏覽器" Then Return $BrowserXunlei
 	If $Value = $BrowserUngoogledChromium Or $Value = "ungoogled chromium" Or $Value = "ungoogled-chromium" Then Return $BrowserUngoogledChromium
@@ -2827,6 +2831,7 @@ Func GetBrowserDisplayName($Value)
 	If NormalizeBrowserType($Value) = $BrowserCent Then Return "Cent Browser"
 	If NormalizeBrowserType($Value) = $BrowserVivaldi Then Return "Vivaldi"
 	If NormalizeBrowserType($Value) = $BrowserOpera Then Return "Opera"
+	If NormalizeBrowserType($Value) = $BrowserCocCoc Then Return "Cốc Cốc"
 	If NormalizeBrowserType($Value) = $BrowserBrave Then Return "Brave"
 	If NormalizeBrowserType($Value) = $BrowserXunlei Then Return "Xunlei Browser"
 	If NormalizeBrowserType($Value) = $BrowserUngoogledChromium Then Return "Ungoogled Chromium"
@@ -2847,6 +2852,7 @@ Func GetBrowserTypeLabel($Value)
 	If NormalizeBrowserType($Value) = $BrowserCent Then Return _t("BrowserCent", "百分浏览器")
 	If NormalizeBrowserType($Value) = $BrowserVivaldi Then Return _t("BrowserVivaldi", "Vivaldi")
 	If NormalizeBrowserType($Value) = $BrowserOpera Then Return _t("BrowserOpera", "Opera")
+	If NormalizeBrowserType($Value) = $BrowserCocCoc Then Return _t("BrowserCocCoc", "Cốc Cốc")
 	If NormalizeBrowserType($Value) = $BrowserBrave Then Return _t("BrowserBrave", "Brave")
 	If NormalizeBrowserType($Value) = $BrowserXunlei Then Return _t("BrowserXunlei", "迅雷浏览器")
 	If NormalizeBrowserType($Value) = $BrowserUngoogledChromium Then Return _t("BrowserUngoogledChromium", "Ungoogled Chromium")
@@ -2867,6 +2873,7 @@ Func GetBrowserTypeByLabel($Label)
 	If $Label = _t("BrowserCent", "百分浏览器") Or StringLower($Label) = "cent" Or StringLower($Label) = "cent browser" Or $Label = "百分浏览器" Or $Label = "百分瀏覽器" Then Return $BrowserCent
 	If $Label = _t("BrowserVivaldi", "Vivaldi") Or StringLower($Label) = "vivaldi" Then Return $BrowserVivaldi
 	If $Label = _t("BrowserOpera", "Opera") Or StringLower($Label) = "opera" Or StringLower($Label) = "opera browser" Then Return $BrowserOpera
+	If $Label = _t("BrowserCocCoc", "Cốc Cốc") Or StringLower($Label) = "coccoc" Or StringLower($Label) = "coc coc" Or StringLower($Label) = "cốc cốc" Then Return $BrowserCocCoc
 	If $Label = _t("BrowserBrave", "Brave") Or StringLower($Label) = "brave" Then Return $BrowserBrave
 	If $Label = _t("BrowserXunlei", "迅雷浏览器") Or StringLower($Label) = "xunlei" Or StringLower($Label) = "xunlei browser" Or $Label = "迅雷浏览器" Or $Label = "迅雷瀏覽器" Then Return $BrowserXunlei
 	If $Label = _t("BrowserUngoogledChromium", "Ungoogled Chromium") Or StringLower($Label) = "ungoogled-chromium" Or StringLower($Label) = "ungoogled chromium" Then Return $BrowserUngoogledChromium
@@ -2880,7 +2887,7 @@ Func GetBrowserTypeByLabel($Label)
 EndFunc   ;==>GetBrowserTypeByLabel
 
 Func GetBrowserTypeComboData()
-	Return _t("BrowserFirefox", "Firefox 原版") & "|" & _t("BrowserZen", "ZenBrowser") & "|" & _t("BrowserFloorp", "Floorp") & "|" & _t("BrowserWaterfox", "Waterfox") & "|" & _t("BrowserLibreWolf", "LibreWolf") & "|" & _t("BrowserOtherFirefox", "其他 Firefox 衍生版") & "|" & _t("BrowserChrome", "Chrome") & "|" & _t("BrowserUngoogledChromium", "Ungoogled Chromium") & "|" & _t("BrowserTurbo", "涡轮浏览器") & "|" & _t("BrowserHelium", "Helium") & "|" & _t("BrowserWhale", "Naver Whale") & "|" & _t("BrowserCent", "百分浏览器") & "|" & _t("BrowserVivaldi", "Vivaldi") & "|" & _t("BrowserOpera", "Opera") & "|" & _t("BrowserBrave", "Brave") & "|" & _t("BrowserXunlei", "迅雷浏览器") & "|" & _t("BrowserOtherChromium", "其他 Chromium 浏览器")
+	Return _t("BrowserFirefox", "Firefox 原版") & "|" & _t("BrowserZen", "ZenBrowser") & "|" & _t("BrowserFloorp", "Floorp") & "|" & _t("BrowserWaterfox", "Waterfox") & "|" & _t("BrowserLibreWolf", "LibreWolf") & "|" & _t("BrowserOtherFirefox", "其他 Firefox 衍生版") & "|" & _t("BrowserChrome", "Chrome") & "|" & _t("BrowserUngoogledChromium", "Ungoogled Chromium") & "|" & _t("BrowserTurbo", "涡轮浏览器") & "|" & _t("BrowserHelium", "Helium") & "|" & _t("BrowserWhale", "Naver Whale") & "|" & _t("BrowserCent", "百分浏览器") & "|" & _t("BrowserVivaldi", "Vivaldi") & "|" & _t("BrowserOpera", "Opera") & "|" & _t("BrowserCocCoc", "Cốc Cốc") & "|" & _t("BrowserBrave", "Brave") & "|" & _t("BrowserXunlei", "迅雷浏览器") & "|" & _t("BrowserOtherChromium", "其他 Chromium 浏览器")
 EndFunc   ;==>GetBrowserTypeComboData
 
 Func SetBrowserTypeComboSelection($Value, $ResetList = False)
@@ -2905,6 +2912,7 @@ Func GetBrowserExecutableName($Value)
 	If NormalizeBrowserType($Value) = $BrowserCent Then Return "chrome.exe"
 	If NormalizeBrowserType($Value) = $BrowserVivaldi Then Return "vivaldi.exe"
 	If NormalizeBrowserType($Value) = $BrowserOpera Then Return "opera.exe"
+	If NormalizeBrowserType($Value) = $BrowserCocCoc Then Return "browser.exe"
 	If NormalizeBrowserType($Value) = $BrowserBrave Then Return "brave.exe"
 	If NormalizeBrowserType($Value) = $BrowserXunlei Then Return "XunleiBrowser.exe"
 	If NormalizeBrowserType($Value) = $BrowserUngoogledChromium Then Return "chrome.exe"
@@ -2929,6 +2937,7 @@ Func GetDefaultBrowserPath($Value)
 	If NormalizeBrowserType($Value) = $BrowserCent Then Return ".\CentBrowser\chrome.exe"
 	If NormalizeBrowserType($Value) = $BrowserVivaldi Then Return ".\Vivaldi\vivaldi.exe"
 	If NormalizeBrowserType($Value) = $BrowserOpera Then Return ".\Opera\opera.exe"
+	If NormalizeBrowserType($Value) = $BrowserCocCoc Then Return ".\CocCoc\browser.exe"
 	If NormalizeBrowserType($Value) = $BrowserBrave Then Return ".\Brave\brave.exe"
 	If NormalizeBrowserType($Value) = $BrowserXunlei Then Return ".\Xunlei\XunleiBrowser.exe"
 	If NormalizeBrowserType($Value) = $BrowserUngoogledChromium Then Return ".\ungoogled-chromium\chrome.exe"
@@ -3594,6 +3603,7 @@ Func GetSystemChromiumUserDataDir($BrowserTypeValue, $Channel = "")
 		If FileExists(@AppDataDir & "\Opera Software\" & $OperaProfileDir & "\Local State") Then Return @AppDataDir & "\Opera Software\" & $OperaProfileDir
 		Return ""
 	EndIf
+	If $Normalized = $BrowserCocCoc Then Return GetCocCocSystemUserDataDir()
 	If $Normalized = $BrowserBrave Then
 		If FileExists(@LocalAppDataDir & "\BraveSoftware\Brave-Browser\User Data\Local State") Then Return @LocalAppDataDir & "\BraveSoftware\Brave-Browser\User Data"
 		If FileExists(@AppDataDir & "\BraveSoftware\Brave-Browser\User Data\Local State") Then Return @AppDataDir & "\BraveSoftware\Brave-Browser\User Data"
@@ -3623,6 +3633,12 @@ Func GetSystemChromiumUserDataDir($BrowserTypeValue, $Channel = "")
 	If FileExists(@LocalAppDataDir & "\Google\Chrome SxS\User Data\Local State") Then Return @LocalAppDataDir & "\Google\Chrome SxS\User Data"
 	Return ""
 EndFunc   ;==>GetSystemChromiumUserDataDir
+
+Func GetCocCocSystemUserDataDir($LocalAppDataRoot = @LocalAppDataDir)
+	Local $UserDataDir = $LocalAppDataRoot & "\CocCoc\Browser\User Data"
+	If FileExists($UserDataDir & "\Local State") Then Return $UserDataDir
+	Return ""
+EndFunc   ;==>GetCocCocSystemUserDataDir
 
 Func ChromiumProfileInUse($UserDataDir)
 	Local $LockFile = $UserDataDir & "\lockfile"
@@ -3654,6 +3670,7 @@ Func UpdateBrowserChannelOptions($Value, $SelectedChannel)
 		$Options = "stable|dev"
 		$DefaultChannel = "stable"
 	EndIf
+	If NormalizeBrowserType($Value) = $BrowserCocCoc Then $Options = "release"
 	If NormalizeBrowserType($Value) = $BrowserBrave Then $Options = "release|beta|nightly"
 	If NormalizeBrowserType($Value) = $BrowserXunlei Then $Options = "release"
 	If IsGoogleChromeBrowser($Value) Then

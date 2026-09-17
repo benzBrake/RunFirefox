@@ -15,6 +15,8 @@ RunFirefox 从 MyFirefox 演进而来，是支持 Gecko 与 Chromium 系浏览�
 5. Gecko 与 Chromium 系浏览器的 Jump List 提供常用网站、浏览器启动任务和启动器设置入口。
 6. 网络设置支持 1–10 线程分段下载，以及 HTTP、SOCKS5 代理；使用代理时直接访问原始站点，不经过下载镜像。多线程与代理需要系统提供 `curl.exe`，未检测到时线程数固定为 1 并使用原有直连下载。
 
+内置下载支持 Cốc Cốc Windows x64 便携版，版本和 ZIP 信息仅取自 BrowserArchive 的 `coccoc.json`，并在解压前校验 SHA-256。
+
 **[点此查看如何制作便携版？](docs/GUIDE.md)**
 
 **[查看完整更新日志](CHANGELOG.md)**

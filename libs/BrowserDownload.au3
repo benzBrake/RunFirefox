@@ -43,6 +43,7 @@ Global Const $OperaVersionApiOfficialBaseUrl = "https://autoupdate.geo.opera.com
 Global Const $OperaVersionApiQueryVersion = "0.0.0.0"
 Global Const $OperaDesktopFtpBaseUrl = "https://get.opera.com/ftp/pub/"
 Global Const $OperaDownloadPageUrl = "https://www.opera.com/download"
+Global Const $CocCocArchiveRawUrl = "https://raw.githubusercontent.com/benzBrake/BrowserArchive/refs/heads/main/data/coccoc.json"
 Global Const $BraveRepo = "brave/brave-browser"
 Global Const $BraveLatestReleaseApiUrl = "https://api.github.com/repos/" & $BraveRepo & "/releases/latest"
 Global Const $BraveArchiveRepo = "benzBrake/BrowserArchive"
@@ -71,6 +72,7 @@ Global $CentReleaseInfoLoaded = False, $CentReleaseVersion = "", $CentDownloadUr
 Global $VivaldiStableReleaseInfoLoaded = False, $VivaldiStableReleaseVersion = "", $VivaldiStableDownloadUrl = ""
 Global $VivaldiSnapshotReleaseInfoLoaded = False, $VivaldiSnapshotReleaseVersion = "", $VivaldiSnapshotDownloadUrl = ""
 Global $OperaStableInfoLoaded = False, $OperaStableVersion = "", $OperaDevInfoLoaded = False, $OperaDevVersion = ""
+Global $CocCocReleaseInfoLoaded = False, $CocCocReleaseVersion = "", $CocCocDownloadFilename = "", $CocCocDownloadUrl = "", $CocCocDownloadSha256 = ""
 Global $WhaleReleaseInfoLoaded = False, $WhaleReleaseVersion = "", $WhaleDownloadX86Url = "", $WhaleDownloadX64Url = ""
 Global $BraveReleaseInfoLoaded = False, $BraveReleaseTag = "", $BraveDownloadUrl = "", $BraveReleaseChannel = ""
 Global $XunleiReleaseInfoLoaded = False, $XunleiDownloadUrl = ""
@@ -102,6 +104,7 @@ Func _BrowserDownloadGetLatestVersion($BrowserType, $Channel)
 	If $BrowserType = $BrowserHelium Then Return _BrowserDownloadGetLatestHeliumVersion()
 	If $BrowserType = $BrowserCent Then Return _BrowserDownloadGetLatestCentVersion()
 	If $BrowserType = $BrowserVivaldi Then Return _BrowserDownloadGetLatestVivaldiVersion($Channel)
+	If $BrowserType = $BrowserCocCoc Then Return _BrowserDownloadGetLatestCocCocVersion()
 	If $BrowserType = $BrowserWhale Then Return _BrowserDownloadGetLatestWhaleVersion()
 	If $BrowserType = $BrowserBrave Then Return _BrowserDownloadGetLatestBraveVersion($Channel)
 	If $BrowserType = $BrowserXunlei Then Return ""
@@ -119,6 +122,7 @@ Func _BrowserDownloadIsVersionCached($BrowserType, $Channel, $Os = "win64")
 	If $BrowserType = $BrowserHelium Then Return $HeliumReleaseInfoLoaded
 	If $BrowserType = $BrowserCent Then Return $CentReleaseInfoLoaded
 	If $BrowserType = $BrowserVivaldi Then Return _BrowserDownloadIsVivaldiInfoLoaded($Channel)
+	If $BrowserType = $BrowserCocCoc Then Return $Os = "win64" And $CocCocReleaseInfoLoaded
 	If $BrowserType = $BrowserWhale Then Return $WhaleReleaseInfoLoaded
 	If $BrowserType = $BrowserBrave Then Return $BraveReleaseInfoLoaded And StringLower($BraveReleaseChannel) = _BrowserDownloadNormalizeBraveChannel($Channel)
 	If $BrowserType = $BrowserXunlei Then Return $XunleiReleaseInfoLoaded
@@ -135,7 +139,7 @@ EndFunc
 Func _BrowserDownloadHasFallback($BrowserType, $Channel)
 	If Not _BrowserDownloadIsSupported($BrowserType) Then Return False
 	Switch NormalizeBrowserType($BrowserType)
-		Case $BrowserFirefox, $BrowserZen, $BrowserFloorp, $BrowserWaterfox, $BrowserTurbo, $BrowserHelium, $BrowserWhale, $BrowserVivaldi, $BrowserOpera, $BrowserBrave, $BrowserXunlei, $BrowserUngoogledChromium
+		Case $BrowserFirefox, $BrowserZen, $BrowserFloorp, $BrowserWaterfox, $BrowserTurbo, $BrowserHelium, $BrowserWhale, $BrowserVivaldi, $BrowserOpera, $BrowserCocCoc, $BrowserBrave, $BrowserXunlei, $BrowserUngoogledChromium
 			Return True
 		Case $BrowserChrome
 			Return _BrowserDownloadNormalizeChromeChannel($Channel) <> "canary"
@@ -163,6 +167,7 @@ EndFunc
 Func _BrowserDownloadIsVersionLoadActive($BrowserType, $Channel, $Os = "win64")
 	$BrowserType = NormalizeBrowserType($BrowserType)
 	If Not _BrowserDownloadIsSupported($BrowserType) Then Return False
+	If $BrowserType = $BrowserCocCoc And $Os <> "win64" Then Return False
 	$Channel = _BrowserDownloadNormalizeChannel($BrowserType, $Channel)
 	Return $BD_LoadHandle <> 0 And $BD_LoadBrowserType = $BrowserType And $BD_LoadChannel = $Channel And $BD_LoadOs = $Os
 EndFunc
@@ -174,6 +179,7 @@ EndFunc
 Func _BrowserDownloadStartVersionLoad($BrowserType, $Channel, $Os = "win64")
 	$BrowserType = NormalizeBrowserType($BrowserType)
 	If Not _BrowserDownloadIsSupported($BrowserType) Then Return False
+	If $BrowserType = $BrowserCocCoc And $Os <> "win64" Then Return False
 	$Channel = _BrowserDownloadNormalizeChannel($BrowserType, $Channel)
 	If _BrowserDownloadIsVersionLoadActive($BrowserType, $Channel, $Os) Then Return True
 	_BrowserDownloadCancelVersionLoad()
@@ -202,6 +208,8 @@ Func _BrowserDownloadStartVersionLoad($BrowserType, $Channel, $Os = "win64")
 			$BD_LoadHandle = _BrowserDownloadStartVersionUrl($BD_LoadVivaldiUrls[$BD_LoadVivaldiIndex])
 			If Not $BD_LoadHandle Then $BD_LoadVivaldiIndex += 1
 		WEnd
+	ElseIf $BrowserType = $BrowserCocCoc Then
+		$BD_LoadHandle = _BrowserDownloadStartVersionUrl($CocCocArchiveRawUrl)
 	ElseIf $BrowserType = $BrowserWhale Then
 		$BD_LoadWhaleUrls = _BrowserDownloadGetWhaleVersionUrls()
 		$BD_LoadWhaleIndex = 0
@@ -305,6 +313,8 @@ Func _BrowserDownloadPollVersionLoad(ByRef $BrowserType, ByRef $Channel)
 				$Loaded = _BrowserDownloadCacheCentReleaseInfo($Content)
 			ElseIf $BrowserType = $BrowserVivaldi Then
 				$Loaded = _BrowserDownloadCacheVivaldiReleaseInfo($Channel, $Content)
+			ElseIf $BrowserType = $BrowserCocCoc Then
+				$Loaded = _BrowserDownloadCacheCocCocReleaseInfo($Content)
 			ElseIf $BrowserType = $BrowserWhale Then
 				$Loaded = _BrowserDownloadCacheWhaleReleaseInfo($Content)
 			ElseIf $BrowserType = $BrowserBrave Then
@@ -1043,6 +1053,55 @@ Func _BrowserDownloadGetLatestWhaleVersion()
 	Return $WhaleReleaseVersion
 EndFunc   ;==>GetLatestWhaleVersion
 
+Func _BrowserDownloadCacheCocCocReleaseInfo($Content)
+	Local $Json = Json_Decode($Content)
+	If @error Or Not IsObj($Json) Then Return False
+	Local $Version = Json_ObjGet($Json, "version")
+	Local $Files = Json_ObjGet($Json, "files")
+	If @error Or Not StringRegExp($Version, '^[0-9]+(?:\.[0-9]+)+$') Or Not IsObj($Files) Then Return False
+	Local $X64 = Json_ObjGet($Files, "x64")
+	If @error Or Not IsObj($X64) Then Return False
+	Local $Filename = Json_ObjGet($X64, "filename")
+	Local $Url = Json_ObjGet($X64, "url")
+	Local $Sha256 = StringLower(StringStripWS(Json_ObjGet($X64, "sha256"), 3))
+	Local $ExpectedFilename = "coccoc-" & $Version & "-win-x64.zip"
+	Local $ExpectedUrl = "https://archive.org/download/coccoc-archive-" & $Version & "/" & $ExpectedFilename
+	If StringLower($Filename) <> StringLower($ExpectedFilename) Then Return False
+	If StringLower($Url) <> StringLower($ExpectedUrl) Then Return False
+	If Not StringRegExp($Sha256, "^[0-9a-f]{64}$") Then Return False
+	$CocCocReleaseVersion = $Version
+	$CocCocDownloadFilename = $Filename
+	$CocCocDownloadUrl = $Url
+	$CocCocDownloadSha256 = $Sha256
+	$CocCocReleaseInfoLoaded = True
+	Return True
+EndFunc   ;==>CacheCocCocReleaseInfo
+
+Func _BrowserDownloadGetCocCocReleaseInfo()
+	If $CocCocReleaseInfoLoaded Then Return True
+	Local $Content = _DownloadToolsHttpGetText($CocCocArchiveRawUrl, "RunFirefox/" & $BD_AppVersion, "application/json")
+	If @error Or $Content = "" Then Return SetError(1, 0, False)
+	Return _BrowserDownloadCacheCocCocReleaseInfo($Content)
+EndFunc   ;==>GetCocCocReleaseInfo
+
+Func _BrowserDownloadGetLatestCocCocVersion()
+	If Not $CocCocReleaseInfoLoaded Then Return ""
+	Return $CocCocReleaseVersion
+EndFunc   ;==>GetLatestCocCocVersion
+
+Func _BrowserDownloadBuildCocCocDownloadUrl($Channel, $os)
+	If $os <> "win64" Then Return SetError(1, 0, "")
+	If Not _BrowserDownloadGetCocCocReleaseInfo() Then Return SetError(2, 0, "")
+	Return $CocCocDownloadUrl
+EndFunc   ;==>BuildCocCocDownloadUrl
+
+Func _BrowserDownloadGetExpectedSha256($BrowserType, $Channel = "release", $os = "win64")
+	If NormalizeBrowserType($BrowserType) <> $BrowserCocCoc Or $os <> "win64" Then Return ""
+	If Not $CocCocReleaseInfoLoaded Then _BrowserDownloadGetCocCocReleaseInfo()
+	If Not $CocCocReleaseInfoLoaded Then Return ""
+	Return $CocCocDownloadSha256
+EndFunc   ;==>GetExpectedSha256
+
 Func _BrowserDownloadCacheXunleiReleaseInfo($Content)
 	$XunleiReleaseInfoLoaded = False
 	$XunleiDownloadUrl = ""
@@ -1607,6 +1666,7 @@ Func _BrowserDownloadBuildBrowserDownloadUrl($Value, $Channel, $os)
 	If NormalizeBrowserType($Value) = $BrowserWhale Then Return _BrowserDownloadBuildWhaleDownloadUrl($Channel, $os)
 	If NormalizeBrowserType($Value) = $BrowserCent Then Return _BrowserDownloadBuildCentDownloadUrl($Channel, $os)
 	If NormalizeBrowserType($Value) = $BrowserVivaldi Then Return _BrowserDownloadBuildVivaldiDownloadUrl($Channel, $os)
+	If NormalizeBrowserType($Value) = $BrowserCocCoc Then Return _BrowserDownloadBuildCocCocDownloadUrl($Channel, $os)
 	If NormalizeBrowserType($Value) = $BrowserOpera Then Return _BrowserDownloadBuildOperaDownloadUrl($Channel, $os)
 	If NormalizeBrowserType($Value) = $BrowserBrave Then Return _BrowserDownloadBuildBraveDownloadUrl($Channel, $os)
 	If NormalizeBrowserType($Value) = $BrowserXunlei Then Return _BrowserDownloadBuildXunleiDownloadUrl($Channel, $os)
@@ -1637,6 +1697,11 @@ Func _BrowserDownloadBuildUrls($Value, $Channel, $os)
 
 	If NormalizeBrowserType($Value) = $BrowserBrave Then Return _UpgradeBuildGithubReleaseDownloadUrls($DownloadUrl, $BD_GithubDirectMirror, $BD_GithubJsDelivrMirror)
 	If NormalizeBrowserType($Value) = $BrowserWhale Then Return _BrowserDownloadBuildWhaleDownloadUrls($DownloadUrl, $os)
+	If NormalizeBrowserType($Value) = $BrowserCocCoc Then
+		Local $CocCocUrls[1]
+		$CocCocUrls[0] = $DownloadUrl
+		Return $CocCocUrls
+	EndIf
 	If NormalizeBrowserType($Value) = $BrowserVivaldi Then Return _BrowserDownloadBuildVivaldiDownloadUrls($DownloadUrl)
 	If NormalizeBrowserType($Value) = $BrowserOpera Then Return _BrowserDownloadBuildOperaDownloadUrls($DownloadUrl)
 	If NormalizeBrowserType($Value) = $BrowserUngoogledChromium Or NormalizeBrowserType($Value) = $BrowserZen Or NormalizeBrowserType($Value) = $BrowserFloorp Or NormalizeBrowserType($Value) = $BrowserHelium Then Return _UpgradeBuildGithubReleaseDownloadUrls($DownloadUrl, $BD_GithubDirectMirror, $BD_GithubJsDelivrMirror)
@@ -1698,8 +1763,10 @@ Func _BrowserDownloadDownloadAndExtract($aDownloadUrls, $TargetDir, $os, $Channe
 	_DownloadToolsShowDownloadProgress(_t("BrowserDownloadProgressTitle", "正在准备浏览器"), _t("DownloadingBrowser", "正在下载浏览器 ..."), $DownloadUrl, $Parent, _t("Cancel", "取消"))
 
 	_UpgradePrioritizeGithubUrls($aDownloadUrls)
-	Local $DownloadResult = _DownloadToolsDownloadUrls($aDownloadUrls, $Installer, _t("DownloadingBrowser", "正在下载浏览器 ..."), _t("BrowserDownloadProgressKnown", "已下载 {Downloaded} / {Total}"), _t("BrowserDownloadProgressUnknown", "已下载 %s"), $TriedDownloadUrls)
-	If @error = 2 Then
+	Local $ExpectedSha256 = _BrowserDownloadGetExpectedSha256($CurrentBrowserType, $Channel, $os)
+	Local $DownloadResult = _DownloadToolsDownloadUrls($aDownloadUrls, $Installer, _t("DownloadingBrowser", "正在下载浏览器 ..."), _t("BrowserDownloadProgressKnown", "已下载 {Downloaded} / {Total}"), _t("BrowserDownloadProgressUnknown", "已下载 %s"), $TriedDownloadUrls, 600000, $ExpectedSha256)
+	Local $DownloadError = @error
+	If $DownloadError = 2 Then
 		_DownloadToolsCloseDownloadProgress()
 		FileDelete($Installer)
 		DirRemove($TempDir, 1)
@@ -1707,6 +1774,9 @@ Func _BrowserDownloadDownloadAndExtract($aDownloadUrls, $TargetDir, $os, $Channe
 	EndIf
 	If Not $DownloadResult Or Not FileExists($Installer) Then
 		_DownloadToolsCloseDownloadProgress()
+		If $DownloadError = 5 Then
+			Return SetError(5, 0, _BrowserDownloadBuildBrowserDownloadFailureDetail(_t("BrowserPackageHashMismatch", "浏览器压缩包 SHA-256 校验失败。") & @CRLF & @CRLF & _t("BrowserExtractLogKept", "诊断文件已保留在：\n%s", $TempDir), $TriedDownloadUrls, $Installer))
+		EndIf
 		DirRemove($TempDir, 1)
 		Return SetError(5, 0, _BrowserDownloadBuildBrowserDownloadFailureDetail(_t("FailToDownloadBrowserInstaller", "下载浏览器安装包失败。"), $TriedDownloadUrls, $Installer))
 	EndIf
@@ -1725,9 +1795,9 @@ Func _BrowserDownloadDownloadAndExtract($aDownloadUrls, $TargetDir, $os, $Channe
 		Return SetError(6, $ret, _t("FailToExtractBrowserInstaller", "解压浏览器安装包失败。") & @CRLF & @CRLF & _t("BrowserExtractLogKept", "诊断文件已保留在：\n%s", $TempDir))
 	EndIf
 
-	; Xunlei's payload contains browser-internal ZIP resources (for example
-	; Extensions\xblock.zip); never treat those files as installer wrappers.
-	If NormalizeBrowserType($CurrentBrowserType) <> $BrowserXunlei Then _
+	; Xunlei and Coc Coc contain browser-internal archive resources; never
+	; treat those files as installer wrappers after the application is unpacked.
+	If NormalizeBrowserType($CurrentBrowserType) <> $BrowserXunlei And NormalizeBrowserType($CurrentBrowserType) <> $BrowserCocCoc Then _
 		_DownloadToolsExtractNestedBrowserArchives($SevenZipExe, $ExtractDir, $TempDir)
 	Local $ExtractedBrowserPath = _BrowserDownloadFindBrowserExecutableForType($ExtractDir, $CurrentBrowserType)
 	If $ExtractedBrowserPath Then

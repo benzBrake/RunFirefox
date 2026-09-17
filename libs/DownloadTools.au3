@@ -1,5 +1,6 @@
 #include-once
 #include <GUIConstantsEx.au3>
+#include <Crypt.au3>
 #include <ProgressConstants.au3>
 #include <WindowsConstants.au3>
 
@@ -573,11 +574,22 @@ Func _DownloadToolsCurlSingleDownload($Url, $Destination, $StatusText, $KnownPro
 	Return FileExists($Destination) And FileGetSize($Destination) > 0
 EndFunc   ;==>CurlSingleDownload
 
-Func _DownloadToolsDownloadUrls($Urls, $Destination, $StatusText, $KnownProgressTemplate, $UnknownProgressTemplate, ByRef $TriedUrls, $TimeoutMs = 600000)
+Func _DownloadToolsFileMatchesSha256($Path, $ExpectedSha256)
+	$ExpectedSha256 = StringLower(StringStripWS($ExpectedSha256, 3))
+	If $ExpectedSha256 = "" Then Return True
+	If Not StringRegExp($ExpectedSha256, "^[0-9a-f]{64}$") Or Not FileExists($Path) Then Return False
+	Local $Actual = StringLower(String(_Crypt_HashFile($Path, $CALG_SHA_256)))
+	If @error Then Return False
+	$Actual = StringRegExpReplace($Actual, "^0x", "")
+	Return $Actual = $ExpectedSha256
+EndFunc   ;==>FileMatchesSha256
+
+Func _DownloadToolsDownloadUrls($Urls, $Destination, $StatusText, $KnownProgressTemplate, $UnknownProgressTemplate, ByRef $TriedUrls, $TimeoutMs = 600000, $ExpectedSha256 = "")
 	$TriedUrls = ""
 	If Not IsArray($Urls) Or UBound($Urls) = 0 Then Return SetError(1, 0, False)
 
 	Local $i, $r, $Url, $RoutedUrls, $hDownload, $DownloadedBytes, $TotalBytes, $Percent, $DetailText, $DownloadSuccessful = False, $Timer
+	Local $HashMismatch = False
 	Local $Attempted[1], $AttemptedCount = 0, $AlreadyAttempted
 	For $i = 0 To UBound($Urls) - 1
 		$RoutedUrls = _DownloadToolsBuildUrlCandidates($Urls[$i])
@@ -601,9 +613,16 @@ Func _DownloadToolsDownloadUrls($Urls, $Destination, $StatusText, $KnownProgress
 			_DownloadToolsUpdateDownloadProgress($StatusText, $Url, 0)
 			If _DownloadToolsHasCurl() Then
 				_DownloadToolsSetDownloadProgressMarquee(True)
-				If $DT_DownloadThreads > 1 And _DownloadToolsCurlSegmentedDownload($Url, $Destination, $StatusText, $KnownProgressTemplate, $TimeoutMs) Then Return True
+				If $DT_DownloadThreads > 1 And _DownloadToolsCurlSegmentedDownload($Url, $Destination, $StatusText, $KnownProgressTemplate, $TimeoutMs) Then
+					If _DownloadToolsFileMatchesSha256($Destination, $ExpectedSha256) Then Return True
+					$HashMismatch = True
+					ContinueLoop
+				EndIf
 				If _DownloadToolsIsDownloadProgressCancelled() Then Return SetError(2, 0, False)
-				If _DownloadToolsCurlSingleDownload($Url, $Destination, $StatusText, $KnownProgressTemplate, $UnknownProgressTemplate, $TimeoutMs) Then Return True
+				If _DownloadToolsCurlSingleDownload($Url, $Destination, $StatusText, $KnownProgressTemplate, $UnknownProgressTemplate, $TimeoutMs) Then
+					If _DownloadToolsFileMatchesSha256($Destination, $ExpectedSha256) Then Return True
+					$HashMismatch = True
+				EndIf
 				If _DownloadToolsIsDownloadProgressCancelled() Then Return SetError(2, 0, False)
 				ContinueLoop
 			EndIf
@@ -633,10 +652,14 @@ Func _DownloadToolsDownloadUrls($Urls, $Destination, $StatusText, $KnownProgress
 			$DownloadSuccessful = InetGetInfo($hDownload, 3)
 			InetClose($hDownload)
 			If _DownloadToolsIsDownloadProgressCancelled() Then Return SetError(2, 0, False)
-			If $DownloadSuccessful And FileExists($Destination) Then Return True
+			If $DownloadSuccessful And FileExists($Destination) Then
+				If _DownloadToolsFileMatchesSha256($Destination, $ExpectedSha256) Then Return True
+				$HashMismatch = True
+			EndIf
 		Next
 	Next
 
+	If $HashMismatch Then Return SetError(5, 0, False)
 	Return SetError(3, 0, False)
 EndFunc   ;==>DownloadUrls
 

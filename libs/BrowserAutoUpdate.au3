@@ -14,7 +14,7 @@ EndFunc
 ; are supported for now. Extend this list to bring more Chromiums on board.
 Func _BrowserAutoUpdateIsSupported($BrowserType)
 	Local $Normalized = NormalizeBrowserType($BrowserType)
-	Return $Normalized = $BrowserChrome Or $Normalized = $BrowserBrave Or $Normalized = $BrowserWhale
+	Return $Normalized = $BrowserChrome Or $Normalized = $BrowserBrave Or $Normalized = $BrowserWhale Or $Normalized = $BrowserCocCoc
 EndFunc
 
 Func _BrowserAutoUpdateGetStagingDir()
@@ -92,7 +92,7 @@ EndFunc
 
 ; Downloads the update package atomically: *.part first, integrity check,
 ; then rename + metadata. Returns True when the update is staged.
-Func _BrowserAutoUpdateStageUpdate($BrowserType, $Channel, $Version, $Urls, ByRef $TriedUrlsOut, $Parent = 0)
+Func _BrowserAutoUpdateStageUpdate($BrowserType, $Channel, $Version, $Urls, ByRef $TriedUrlsOut, $Parent = 0, $ExpectedSha256 = "")
 	If Not IsArray($Urls) Or UBound($Urls) = 0 Then Return SetError(1, 0, False)
 
 	Local $StagingDir = _BrowserAutoUpdateGetStagingDir()
@@ -110,7 +110,7 @@ Func _BrowserAutoUpdateStageUpdate($BrowserType, $Channel, $Version, $Urls, ByRe
 
 	_DownloadToolsShowDownloadProgress(_t("BrowserDownloadProgressTitle", "正在准备浏览器"), _t("DownloadingBrowser", "正在下载浏览器 ..."), $Urls[0], $Parent, _t("Cancel", "取消"))
 	Local $TriedUrls = ""
-	Local $DownloadResult = _DownloadToolsDownloadUrls($Urls, $PartPath, _t("DownloadingBrowser", "正在下载浏览器 ..."), _t("BrowserDownloadProgressKnown", "已下载 {Downloaded} / {Total}"), _t("BrowserDownloadProgressUnknown", "已下载 %s"), $TriedUrls)
+	Local $DownloadResult = _DownloadToolsDownloadUrls($Urls, $PartPath, _t("DownloadingBrowser", "正在下载浏览器 ..."), _t("BrowserDownloadProgressKnown", "已下载 {Downloaded} / {Total}"), _t("BrowserDownloadProgressUnknown", "已下载 %s"), $TriedUrls, 600000, $ExpectedSha256)
 	If @error = 2 Then
 		_DownloadToolsCloseDownloadProgress()
 		FileDelete($PartPath)
@@ -195,7 +195,7 @@ Func _BrowserAutoUpdateApplyPending($BrowserPath, $BrowserType, $Parent = 0)
 
 	Local $ExtractLog = $TempDir & "\extract.log"
 	Local $ExtractResult = _DownloadToolsRunArchiveExtraction($SevenZipExe, $Pending[2], $ExtractDir, $ExtractLog, $TempDir)
-	If $ExtractResult = 0 Then _DownloadToolsExtractNestedBrowserArchives($SevenZipExe, $ExtractDir, $TempDir)
+	If $ExtractResult = 0 And NormalizeBrowserType($BrowserType) <> $BrowserCocCoc Then _DownloadToolsExtractNestedBrowserArchives($SevenZipExe, $ExtractDir, $TempDir)
 	_DownloadToolsCloseDownloadProgress()
 	If $ExtractResult <> 0 Then
 		DirRemove($TempDir, 1)

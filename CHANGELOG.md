@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- 新增 Cốc Cốc 浏览器支持：仅从 BrowserArchive 的 `coccoc.json` 获取 Windows x64 便携 ZIP，下载时校验 SHA-256，支持自动识别、系统配置提取、内置下载解压、RunFirefox 托管更新及专属启动器图标。
+
 - 浏览器列表新增“其他 Firefox 衍生版”和“其他 Chromium 浏览器”，为未内置适配的同内核浏览器提供便携配置与启动支持，并禁止其误用官方 Firefox/Chrome 的版本查询、下载和托管更新。
 
 - Chrome++ 在线安装改为使用 Bush2021 发布包中的完整 `chrome++.ini`，内置补丁安装改为使用随程序内置的完整配置模板；保留原有用户自定义配置，并自动迁移旧版 RunFirefox 生成的精简托管配置。

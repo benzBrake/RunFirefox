@@ -62,6 +62,10 @@ jobs:
         shell: pwsh
         run: .\scripts\test-whale-download.ps1
 
+      - name: Test Coc Coc downloads
+        shell: pwsh
+        run: .\scripts\test-coccoc-download.ps1
+
       - name: Generate nightly scripts
         shell: pwsh
         run: |

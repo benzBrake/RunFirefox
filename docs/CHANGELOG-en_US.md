@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- Restored the Advanced tab's automatic cache-size control to a single-line checkbox and shortened its Spanish caption to prevent the broken two-line layout.
+
 - Added Cốc Cốc support using only BrowserArchive's `coccoc.json` for the Windows x64 portable ZIP, with SHA-256 verification, automatic detection, system-profile import, built-in download and extraction, RunFirefox-managed updates, optional installation of Bush2021's Chrome++, and a dedicated launcher icon.
 
 - Added “Other Firefox-based Browser” and “Other Chromium-based Browser” options for portable configuration and launching of browsers without built-in integrations, while preventing them from using official Firefox/Chrome version checks, downloads, or managed updates.

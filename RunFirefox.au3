@@ -1831,7 +1831,7 @@ Func Settings()
 	$idCacheSize = GUICtrlCreateEdit($CacheSize, 140, 163, 60, 20, BitOR($ES_NUMBER, $ES_AUTOHSCROLL))
 	GUICtrlSetTip(-1, _t("CacheSizeTooltip", "缓存大小\n空白=默认大小"))
 	GUICtrlCreateLabel("MB", 215, 168, 35, 20)
-	$idCacheSizeSmart = _ALCreateWrapCheckbox(_t("CacheSizeControl", " 自动控制缓存大小"), 250, 156, 225)
+	$idCacheSizeSmart = GUICtrlCreateCheckbox(_t("CacheSizeControl", " 自动控制缓存大小"), 250, 163, 225, 20)
 	If $CacheSizeSmart Then GUICtrlSetState(-1, $GUI_CHECKED)
 
 	; CDP 帮助文案按实测宽度计算行数：字母语言可能需要 3 行

@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [2.8.19] - 2026-09-17
+
 - Added a kernel-specific Firefox settings area to the Advanced tab, allowing Firefox-based browsers to use an independent WebDriver BiDi remote debugging port. RunFirefox now appends `--remote-debugging-port` and the compatibility argument `--no-remote` at launch and detects conflicts with custom command-line parameters.
 
 - Restored the Advanced tab's automatic cache-size control to a single-line checkbox and shortened its Spanish caption to prevent the broken two-line layout.

@@ -1,12 +1,17 @@
 param(
     [string]$Socks5Host = '',
-    [int]$Socks5Port = 0
+    [int]$Socks5Port = 0,
+    [string]$AutoItDir = $env:AUTOIT_DIR
 )
 
 $ErrorActionPreference = 'Stop'
 
+if ([string]::IsNullOrWhiteSpace($AutoItDir)) {
+    $AutoItDir = 'C:\Program Files\AutoIt3'
+}
+
 $root = Split-Path -Parent $PSScriptRoot
-$autoIt = 'C:\Program Files\AutoIt3\AutoIt3.exe'
+$autoIt = Join-Path $AutoItDir 'AutoIt3.exe'
 if (-not (Test-Path -LiteralPath $autoIt)) {
     throw "AutoIt3.exe not found: $autoIt"
 }

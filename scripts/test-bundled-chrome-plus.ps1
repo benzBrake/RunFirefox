@@ -1,4 +1,8 @@
-param([string]$AutoItDir = 'C:\Program Files\AutoIt3')
+param([string]$AutoItDir = $env:AUTOIT_DIR)
+
+if ([string]::IsNullOrWhiteSpace($AutoItDir)) {
+    $AutoItDir = 'C:\Program Files\AutoIt3'
+}
 
 $ErrorActionPreference = 'Stop'
 $root = Split-Path $PSScriptRoot -Parent

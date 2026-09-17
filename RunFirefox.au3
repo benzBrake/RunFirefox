@@ -2777,7 +2777,7 @@ EndFunc   ;==>IsGoogleChromeBrowser
 
 Func IsChromePlusSupportedBrowser($Value)
 	Local $Normalized = NormalizeBrowserType($Value)
-	Return $Normalized = $BrowserChrome Or $Normalized = $BrowserUngoogledChromium Or $Normalized = $BrowserHelium Or $Normalized = $BrowserBrave Or $Normalized = $BrowserWhale
+	Return $Normalized = $BrowserChrome Or $Normalized = $BrowserUngoogledChromium Or $Normalized = $BrowserHelium Or $Normalized = $BrowserBrave Or $Normalized = $BrowserWhale Or $Normalized = $BrowserCocCoc
 EndFunc   ;==>IsChromePlusSupportedBrowser
 
 Func IsBossKeySupportedBrowser($Value)
@@ -3109,7 +3109,7 @@ EndFunc   ;==>GetCurrentSettingsBrowserPath
 
 Func IsChromePlusSupportedExecutable($BrowserExe)
 	$BrowserExe = StringLower($BrowserExe)
-	Return $BrowserExe = "chrome.exe" Or $BrowserExe = "helium.exe" Or $BrowserExe = "whale.exe" Or $BrowserExe = "brave.exe"
+	Return $BrowserExe = "chrome.exe" Or $BrowserExe = "helium.exe" Or $BrowserExe = "whale.exe" Or $BrowserExe = "brave.exe" Or $BrowserExe = "browser.exe"
 EndFunc   ;==>IsChromePlusSupportedExecutable
 
 Func GetChromePlusConfigPath($BrowserPath)

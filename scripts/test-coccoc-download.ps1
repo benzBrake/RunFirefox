@@ -49,6 +49,9 @@ TestEqual(DetectBrowserTypeFromIdentity("C:\Portable\CocCoc\browser.exe", "brows
 TestEqual(DetectBrowserTypeFromIdentity("C:\Portable\Browser\browser.exe", "browser.exe", "Coc Coc Company Limited"), $BrowserCocCoc, "version identity detection")
 TestEqual(DetectBrowserTypeFromIdentity("C:\Portable\Browser\browser.exe", "browser.exe", "CocCoc Browser"), $BrowserCocCoc, "compact version identity detection")
 TestAssert(IsChromeBrowser($BrowserCocCoc), "Chromium behavior")
+TestAssert(IsChromePlusSupportedBrowser($BrowserCocCoc), "Bush2021 Chrome++ supported")
+TestAssert(IsChromePlusSupportedExecutable("browser.exe"), "browser executable supports Chrome++")
+TestEqual(GetChromePlusConfigPath("C:\Portable\CocCoc\browser.exe"), "C:\Portable\CocCoc\chrome++.ini", "Chrome++ config path")
 TestAssert(_BrowserAutoUpdateIsSupported($BrowserCocCoc), "managed update supported")
 
 Local $ProfileRoot = @TempDir & "\RunFirefox_CocCoc_Profile_" & @AutoItPID
@@ -64,6 +67,9 @@ Local $ExtractRoot = @TempDir & "\RunFirefox_CocCoc_Extract_" & @AutoItPID
 DirCreate($ExtractRoot & "\CocCoc")
 FileWrite($ExtractRoot & "\CocCoc\browser.exe", "test")
 TestEqual(_BrowserDownloadFindBrowserExecutableForType($ExtractRoot, $BrowserCocCoc), $ExtractRoot & "\CocCoc\browser.exe", "archive browser layout")
+TestEqual(GetChromePlusPatchPath($ExtractRoot & "\CocCoc\browser.exe"), $ExtractRoot & "\CocCoc\version.dll", "Chrome++ patch path")
+FileWrite($ExtractRoot & "\CocCoc\version.dll", "test")
+TestAssert(IsChromePlusPatchInstalled($ExtractRoot & "\CocCoc\browser.exe"), "Chrome++ installation detected")
 DirRemove($ExtractRoot, 1)
 
 Local $Gui = GUICreate("Coc Coc controls", 240, 100)

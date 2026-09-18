@@ -1,20 +1,19 @@
 # RunFirefox
 
-[![Stable](https://img.shields.io/github/v/release/benzBrake/RunFirefox?style=for-the-badge&label=Stable%20Download&color=2ea44f)](https://github.com/benzBrake/RunFirefox/releases/latest)
+[![Stable](<https://img.shields.io/github/v/release/benzBrake/RunFirefox?style=for-the-badge&label=Stable%20Download&color=2ea44f>)](https://github.com/benzBrake/RunFirefox/releases/latest)
 [![Beta](https://img.shields.io/badge/Beta-nightly.link-orange?style=for-the-badge&logo=githubactions&logoColor=white)](https://nightly.link/benzBrake/RunFirefox/workflows/build/master)
 [![Downloads](https://img.shields.io/github/downloads/benzBrake/RunFirefox/total?style=for-the-badge&label=Downloads)](https://github.com/benzBrake/RunFirefox/releases)
 
 Evolved from MyFirefox, RunFirefox is a portable browser launcher for Gecko and Chromium-based browsers.
 
 Features:
+
 1. Customize the locations of browser program files, user data, and cache folders.
 2. Create portable versions of supported browsers and set them as the default browser through their settings.
 3. Support for running external programs when the browser starts or exits.
 4. Support for launching the browser by clicking on the taskbar icon (right-click and select "Pin to taskbar" after opening the browser).
 5. Jump Lists for Gecko and Chromium-based browsers include frequent sites, browser launch tasks, and a launcher settings entry.
 6. Network settings support 1–10 concurrent download segments plus HTTP and SOCKS5 proxies; proxy connections use original upstream URLs instead of download mirrors. Multi-threading and proxies require `curl.exe`; when it is unavailable, the thread count is fixed at 1 and the original direct downloader is used.
-
-Built-in downloads include the Windows x64 portable build of Cốc Cốc. Version and ZIP metadata come exclusively from BrowserArchive's `coccoc.json`, and the ZIP is verified with SHA-256 before extraction.
 
 **[View the full changelog](CHANGELOG-en_US.md)**
 

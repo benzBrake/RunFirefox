@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- Firefox 下载频道新增 `esr-next`，可在当前 ESR 与下一代 ESR 之间分别获取版本并下载。
+
 ## [2.8.19] - 2026-09-17
 
 - “高级”页新增按浏览器内核切换的 Firefox 设置区域，可为 Firefox 系浏览器独立启用 WebDriver BiDi 远程调试端口，启动时自动追加 `--remote-debugging-port` 和兼容参数 `--no-remote`，并检测与自定义命令行参数的冲突。

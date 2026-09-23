@@ -102,6 +102,18 @@ $ChromiumDebugPortEnabled = 1
 
 TestAssert(Not _BrowserDownloadIsSupported($BrowserOtherFirefox), "other Firefox built-in download disabled")
 TestAssert(Not _BrowserDownloadIsSupported($BrowserOtherChromium), "other Chromium built-in download disabled")
+Local $FirefoxMetadata = '{"FIREFOX_ESR":"140.16.0esr","FIREFOX_ESR_NEXT":"153.3.0esr","LATEST_FIREFOX_VERSION":"156.0.1"}'
+TestAssert(_BrowserDownloadCacheFirefoxVersions($FirefoxMetadata), "Firefox metadata parses")
+TestEqual(_BrowserDownloadNormalizeChannel($BrowserFirefox, "esr-next"), "esr-next", "Firefox ESR Next channel is preserved")
+TestEqual(NormalizeBrowserChannelSelection($BrowserFirefox, "esr-next"), "esr-next", "Firefox ESR Next selection preserves its hyphen")
+TestEqual(NormalizeBrowserChannelSelection($BrowserFirefox, "esr-next - 153.3.0esr"), "esr-next", "Firefox ESR Next display label resolves to the correct channel")
+TestEqual(NormalizeBrowserChannelSelection($BrowserFirefox, "esr-next(153.3.0esr)"), "esr-next", "Firefox ESR Next compact display label resolves to the correct channel")
+TestEqual(_BrowserDownloadGetLatestFirefoxVersion("esr"), "140.16.0esr", "current ESR version")
+TestEqual(_BrowserDownloadGetLatestFirefoxVersion("esr-next"), "153.3.0esr", "ESR Next version")
+TestEqual(_BrowserDownloadGetLatestFirefoxProduct("esr"), "firefox-esr-latest", "current ESR product")
+TestEqual(_BrowserDownloadGetLatestFirefoxProduct("esr-next"), "firefox-esr-next-latest", "ESR Next product")
+Local $FirefoxNextUrls = _BrowserDownloadBuildUrls($BrowserFirefox, "esr-next", "win64")
+TestAssert(UBound($FirefoxNextUrls) = 1 And $FirefoxNextUrls[0] = "https://ftp.mozilla.org/pub/firefox/releases/153.3.0esr/win64/zh-CN/Firefox%20Setup%20153.3.0esr.exe", "ESR Next download URL")
 TestEqual(_BrowserDownloadNormalizeChannel($BrowserOtherFirefox, "release"), "default", "other Firefox channel is unmanaged")
 TestEqual(_BrowserDownloadNormalizeChannel($BrowserOtherChromium, "stable"), "default", "other Chromium channel is unmanaged")
 TestEqual(_BrowserDownloadGetLatestVersion($BrowserOtherFirefox, "default"), "", "other Firefox latest version unavailable")

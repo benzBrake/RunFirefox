@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- Added a separate `esr-next` Firefox download channel so users can choose between the current ESR and the next ESR.
+
 ## [2.8.19] - 2026-09-17
 
 - Added a kernel-specific Firefox settings area to the Advanced tab, allowing Firefox-based browsers to use an independent WebDriver BiDi remote debugging port. RunFirefox now appends `--remote-debugging-port` and the compatibility argument `--no-remote` at launch and detects conflicts with custom command-line parameters.

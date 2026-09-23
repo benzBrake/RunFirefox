@@ -456,6 +456,8 @@ Func _BrowserDownloadGetLatestFirefoxVersion($Channel)
 			$VersionKey = "FIREFOX_DEVEDITION"
 		Case "esr"
 			$VersionKey = "FIREFOX_ESR"
+		Case "esr-next"
+			$VersionKey = "FIREFOX_ESR_NEXT"
 		Case "nightly"
 			$VersionKey = "FIREFOX_NIGHTLY"
 	EndSwitch
@@ -1301,6 +1303,8 @@ Func _BrowserDownloadGetLatestFirefoxProduct($Channel)
 			Return "firefox-beta-latest"
 		Case "esr"
 			Return "firefox-esr-latest"
+		Case "esr-next"
+			Return "firefox-esr-next-latest"
 		Case "dev"
 			Return "firefox-devedition-latest"
 		Case Else ; nightly

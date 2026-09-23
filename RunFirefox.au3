@@ -3714,7 +3714,7 @@ EndFunc   ;==>ChromiumProfileInUse
 
 Func UpdateBrowserChannelOptions($Value, $SelectedChannel)
 	$SelectedChannel = _BrowserDownloadNormalizeChannel($Value, $SelectedChannel)
-	Local $Options = "esr|release|beta|dev|nightly"
+	Local $Options = "esr|esr-next|release|beta|dev|nightly"
 	Local $DefaultChannel = "release"
 	If Not _BrowserDownloadIsSupported($Value) Then
 		$Options = "default"
@@ -3749,6 +3749,12 @@ Func UpdateBrowserChannelOptions($Value, $SelectedChannel)
 	_SendMessage(GUICtrlGetHandle($idChannel), $CB_RESETCONTENT)
 	GUICtrlSetData($idChannel, $Options, $SelectedChannel)
 EndFunc   ;==>UpdateBrowserChannelOptions
+
+Func NormalizeBrowserChannelSelection($BrowserType, $Selection)
+	Local $Match = StringRegExp(StringLower(StringStripWS($Selection, 3)), "^([a-z0-9]+(?:-[a-z0-9]+)*)", 1)
+	If IsArray($Match) Then $Selection = $Match[0]
+	Return _BrowserDownloadNormalizeChannel($BrowserType, $Selection)
+EndFunc   ;==>NormalizeBrowserChannelSelection
 
 
 
@@ -4221,6 +4227,9 @@ EndFunc   ;==>ShowChromePlusPatchInstallFailedDialog
 
 Func ShowCurrentChannel()
 	If IsChromeBrowser(GetSelectedBrowserType()) Then Return
+	; ESR Next is a download selection; the installed Firefox package still
+	; reports its valid updater channel as ESR.
+	If NormalizeBrowserType(GetSelectedBrowserType()) = $BrowserFirefox And $BrowserUpdateChannel = "esr-next" Then Return
 	Local $path = GUICtrlRead($idBrowserPath)
 	If Not FileExists($path) Then Return
 	Local $ChannelPath = StringRegExpReplace($path, "\\?[^\\]+$", "") & "\defaults\pref\channel-prefs.js"
@@ -4243,7 +4252,7 @@ Func DownloadBrowser()
 	EndIf
 
 	Local $ChannelString = GUICtrlRead($idChannel)
-	Local $Channel = _BrowserDownloadNormalizeChannel($CurrentBrowserType, StringRegExpReplace($ChannelString, " *-.*", ""))
+	Local $Channel = NormalizeBrowserChannelSelection($CurrentBrowserType, $ChannelString)
 	If IsDisplayedBrowserVersionUnavailable(GUICtrlRead($idBrowserDownloadLink)) And Not HasBrowserDownloadFallback($CurrentBrowserType, $Channel) Then
 		Local $DownloadPageUrl = GetBrowserDownloadPageUrl($CurrentBrowserType, $Channel)
 		If $DownloadPageUrl <> "" Then ShellExecute($DownloadPageUrl)
@@ -4429,7 +4438,7 @@ Func ApplySettings()
 	$BrowserPath = RelativePath(GUICtrlRead($idBrowserPath))
 	ApplyDetectedBrowserTypeFromPath()
 	$BrowserType = GetSelectedBrowserType()
-	$BrowserUpdateChannel = _BrowserDownloadNormalizeChannel($BrowserType, GUICtrlRead($idChannel))
+	$BrowserUpdateChannel = NormalizeBrowserChannelSelection($BrowserType, GUICtrlRead($idChannel))
 
 	Local $SelectedProxyType = GetSelectedProxyType()
 	Local $SelectedProxyServer = StringStripWS(GUICtrlRead($idProxyServer), 3)
@@ -4618,8 +4627,12 @@ Func ApplySettings()
 
 	If ShouldManageMozillaUpdateChannel($BrowserType) Then
 		Local $ChannelString = GUICtrlRead($idChannel)
-		Local $Channel = StringRegExpReplace($ChannelString, " -.*", "")
+		Local $Channel = NormalizeBrowserChannelSelection($BrowserType, $ChannelString)
 		Local $UpdateChannel = $Channel
+		If $BrowserType = $BrowserFirefox And $UpdateChannel = "esr-next" Then
+			; Mozilla exposes ESR Next as a download product, not an updater channel.
+			$UpdateChannel = "esr"
+		EndIf
 		If $BrowserType = $BrowserZen Then
 			$UpdateChannel = _BrowserDownloadGetZenUpdateChannel($Channel)
 		ElseIf $UpdateChannel = "dev" Then

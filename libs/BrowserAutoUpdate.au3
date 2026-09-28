@@ -90,6 +90,47 @@ Func _BrowserAutoUpdateCleanPartialDownloads()
 	FileClose($hSearch)
 EndFunc
 
+; Replace a browser directory with a fully extracted tree. The staging and
+; backup directories live beside the target so the rename operations stay on
+; the same volume. Only RunFirefox-managed Chrome++ files are carried over.
+Func _BrowserAutoUpdateReplaceBrowserDirectory($SourceDir, $TargetDir)
+	Local $ParentDir = "", $TargetName = ""
+	SplitPath(FullPath($TargetDir), $ParentDir, $TargetName)
+	If $ParentDir = "" Or $TargetName = "" Then Return False
+
+	Local $Suffix = @AutoItPID & "_" & StringReplace(StringReplace(@HOUR & @MIN & @SEC, ":", ""), " ", "")
+	Local $NewDir = $ParentDir & "\.RunFirefoxBrowserNew_" & $Suffix
+	Local $OldDir = $ParentDir & "\.RunFirefoxBrowserOld_" & $Suffix
+	DirRemove($NewDir, 1)
+	DirRemove($OldDir, 1)
+	If Not DirCopy($SourceDir, $NewDir, 1) Then Return False
+
+	Local $ManagedFiles[2] = ["chrome++.ini", "version.dll"]
+	For $i = 0 To UBound($ManagedFiles) - 1
+		Local $ManagedFile = $ManagedFiles[$i]
+		If FileExists($TargetDir & "\" & $ManagedFile) Then
+			If Not FileCopy($TargetDir & "\" & $ManagedFile, $NewDir & "\" & $ManagedFile, 9) Then
+				DirRemove($NewDir, 1)
+				Return False
+			EndIf
+		EndIf
+	Next
+
+	Local $HadTarget = FileExists($TargetDir)
+	If $HadTarget And Not DirMove($TargetDir, $OldDir) Then
+		DirRemove($NewDir, 1)
+		Return False
+	EndIf
+	If Not DirMove($NewDir, $TargetDir) Then
+		If $HadTarget Then DirMove($OldDir, $TargetDir)
+		DirRemove($NewDir, 1)
+		Return False
+	EndIf
+
+	DirRemove($OldDir, 1)
+	Return True
+EndFunc
+
 ; Downloads the update package atomically: *.part first, integrity check,
 ; then rename + metadata. Returns True when the update is staged.
 Func _BrowserAutoUpdateStageUpdate($BrowserType, $Channel, $Version, $Urls, ByRef $TriedUrlsOut, $Parent = 0, $ExpectedSha256 = "")
@@ -212,9 +253,7 @@ Func _BrowserAutoUpdateApplyPending($BrowserPath, $BrowserType, $Parent = 0)
 
 	Local $ExtractedDir = "", $ExtractedFile = ""
 	SplitPath($ExtractedBrowserPath, $ExtractedDir, $ExtractedFile)
-	; DirCopy merges into the existing browser directory so files not shipped
-	; with the update (chrome++.ini, version.dll, ...) are preserved.
-	If Not DirCopy($ExtractedDir, $TargetDir, 1) Or Not FileExists($TargetDir & "\" & $ExtractedFile) Then
+	If Not _BrowserAutoUpdateReplaceBrowserDirectory($ExtractedDir, $TargetDir) Or Not FileExists($TargetDir & "\" & $ExtractedFile) Then
 		DirRemove($TempDir, 1)
 		_BrowserAutoUpdateCleanStaging()
 		Return SetError(6, 0, _t("FailToExtractBrowserInstaller", "解压浏览器安装包失败。"))

@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- 浏览器自动升级和下载覆盖改为使用完整目录替换，避免新版本未携带的旧 Chrome 文件继续遗留；Chrome++ 的 `chrome++.ini` 与 `version.dll` 会在替换时保留。
+
 - Firefox 下载频道新增 `esr-next`，可在当前 ESR 与下一代 ESR 之间分别获取版本并下载。
 
 ## [2.8.19] - 2026-09-17

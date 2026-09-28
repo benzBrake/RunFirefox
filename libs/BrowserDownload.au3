@@ -1807,7 +1807,7 @@ Func _BrowserDownloadDownloadAndExtract($aDownloadUrls, $TargetDir, $os, $Channe
 	If $ExtractedBrowserPath Then
 		Local $ExtractedBrowserDir, $ExtractedBrowserFile
 		SplitPath($ExtractedBrowserPath, $ExtractedBrowserDir, $ExtractedBrowserFile)
-		$CopiedBrowserFiles = DirCopy($ExtractedBrowserDir, $TargetDir, 1)
+		$CopiedBrowserFiles = _BrowserAutoUpdateReplaceBrowserDirectory($ExtractedBrowserDir, $TargetDir)
 		$TargetBrowserPath = $TargetDir & "\" & $ExtractedBrowserFile
 	EndIf
 

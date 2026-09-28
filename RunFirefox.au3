@@ -2028,7 +2028,6 @@ Func Settings()
 	$hStatus = _GUICtrlStatusBar_Create($hSettings, -1, _t("DoublieClickToOpenSettingsWindow", '双击软件目录下的 "%s.vbs" 文件可调出此窗口', $ScriptNameWithoutSuffix))
 	Opt("ExpandEnvStrings", 1)
 
-	ApplyDetectedBrowserTypeFromPath()
 	UpdateBrowserChannelOptions($BrowserType, $BrowserUpdateChannel)
 	UpdateBrowserSpecificControls()
 	ShowCurrentChannel()
@@ -3739,6 +3738,10 @@ Func UpdateBrowserChannelOptions($Value, $SelectedChannel)
 	EndIf
 	If NormalizeBrowserType($Value) = $BrowserCocCoc Then $Options = "release"
 	If NormalizeBrowserType($Value) = $BrowserBrave Then $Options = "release|beta|nightly"
+	If NormalizeBrowserType($Value) = $BrowserUngoogledChromium Then
+		$Options = "release"
+		$DefaultChannel = "release"
+	EndIf
 	If NormalizeBrowserType($Value) = $BrowserXunlei Then $Options = "release"
 	If IsGoogleChromeBrowser($Value) Then
 		$Options = "stable|beta|dev|canary"
@@ -4436,7 +4439,6 @@ Func ApplySettings()
 
 	Opt("ExpandEnvStrings", 0)
 	$BrowserPath = RelativePath(GUICtrlRead($idBrowserPath))
-	ApplyDetectedBrowserTypeFromPath()
 	$BrowserType = GetSelectedBrowserType()
 	$BrowserUpdateChannel = NormalizeBrowserChannelSelection($BrowserType, GUICtrlRead($idChannel))
 

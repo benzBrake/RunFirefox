@@ -269,7 +269,7 @@ Func _BrowserDownloadPollVersionLoad(ByRef $BrowserType, ByRef $Channel)
 	EndIf
 
 	If $BD_LoadKind = "curl" Then
-		If ProcessExists($BD_LoadHandle) Then Return 0
+		If _DownloadToolsCurlRunning($BD_LoadHandle) Then Return 0
 	ElseIf Not InetGetInfo($BD_LoadHandle, 2) Then
 		Return 0
 	EndIf
@@ -370,7 +370,7 @@ EndFunc
 Func _BrowserDownloadCancelVersionLoad()
 	If $BD_LoadHandle Then
 		If $BD_LoadKind = "chrome" Or $BD_LoadKind = "curl" Then
-			If ProcessExists($BD_LoadHandle) Then ProcessClose($BD_LoadHandle)
+			_DownloadToolsCurlCancel($BD_LoadHandle)
 		Else
 			InetClose($BD_LoadHandle)
 		EndIf

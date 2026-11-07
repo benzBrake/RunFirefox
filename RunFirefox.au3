@@ -257,7 +257,7 @@ $BossKeyHideToTray = IniRead($inifile, "Settings", "BossKeyHideToTray", 0) * 1
 $DownloadThreads = Int(IniRead($inifile, "Settings", "DownloadThreads", 3))
 If $DownloadThreads < 1 Or $DownloadThreads > 10 Then $DownloadThreads = 3
 $ProxyType = StringLower(IniRead($inifile, "Settings", "ProxyType", "direct"))
-If $ProxyType <> "http" And $ProxyType <> "socks5" Then $ProxyType = "direct"
+If $ProxyType <> "http" And $ProxyType <> "socks5" And $ProxyType <> "system" Then $ProxyType = "direct"
 $ProxyServer = IniRead($inifile, "Settings", "ProxyServer", "")
 $ProxyPort = Int(IniRead($inifile, "Settings", "ProxyPort", 0))
 $LastPlatformDir = IniRead($inifile, "Settings", "LastPlatformDir", "")
@@ -669,6 +669,7 @@ EndFunc   ;==>HideBossKeyTrayIcon
 
 
 Func OnExit()
+	_DownloadToolsClose()
 	CancelAppUpdateCheck()
 	RestoreBrowserWindows()
 	If $hEvent Then
@@ -1630,6 +1631,8 @@ EndFunc
 
 Func GetProxyTypeLabel($Value)
 	Switch StringLower($Value)
+		Case "system"
+			Return _t("ProxyTypeSystem", "系统代理（Windows）")
 		Case "http"
 			Return _t("ProxyTypeHttp", "HTTP 代理")
 		Case "socks5"
@@ -1639,11 +1642,12 @@ Func GetProxyTypeLabel($Value)
 EndFunc   ;==>GetProxyTypeLabel
 
 Func GetProxyTypeComboData()
-	Return GetProxyTypeLabel("direct") & "|" & GetProxyTypeLabel("http") & "|" & GetProxyTypeLabel("socks5")
+	Return GetProxyTypeLabel("direct") & "|" & GetProxyTypeLabel("system") & "|" & GetProxyTypeLabel("http") & "|" & GetProxyTypeLabel("socks5")
 EndFunc   ;==>GetProxyTypeComboData
 
 Func GetSelectedProxyType()
 	Local $Label = GUICtrlRead($idProxyType)
+	If $Label = GetProxyTypeLabel("system") Then Return "system"
 	If $Label = GetProxyTypeLabel("http") Then Return "http"
 	If $Label = GetProxyTypeLabel("socks5") Then Return "socks5"
 	Return "direct"
@@ -1652,7 +1656,8 @@ EndFunc   ;==>GetSelectedProxyType
 Func RefreshNetworkControlsState()
 	If Not $idProxyType Then Return
 	Local $ProxyState = $GUI_DISABLE
-	If GetSelectedProxyType() <> "direct" Then $ProxyState = $GUI_ENABLE
+	Local $SelectedProxyType = GetSelectedProxyType()
+	If $SelectedProxyType = "http" Or $SelectedProxyType = "socks5" Then $ProxyState = $GUI_ENABLE
 	GUICtrlSetState($idProxyServer, $ProxyState)
 	GUICtrlSetState($idProxyPort, $ProxyState)
 	Local $ThreadState = $GUI_ENABLE
@@ -1662,6 +1667,19 @@ Func RefreshNetworkControlsState()
 	EndIf
 	GUICtrlSetState($idDownloadThreads, $ThreadState)
 	GUICtrlSetState($idDownloadThreadsUpDown, $ThreadState)
+	If $SelectedProxyType = "system" Then
+		If _DownloadToolsHasCurl() Then
+			GUICtrlSetData($idNetworkCurlHint, _t("SystemProxyHint", "Windows 会针对每个网址解析系统代理，包括 PAC/WPAD 和绕过规则；解析失败时使用直连。"))
+		Else
+			GUICtrlSetData($idNetworkCurlHint, _t("CurlRequiredForProxy", "HTTP、SOCKS5 和系统代理需要 curl.exe。请安装 curl，或改用直接连接。"))
+		EndIf
+		GUICtrlSetState($idNetworkCurlHint, $GUI_SHOW)
+	ElseIf Not _DownloadToolsHasCurl() Then
+		GUICtrlSetData($idNetworkCurlHint, _t("CurlRequiredForThreads", "多线程下载需要 curl.exe；未检测到时固定使用单线程。"))
+		GUICtrlSetState($idNetworkCurlHint, $GUI_SHOW)
+	Else
+		GUICtrlSetState($idNetworkCurlHint, $GUI_HIDE)
+	EndIf
 EndFunc   ;==>RefreshNetworkControlsState
 
 Func Settings()
@@ -4447,24 +4465,26 @@ Func ApplySettings()
 	Local $SelectedProxyPortText = StringStripWS(GUICtrlRead($idProxyPort), 3)
 	If $SelectedProxyType <> "direct" Then
 		If Not _DownloadToolsHasCurl() Then
-			MsgBox(16, "RunFirefox", _t("CurlRequiredForProxy", "HTTP 和 SOCKS5 代理需要 curl.exe。请安装 curl，或改用直接连接。"), 0, $hSettings)
+			MsgBox(16, "RunFirefox", _t("CurlRequiredForProxy", "HTTP、SOCKS5 和系统代理需要 curl.exe。请安装 curl，或改用直接连接。"), 0, $hSettings)
 			GUICtrlSetState($idProxyType, $GUI_FOCUS)
 			Return SetError(1)
 		EndIf
-		If $SelectedProxyServer = "" Then
+		If $SelectedProxyType = "http" Or $SelectedProxyType = "socks5" Then
+			If $SelectedProxyServer = "" Then
 			MsgBox(16, "RunFirefox", _t("ProxyServerRequired", "使用代理时必须填写代理服务器。"), 0, $hSettings)
 			GUICtrlSetState($idProxyServer, $GUI_FOCUS)
 			Return SetError(1)
-		EndIf
-		If StringRegExp($SelectedProxyServer, '[\s"]') Then
+			EndIf
+			If StringRegExp($SelectedProxyServer, '[\s"]') Then
 			MsgBox(16, "RunFirefox", _t("ProxyServerInvalid", "代理服务器不能包含空白字符或双引号。"), 0, $hSettings)
 			GUICtrlSetState($idProxyServer, $GUI_FOCUS)
 			Return SetError(1)
-		EndIf
-		If Not StringRegExp($SelectedProxyPortText, "^\d+$") Or Number($SelectedProxyPortText) < 1 Or Number($SelectedProxyPortText) > 65535 Then
+			EndIf
+			If Not StringRegExp($SelectedProxyPortText, "^\d+$") Or Number($SelectedProxyPortText) < 1 Or Number($SelectedProxyPortText) > 65535 Then
 			MsgBox(16, "RunFirefox", _t("ProxyPortInvalid", "代理端口必须是 1-65535 之间的整数。"), 0, $hSettings)
 			GUICtrlSetState($idProxyPort, $GUI_FOCUS)
 			Return SetError(1)
+			EndIf
 		EndIf
 	EndIf
 	If _DownloadToolsHasCurl() Then

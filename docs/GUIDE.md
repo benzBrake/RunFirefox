@@ -19,6 +19,8 @@ LibreWolf 会固定下载官网提供的 Windows x64 portable ZIP；即使压缩
 
 Opera 会优先从 BrowserArchive 获取所选渠道（stable/beta/dev）的最新版本，失败时回退官方版本 API；Windows x64 离线安装包会依次经内置通用代理下载并在失败时回退官方地址，然后自动解压。
 
+在设置窗口的网络页可选择“系统代理（Windows）”，无需填写服务器或端口。程序通过 Windows 解析当前用户的静态代理、PAC/WPAD 和绕过规则，并在 HTTP 重定向后针对新网址重新解析代理；解析失败时使用直连。该模式需要 `curl.exe`，访问原始站点时不追加下载镜像。系统代理请求最多跟随 10 次重定向。
+
 Cốc Cốc 仅支持 Windows x64 和 release 通道。版本、ZIP 地址与 SHA-256 只读取 BrowserArchive 的 `coccoc.json`，不回退其他元数据源；ZIP 下载完成并通过校验后才会解压到 `CocCoc` 目录。
 
 ## 方式二：手动制作（适用于未内置下载的浏览器）

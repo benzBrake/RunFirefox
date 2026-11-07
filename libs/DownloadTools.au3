@@ -9,8 +9,10 @@ Global $DT_Cancelled = False, $DT_CanCancel = False, $DT_PreviousGuiMode = -1
 Global $DT_ProgressMarquee = False
 Global $DT_CurlPath = "", $DT_CurlDetected = False
 Global $DT_DownloadThreads = 3, $DT_ProxyType = "direct", $DT_ProxyServer = "", $DT_ProxyPort = 0
+Global $DT_WinHttpProxySession = 0, $DT_SystemProxyLastStatus = "not-resolved"
 Global $DT_Language = "", $DT_GithubDirectMirror = "", $DT_GithubJsDelivrMirror = "", $DT_GithubApiMirror = ""
 Global $DT_AsyncUrls = 0, $DT_AsyncIndex = -1, $DT_AsyncDestination = ""
+Global $DT_CurlRequests = ObjCreate("Scripting.Dictionary"), $DT_CurlRequestId = 0
 
 Global Const $DT_DEFAULT_GITHUB_JSDELIVR_MIRROR = "https://cdn.jsdmirror.com/gh/"
 Global Const $DT_DEFAULT_GITHUB_DIRECT_MIRROR = "https://v6.gh-proxy.org/"
@@ -22,12 +24,23 @@ Func _DownloadToolsConfigure($DownloadThreads = 3, $ProxyType = "direct", $Proxy
 	$DT_DownloadThreads = Int($DownloadThreads)
 	If $DT_DownloadThreads < 1 Or $DT_DownloadThreads > 10 Then $DT_DownloadThreads = 3
 	$DT_ProxyType = StringLower(StringStripWS($ProxyType, 3))
-	If $DT_ProxyType <> "http" And $DT_ProxyType <> "socks5" Then $DT_ProxyType = "direct"
+	If $DT_ProxyType <> "http" And $DT_ProxyType <> "socks5" And $DT_ProxyType <> "system" Then $DT_ProxyType = "direct"
 	$DT_ProxyServer = StringStripWS($ProxyServer, 3)
 	$DT_ProxyPort = Int($ProxyPort)
 	_DownloadToolsSetRouting($Language, $GithubDirectMirror, $GithubJsDelivrMirror, $GithubApiMirror)
 	If $DT_ProxyType = "direct" Then HttpSetProxy(1)
 EndFunc   ;==>Configure
+
+Func _DownloadToolsClose()
+	Local $Requests = $DT_CurlRequests.Keys
+	For $Request In $Requests
+		_DownloadToolsCurlCancel($Request)
+	Next
+	If $DT_WinHttpProxySession Then
+		DllCall("winhttp.dll", "bool", "WinHttpCloseHandle", "ptr", $DT_WinHttpProxySession)
+		$DT_WinHttpProxySession = 0
+	EndIf
+EndFunc   ;==>Close
 
 Func _DownloadToolsSetRouting($Language = "", $GithubDirectMirror = "", $GithubJsDelivrMirror = "", $GithubApiMirror = "")
 	$DT_Language = StringLower(StringReplace(StringStripWS($Language, 3), "_", "-"))
@@ -208,17 +221,310 @@ Func _DownloadToolsUsesProxy()
 	Return $DT_ProxyType <> "direct"
 EndFunc   ;==>UsesProxy
 
-Func _DownloadToolsCurlArgs()
-	Local $Args = ' --location --fail --silent --show-error --connect-timeout 15'
+Func _DownloadToolsFreeWinHttpString($StringPointer)
+	If $StringPointer Then DllCall("kernel32.dll", "ptr", "GlobalFree", "ptr", $StringPointer)
+EndFunc   ;==>FreeWinHttpString
+
+Func _DownloadToolsReadWinHttpString($StringPointer)
+	If Not $StringPointer Then Return ""
+	Local $aLength = DllCall("kernel32.dll", "int", "lstrlenW", "ptr", $StringPointer)
+	If @error Or Not IsArray($aLength) Or $aLength[0] < 0 Then Return ""
+	Local $tString = DllStructCreate("wchar[" & ($aLength[0] + 1) & "]", $StringPointer)
+	If @error Then Return ""
+	Return DllStructGetData($tString, 1)
+EndFunc   ;==>ReadWinHttpString
+
+Func _DownloadToolsSystemProxySession()
+	If $DT_WinHttpProxySession Then Return $DT_WinHttpProxySession
+	Local $aOpen = DllCall("winhttp.dll", "ptr", "WinHttpOpen", "wstr", "RunFirefox", "dword", 1, "ptr", 0, "ptr", 0, "dword", 0)
+	If @error Or Not IsArray($aOpen) Or Not $aOpen[0] Then Return SetError(1, 0, 0)
+	$DT_WinHttpProxySession = $aOpen[0]
+	Return $DT_WinHttpProxySession
+EndFunc   ;==>SystemProxySession
+
+Func _DownloadToolsSelectSystemProxy($ProxyList, $Url)
+	Local $TargetScheme = "http"
+	If StringLeft(StringLower($Url), 8) = "https://" Then $TargetScheme = "https"
+	Local $Entries = StringSplit($ProxyList, ";", 2), $DefaultProxy = "", $SelectedProxy = "", $HasSchemeEntry = False
+	For $Entry In $Entries
+		$Entry = StringStripWS($Entry, 3)
+		If $Entry = "" Then ContinueLoop
+		Local $SchemeMatch = StringRegExp($Entry, "(?i)^(http|https)\s*=\s*(.*)$", 1)
+		If IsArray($SchemeMatch) Then
+			$HasSchemeEntry = True
+			If StringLower($SchemeMatch[0]) = $TargetScheme Then $SelectedProxy = StringStripWS(StringRegExpReplace($Entry, "(?i)^(http|https)\s*=\s*", ""), 3)
+			ContinueLoop
+		EndIf
+		If $DefaultProxy = "" Then $DefaultProxy = $Entry
+	Next
+	If $SelectedProxy = "" And Not $HasSchemeEntry Then $SelectedProxy = $DefaultProxy
+	If $SelectedProxy = "" Then Return ""
+	$SelectedProxy = StringRegExpReplace($SelectedProxy, "(?i)^(?:PROXY|HTTP|HTTPS)\s+", "")
+	If StringUpper($SelectedProxy) = "DIRECT" Then Return ""
+	If StringRegExp($SelectedProxy, "(?i)^(?:SOCKS|SOCKS4|SOCKS5)\s+") Then Return SetError(1, 0, "")
+	If StringRegExp($SelectedProxy, '[\s"]') Then Return SetError(1, 0, "")
+	; PAC-compatible results can contain alternatives. Match WinHTTP's first-proxy behavior.
+	Local $Alternatives = StringSplit($SelectedProxy, ",", 2)
+	If UBound($Alternatives) > 0 Then $SelectedProxy = StringStripWS($Alternatives[0], 3)
+	If StringLeft(StringLower($SelectedProxy), 7) <> "http://" And StringLeft(StringLower($SelectedProxy), 8) <> "https://" Then $SelectedProxy = "http://" & $SelectedProxy
+	Return $SelectedProxy
+EndFunc   ;==>SelectSystemProxy
+
+Func _DownloadToolsGetUrlHost($Url)
+	Local $Match = StringRegExp($Url, "(?i)^https?://(\[[^\]]+\]|[^/:?#]+)", 1)
+	If Not IsArray($Match) Then Return ""
+	Return StringLower($Match[0])
+EndFunc   ;==>GetUrlHost
+
+Func _DownloadToolsSystemProxyBypassed($Bypass, $Url)
+	Local $Host = _DownloadToolsGetUrlHost($Url)
+	Local $Rules = StringSplit(StringReplace($Bypass, ";", ","), ",", 2)
+	For $Rule In $Rules
+		$Rule = StringStripWS($Rule, 3)
+		If $Rule = "" Then ContinueLoop
+		If StringLower($Rule) = "<local>" Then
+			If Not StringInStr($Host, ".") And Not StringInStr($Host, ":") Then Return True
+			ContinueLoop
+		EndIf
+		; Escape regex syntax, retaining Windows' wildcard matching semantics.
+		Local $Pattern = StringRegExpReplace($Rule, '([.\\+?\[\](){}^$|])', '\\$1')
+		$Pattern = StringReplace($Pattern, "*", ".*")
+		If StringRegExp($Host, "(?i)^" & $Pattern & "$") Then Return True
+	Next
+	Return False
+EndFunc   ;==>SystemProxyBypassed
+
+Func _DownloadToolsParseSystemProxyConfig($ProxyList, $BypassList, $Url, ByRef $ProxyUrl, ByRef $NoProxy)
+	$ProxyUrl = ""
+	$NoProxy = ""
+	If Not StringRegExp($Url, "(?i)^https?://") Then Return SetError(1, 0, False)
+	Local $Host = _DownloadToolsGetUrlHost($Url)
+	If $Host = "" Then Return SetError(1, 0, False)
+	If _DownloadToolsSystemProxyBypassed($BypassList, $Url) Then Return SetError(0, 0, False)
+	$ProxyUrl = _DownloadToolsSelectSystemProxy($ProxyList, $Url)
+	If @error Then Return SetError(1, 0, False)
+	If $ProxyUrl = "" Then Return SetError(0, 0, False)
+	Return True
+EndFunc   ;==>ParseSystemProxyConfig
+
+Func _DownloadToolsResolveSystemProxy($Url, ByRef $ProxyUrl, ByRef $NoProxy)
+	$ProxyUrl = ""
+	$NoProxy = ""
+	$DT_SystemProxyLastStatus = "direct"
+	Local $TagIEProxyConfig
+	If @AutoItX64 Then
+		$TagIEProxyConfig = "align 8;int;ptr;ptr;ptr"
+	Else
+		$TagIEProxyConfig = "align 4;int;ptr;ptr;ptr"
+	EndIf
+	Local $tIEProxyConfig = DllStructCreate($TagIEProxyConfig)
+	If @error Then
+		$DT_SystemProxyLastStatus = "error"
+		Return False
+	EndIf
+	Local $aGetConfig = DllCall("winhttp.dll", "bool", "WinHttpGetIEProxyConfigForCurrentUser", "ptr", DllStructGetPtr($tIEProxyConfig))
+	If @error Or Not IsArray($aGetConfig) Or Not $aGetConfig[0] Then
+		$DT_SystemProxyLastStatus = "error"
+		Return False
+	EndIf
+	Local $AutoDetect = DllStructGetData($tIEProxyConfig, 1)
+	Local $AutoConfigPointer = DllStructGetData($tIEProxyConfig, 2)
+	Local $ProxyPointer = DllStructGetData($tIEProxyConfig, 3)
+	Local $BypassPointer = DllStructGetData($tIEProxyConfig, 4)
+	Local $AutoConfigUrl = _DownloadToolsReadWinHttpString($AutoConfigPointer)
+	Local $StaticProxy = _DownloadToolsReadWinHttpString($ProxyPointer)
+	Local $StaticBypass = _DownloadToolsReadWinHttpString($BypassPointer)
+	Local $HasAutoProxy = ($AutoDetect Or $AutoConfigUrl <> "")
+	If $HasAutoProxy Then
+		Local $TagAutoProxyOptions, $TagProxyInfo
+		If @AutoItX64 Then
+			$TagAutoProxyOptions = "align 8;dword;dword;ptr;ptr;dword;bool"
+			$TagProxyInfo = "align 8;dword;ptr;ptr"
+		Else
+			$TagAutoProxyOptions = "align 4;dword;dword;ptr;ptr;dword;bool"
+			$TagProxyInfo = "align 4;dword;ptr;ptr"
+		EndIf
+		Local $tAutoProxyOptions = DllStructCreate($TagAutoProxyOptions), $tProxyInfo = DllStructCreate($TagProxyInfo)
+		If Not @error Then
+			Local $Flags = 0, $AutoDetectFlags = 0, $tAutoConfigUrl = 0
+			If $AutoConfigUrl <> "" Then
+				$Flags = BitOR($Flags, 2) ; WINHTTP_AUTOPROXY_CONFIG_URL
+				$tAutoConfigUrl = DllStructCreate("wchar[" & StringLen($AutoConfigUrl) + 1 & "]")
+				DllStructSetData($tAutoConfigUrl, 1, $AutoConfigUrl)
+				DllStructSetData($tAutoProxyOptions, 3, DllStructGetPtr($tAutoConfigUrl))
+			EndIf
+			If $AutoDetect Then
+				$Flags = BitOR($Flags, 1) ; WINHTTP_AUTOPROXY_AUTO_DETECT
+				$AutoDetectFlags = 3 ; DHCP and DNS-A discovery
+			EndIf
+			DllStructSetData($tAutoProxyOptions, 1, $Flags)
+			DllStructSetData($tAutoProxyOptions, 2, $AutoDetectFlags)
+			DllStructSetData($tAutoProxyOptions, 4, 0)
+			DllStructSetData($tAutoProxyOptions, 5, 0)
+			DllStructSetData($tAutoProxyOptions, 6, False)
+			Local $Session = _DownloadToolsSystemProxySession()
+			If $Session Then
+				Local $aProxy = DllCall("winhttp.dll", "bool", "WinHttpGetProxyForUrl", "ptr", $Session, "wstr", $Url, "ptr", DllStructGetPtr($tAutoProxyOptions), "ptr", DllStructGetPtr($tProxyInfo))
+				If Not @error And IsArray($aProxy) And $aProxy[0] Then
+					Local $AccessType = DllStructGetData($tProxyInfo, 1)
+					If $AccessType = 3 Then
+						Local $ResolvedProxy = _DownloadToolsReadWinHttpString(DllStructGetData($tProxyInfo, 2))
+						Local $ResolvedBypass = _DownloadToolsReadWinHttpString(DllStructGetData($tProxyInfo, 3))
+						Local $Resolved = _DownloadToolsParseSystemProxyConfig($ResolvedProxy, $ResolvedBypass, $Url, $ProxyUrl, $NoProxy)
+						If @error Then
+							$DT_SystemProxyLastStatus = "error"
+						ElseIf $Resolved Then
+							$DT_SystemProxyLastStatus = "proxy"
+						EndIf
+					ElseIf $AccessType <> 1 Then
+						$DT_SystemProxyLastStatus = "error"
+					EndIf
+					_DownloadToolsFreeWinHttpString(DllStructGetData($tProxyInfo, 2))
+					_DownloadToolsFreeWinHttpString(DllStructGetData($tProxyInfo, 3))
+				Else
+					$DT_SystemProxyLastStatus = "error"
+				EndIf
+			EndIf
+		EndIf
+	ElseIf $StaticProxy <> "" Then
+		Local $Resolved = _DownloadToolsParseSystemProxyConfig($StaticProxy, $StaticBypass, $Url, $ProxyUrl, $NoProxy)
+		If @error Then
+			$DT_SystemProxyLastStatus = "error"
+		ElseIf $Resolved Then
+			$DT_SystemProxyLastStatus = "proxy"
+		EndIf
+	EndIf
+	_DownloadToolsFreeWinHttpString($AutoConfigPointer)
+	_DownloadToolsFreeWinHttpString($ProxyPointer)
+	_DownloadToolsFreeWinHttpString($BypassPointer)
+	Return $ProxyUrl <> ""
+EndFunc   ;==>ResolveSystemProxy
+
+Func _DownloadToolsCurlArgs($Url = "")
+	Local $Args = ' --fail --silent --show-error --connect-timeout 15'
+	If $DT_ProxyType <> "system" Then $Args &= ' --location'
 	If $DT_ProxyType = "direct" Then $Args &= ' --noproxy "*"'
 	If $DT_ProxyType = "http" Then $Args &= ' --proxy "http://' & $DT_ProxyServer & ':' & $DT_ProxyPort & '"'
 	If $DT_ProxyType = "socks5" Then $Args &= ' --socks5-hostname "' & $DT_ProxyServer & ':' & $DT_ProxyPort & '"'
+	If $DT_ProxyType = "system" Then
+		Local $SystemProxy = "", $NoProxy = ""
+		Local $UseSystemProxy = _DownloadToolsResolveSystemProxy($Url, $SystemProxy, $NoProxy)
+		If $UseSystemProxy Then
+			$Args &= ' --proxy "' & $SystemProxy & '"'
+			; Override environment NO_PROXY: Windows has already evaluated bypass rules.
+			$Args &= ' --noproxy ""'
+		Else
+			$Args &= ' --noproxy "*"'
+		EndIf
+	EndIf
 	Return $Args
 EndFunc   ;==>CurlArgs
 
 Func _DownloadToolsCurlCommand($ExtraArgs, $Url)
-	Return '"' & _DownloadToolsFindCurl() & '"' & _DownloadToolsCurlArgs() & $ExtraArgs & ' "' & StringReplace($Url, '"', '') & '"'
+	Return '"' & _DownloadToolsFindCurl() & '"' & _DownloadToolsCurlArgs($Url) & $ExtraArgs & ' "' & StringReplace($Url, '"', '') & '"'
 EndFunc   ;==>CurlCommand
+
+; System requests use logical (negative) handles so every redirect can resolve
+; its own proxy without blocking asynchronous version checks or cancellation.
+Func _DownloadToolsCurlLaunch(ByRef $Request)
+	Local $Command = _DownloadToolsCurlCommand($Request[1], $Request[2]) & ' --write-out "\n%{http_code}\n%{redirect_url}"'
+	$Request[0] = Run($Command, @TempDir, @SW_HIDE, 2)
+	If @error Or Not $Request[0] Then Return False
+	Local $Handle = DllCall("kernel32.dll", "handle", "OpenProcess", "dword", 0x100400, "bool", False, "dword", $Request[0])
+	If @error Or Not IsArray($Handle) Or Not $Handle[0] Then
+		ProcessClose($Request[0])
+		Return False
+	EndIf
+	$Request[6] = $Handle[0]
+	Return True
+EndFunc   ;==>CurlLaunch
+
+Func _DownloadToolsCurlStart($ExtraArgs, $Url)
+	If $DT_ProxyType <> "system" Then Return Run(_DownloadToolsCurlCommand($ExtraArgs, $Url), @TempDir, @SW_HIDE)
+	Local $Request[8] = [0, $ExtraArgs, $Url, 0, TimerInit(), 600000, 0, ""]
+	Local $MaxTime = StringRegExp($ExtraArgs, ' --max-time (\d+)', 1)
+	If IsArray($MaxTime) Then $Request[5] = Number($MaxTime[0]) * 1000
+	Local $Output = StringRegExp($ExtraArgs, ' --output "([^"]+)"', 1)
+	If IsArray($Output) Then $Request[7] = $Output[0]
+	If Not _DownloadToolsCurlLaunch($Request) Then Return SetError(1, 0, 0)
+	$DT_CurlRequestId -= 1
+	$DT_CurlRequests.Add($DT_CurlRequestId, $Request)
+	Return $DT_CurlRequestId
+EndFunc   ;==>CurlStart
+
+Func _DownloadToolsCurlCancel($Handle)
+	If $Handle >= 0 Then
+		If $Handle And ProcessExists($Handle) Then ProcessClose($Handle)
+		Return
+	EndIf
+	If Not $DT_CurlRequests.Exists($Handle) Then Return
+	Local $Request = $DT_CurlRequests.Item($Handle)
+	; The retained process handle also prevents PID reuse before cleanup.
+	Local $Wait = DllCall("kernel32.dll", "dword", "WaitForSingleObject", "handle", $Request[6], "dword", 0)
+	If IsArray($Wait) And $Wait[0] = 258 Then ProcessClose($Request[0])
+	DllCall("kernel32.dll", "bool", "CloseHandle", "handle", $Request[6])
+	If $Request[7] <> "" Then FileDelete($Request[7])
+	$DT_CurlRequests.Remove($Handle)
+EndFunc   ;==>CurlCancel
+
+Func _DownloadToolsCurlRunning($Handle)
+	If $Handle >= 0 Then Return ProcessExists($Handle) <> 0
+	If Not $DT_CurlRequests.Exists($Handle) Then Return SetExtended(1, False)
+	Local $Request = $DT_CurlRequests.Item($Handle)
+	If TimerDiff($Request[4]) >= $Request[5] Then
+		_DownloadToolsCurlCancel($Handle)
+		Return SetExtended(28, False)
+	EndIf
+	Local $Wait = DllCall("kernel32.dll", "dword", "WaitForSingleObject", "handle", $Request[6], "dword", 0)
+	If IsArray($Wait) And $Wait[0] = 258 Then Return True
+	Local $Metadata = StdoutRead($Request[0])
+	Local $ProcessExit = DllCall("kernel32.dll", "bool", "GetExitCodeProcess", "handle", $Request[6], "dword*", 0)
+	DllCall("kernel32.dll", "bool", "CloseHandle", "handle", $Request[6])
+	Local $Result = StringRegExp($Metadata, '(?s)\r?\n(\d{3})\r?\n([^\r\n]*)\r?\n?$', 1), $ExitCode = 1
+	If IsArray($Result) And IsArray($ProcessExit) And $ProcessExit[0] And $ProcessExit[2] = 0 Then
+		Local $Status = Number($Result[0]), $NextUrl = $Result[1]
+		If $Status >= 300 And $Status <= 399 And $NextUrl <> "" Then
+			If $Request[3] < 10 And StringRegExp($NextUrl, '(?i)^https?://[^\s"]+$') Then
+				; Match curl's POST conversion for 301/302/303; 307/308 retain the body.
+				If $Status = 301 Or $Status = 302 Or $Status = 303 Then
+					$Request[1] = StringReplace($Request[1], ' --request POST', '')
+					$Request[1] = StringRegExpReplace($Request[1], ' --data-binary "[^"]*"', '')
+				EndIf
+				$Request[2] = $NextUrl
+				$Request[3] += 1
+				If $Request[7] <> "" Then FileDelete($Request[7])
+				If _DownloadToolsCurlLaunch($Request) Then
+					$DT_CurlRequests.Item($Handle) = $Request
+					Return True
+				EndIf
+			EndIf
+			$ExitCode = 47
+		ElseIf $Status >= 200 And $Status < 300 Then
+			; curl emits metadata even on a truncated response; verify its exit code below.
+			$ExitCode = 0
+		EndIf
+	EndIf
+	If Not IsArray($ProcessExit) Then
+		$ExitCode = 1
+	ElseIf Not $ProcessExit[0] Then
+		$ExitCode = 1
+	ElseIf $ProcessExit[2] <> 0 Then
+		$ExitCode = $ProcessExit[2]
+	EndIf
+	$DT_CurlRequests.Remove($Handle)
+	If $ExitCode And $Request[7] <> "" Then FileDelete($Request[7])
+	Return SetExtended($ExitCode, False)
+EndFunc   ;==>CurlRunning
+
+Func _DownloadToolsCurlWait($ExtraArgs, $Url)
+	If $DT_ProxyType <> "system" Then Return RunWait(_DownloadToolsCurlCommand($ExtraArgs, $Url), @TempDir, @SW_HIDE)
+	Local $Handle = _DownloadToolsCurlStart($ExtraArgs, $Url)
+	If Not $Handle Then Return 1
+	While _DownloadToolsCurlRunning($Handle)
+		Sleep(20)
+	WEnd
+	Return @extended
+EndFunc   ;==>CurlWait
 
 Func _DownloadToolsHttpComError($oError)
 EndFunc
@@ -230,7 +536,7 @@ Func _DownloadToolsHttpGetTextSingle($Url, $UserAgent, $Accept, ByRef $Diagnosti
 		If $UserAgent <> "" Then $ExtraArgs &= ' --user-agent "' & StringReplace($UserAgent, '"', '') & '"'
 		If $Accept <> "" Then $ExtraArgs &= ' --header "Accept: ' & StringReplace($Accept, '"', '') & '"'
 		If $Referer <> "" Then $ExtraArgs &= ' --referer "' & StringReplace($Referer, '"', '') & '"'
-		Local $ExitCode = RunWait(_DownloadToolsCurlCommand($ExtraArgs, $Url), @TempDir, @SW_HIDE)
+		Local $ExitCode = _DownloadToolsCurlWait($ExtraArgs, $Url)
 		Local $ResponseText = FileRead($OutputFile)
 		FileDelete($OutputFile)
 		$Diagnostic &= $Url & " (curl " & $ExitCode & ", " & StringLen($ResponseText) & " bytes)" & @CRLF
@@ -281,7 +587,7 @@ Func _DownloadToolsHttpPostTextSingle($Url, $Body, $UserAgent, $ContentType)
 		FileClose($RequestHandle)
 		Local $ExtraArgs = ' --max-time 60 --request POST --header "Content-Type: ' & StringReplace($ContentType, '"', '') & '" --data-binary "@' & $RequestFile & '" --output "' & $OutputFile & '"'
 		If $UserAgent <> "" Then $ExtraArgs &= ' --user-agent "' & StringReplace($UserAgent, '"', '') & '"'
-		Local $ExitCode = RunWait(_DownloadToolsCurlCommand($ExtraArgs, $Url), @TempDir, @SW_HIDE)
+		Local $ExitCode = _DownloadToolsCurlWait($ExtraArgs, $Url)
 		Local $ResponseText = FileRead($OutputFile)
 		FileDelete($RequestFile)
 		FileDelete($OutputFile)
@@ -318,7 +624,7 @@ Func _DownloadToolsReadUrl($Url)
 	For $i = 0 To UBound($Urls) - 1
 		If _DownloadToolsHasCurl() Then
 			Local $OutputFile = @TempDir & "\RunFirefox_CurlRead_" & @AutoItPID & "_" & Random(1000, 999999, 1) & ".tmp"
-			Local $ExitCode = RunWait(_DownloadToolsCurlCommand(' --max-time 60 --output "' & $OutputFile & '"', $Urls[$i]), @TempDir, @SW_HIDE)
+			Local $ExitCode = _DownloadToolsCurlWait(' --max-time 60 --output "' & $OutputFile & '"', $Urls[$i])
 			If $ExitCode = 0 Then
 				Local $FileHandle = FileOpen($OutputFile, 16), $Data = FileRead($FileHandle)
 				FileClose($FileHandle)
@@ -343,7 +649,7 @@ Func _DownloadToolsStartUrlToFile($Url, $Destination, ByRef $Kind)
 	$DT_AsyncDestination = $Destination
 	If _DownloadToolsHasCurl() Then
 		$Kind = "curl"
-		Return Run(_DownloadToolsCurlCommand(' --max-time 60 --output "' & $Destination & '"', $Urls[0]), @TempDir, @SW_HIDE)
+		Return _DownloadToolsCurlStart(' --max-time 60 --output "' & $Destination & '"', $Urls[0])
 	EndIf
 	If _DownloadToolsUsesProxy() Then Return SetError(1, 0, 0)
 	$Kind = "inet"
@@ -356,7 +662,7 @@ Func _DownloadToolsAdvanceUrlToFile(ByRef $Kind)
 	FileDelete($DT_AsyncDestination)
 	If _DownloadToolsHasCurl() Then
 		$Kind = "curl"
-		Return Run(_DownloadToolsCurlCommand(' --max-time 60 --output "' & $DT_AsyncDestination & '"', $DT_AsyncUrls[$DT_AsyncIndex]), @TempDir, @SW_HIDE)
+		Return _DownloadToolsCurlStart(' --max-time 60 --output "' & $DT_AsyncDestination & '"', $DT_AsyncUrls[$DT_AsyncIndex])
 	EndIf
 	If _DownloadToolsUsesProxy() Then Return SetError(1, 0, 0)
 	$Kind = "inet"
@@ -449,7 +755,7 @@ Func _DownloadToolsCurlProbeRange($Url, ByRef $TotalBytes)
 	Local $HeaderFile = @TempDir & "\RunFirefox_CurlHeaders_" & $Token & ".tmp"
 	Local $ProbeFile = @TempDir & "\RunFirefox_CurlProbe_" & $Token & ".tmp"
 	Local $Args = ' --max-time 30 --range 0-0 --dump-header "' & $HeaderFile & '" --output "' & $ProbeFile & '"'
-	Local $ExitCode = RunWait(_DownloadToolsCurlCommand($Args, $Url), @TempDir, @SW_HIDE)
+	Local $ExitCode = _DownloadToolsCurlWait($Args, $Url)
 	Local $Headers = FileRead($HeaderFile)
 	FileDelete($HeaderFile)
 	FileDelete($ProbeFile)
@@ -462,7 +768,7 @@ EndFunc   ;==>CurlProbeRange
 
 Func _DownloadToolsStopProcesses(ByRef $Processes)
 	For $i = 0 To UBound($Processes) - 1
-		If $Processes[$i] And ProcessExists($Processes[$i]) Then ProcessClose($Processes[$i])
+		If $Processes[$i] Then _DownloadToolsCurlCancel($Processes[$i])
 	Next
 EndFunc   ;==>StopProcesses
 
@@ -507,7 +813,7 @@ Func _DownloadToolsCurlSegmentedDownload($Url, $Destination, $StatusText, $Known
 		$Parts[$i] = $Destination & ".part" & $i
 		FileDelete($Parts[$i])
 		Local $Args = ' --range ' & $StartByte & '-' & $EndByte & ' --output "' & $Parts[$i] & '"'
-		$Processes[$i] = Run(_DownloadToolsCurlCommand($Args, $Url), @TempDir, @SW_HIDE)
+		$Processes[$i] = _DownloadToolsCurlStart($Args, $Url)
 		If @error Or Not $Processes[$i] Then
 			_DownloadToolsStopProcesses($Processes)
 			_DownloadToolsDeleteParts($Parts)
@@ -520,7 +826,7 @@ Func _DownloadToolsCurlSegmentedDownload($Url, $Destination, $StatusText, $Known
 		$Running = False
 		$DownloadedBytes = 0
 		For $i = 0 To $ThreadCount - 1
-			If ProcessExists($Processes[$i]) Then $Running = True
+			If _DownloadToolsCurlRunning($Processes[$i]) Then $Running = True
 			If FileExists($Parts[$i]) Then $DownloadedBytes += FileGetSize($Parts[$i])
 		Next
 		If $DownloadedBytes > $TotalBytes Then $DownloadedBytes = $TotalBytes
@@ -555,17 +861,17 @@ EndFunc   ;==>CurlSegmentedDownload
 
 Func _DownloadToolsCurlSingleDownload($Url, $Destination, $StatusText, $KnownProgressTemplate, $UnknownProgressTemplate, $TimeoutMs)
 	FileDelete($Destination)
-	Local $Process = Run(_DownloadToolsCurlCommand(' --output "' & $Destination & '"', $Url), @TempDir, @SW_HIDE)
+	Local $Process = _DownloadToolsCurlStart(' --output "' & $Destination & '"', $Url)
 	If @error Or Not $Process Then Return False
 	Local $Timer = TimerInit(), $DownloadedBytes, $DetailText
-	While ProcessExists($Process)
+	While _DownloadToolsCurlRunning($Process)
 		$DownloadedBytes = 0
 		If FileExists($Destination) Then $DownloadedBytes = FileGetSize($Destination)
 		$DetailText = StringReplace($UnknownProgressTemplate, "%s", _DownloadToolsFormatBytes($DownloadedBytes))
 		_DownloadToolsUpdateDownloadProgress($StatusText, $DetailText, Mod(Int($DownloadedBytes / 65536), 100))
 		_DownloadToolsPumpDownloadProgressEvents()
 		If _DownloadToolsIsDownloadProgressCancelled() Or TimerDiff($Timer) >= $TimeoutMs Then
-			ProcessClose($Process)
+			_DownloadToolsCurlCancel($Process)
 			FileDelete($Destination)
 			Return False
 		EndIf

@@ -1,4 +1,4 @@
-﻿; 本文件由 scripts/update-langdata.ps1 从 Lang.ini 自动生成，请勿手工编辑。
+; 本文件由 scripts/update-langdata.ps1 从 Lang.ini 自动生成，请勿手工编辑。
 ; 修改 Lang.ini 后重新运行该脚本即可同步。
 
 Global Const $g_sLangDataIniPart1 = _
@@ -89,12 +89,14 @@ Global Const $g_sLangDataIniPart1 = _
 "    DownloadThreads=Download threads (1-10):" & @CRLF & _
 "    ProxyType=Proxy type:" & @CRLF & _
 "    ProxyTypeDirect=Direct connection" & @CRLF & _
+"    ProxyTypeSystem=System proxy (Windows)" & @CRLF & _
 "    ProxyTypeHttp=HTTP proxy" & @CRLF & _
 "    ProxyTypeSocks5=SOCKS5 proxy" & @CRLF & _
 "    ProxyServer=Proxy server:" & @CRLF & _
 "    ProxyPort=Proxy port:" & @CRLF & _
 "    CurlRequiredForThreads=Multi-threaded downloads require curl.exe. Only single-threaded downloads are used when curl is unavailable." & @CRLF & _
-"    CurlRequiredForProxy=HTTP and SOCKS5 proxies require curl.exe. Install curl or select Direct connection." & @CRLF & _
+"    CurlRequiredForProxy=HTTP, SOCKS5, and system proxy modes require curl.exe. Install curl or select Direct connection." & @CRLF & _
+"    SystemProxyHint=Windows resolves the system proxy for each URL, including PAC/WPAD and bypass rules. Resolution failures use a direct connection." & @CRLF & _
 "    ProxyServerRequired=A proxy server is required when a proxy is selected." & @CRLF & _
 "    ProxyServerInvalid=The proxy server cannot contain whitespace or double quotes." & @CRLF & _
 "    ProxyPortInvalid=The proxy port must be an integer from 1 to 65535." & @CRLF & _
@@ -119,11 +121,11 @@ Global Const $g_sLangDataIniPart1 = _
 "    ChromePlusOpenUrlNewTab=Open address bar input in a new tab" & @CRLF & _
 "    ChromePlusOpenBookmarkNewTab=Open bookmarks in a new tab" & @CRLF & _
 "    ChromePlusDisableNewTab=Disable the two options above on new tabs" & @CRLF & _
-"    ChromePlusDisableNewTabName=Extra matched titles" & @CRLF & _
-"    ChromePlusDisableNewTabNameTooltip=Raw value for chrome++.ini new_tab_disable_name. These titles are also treated as new tabs. You can enter multiple titles and keep the quotes and commas, for example ""about:blank"",""New Tab""" & @CRLF & _
-"    ChromePlusNewTabDisableHelp=When checked, on a recognized new tab Chrome++ temporarily disables the two options above, so typed URLs and bookmarks reuse the current new tab.\n""Extra matched titles"" adds titles that are also treated as new tabs." & @CRLF
+"    ChromePlusDisableNewTabName=Extra matched titles" & @CRLF
 
 Global Const $g_sLangDataIniPart2 = _
+"    ChromePlusDisableNewTabNameTooltip=Raw value for chrome++.ini new_tab_disable_name. These titles are also treated as new tabs. You can enter multiple titles and keep the quotes and commas, for example ""about:blank"",""New Tab""" & @CRLF & _
+"    ChromePlusNewTabDisableHelp=When checked, on a recognized new tab Chrome++ temporarily disables the two options above, so typed URLs and bookmarks reuse the current new tab.\n""Extra matched titles"" adds titles that are also treated as new tabs." & @CRLF & _
 "    ChromePlusSuppressFalseUpgradeNotification=Suppress the false ""out of date"" upgrade prompt" & @CRLF & _
 "    ChromePlusSuppressFalseUpgradeNotificationHelp=Portable builds have no updater, so the browser shows an ""out of date / relaunch"" prompt that relaunching cannot clear. Only that false prompt is removed; genuine update notices are unaffected.\nWithout Chrome++, --disable-features=OutdatedBuildDetector is appended automatically at launch." & @CRLF & _
 "    ChromePlusTabsSaveFailed=Failed to save Chrome++ tab settings:\n%s" & @CRLF & _
@@ -241,11 +243,11 @@ Global Const $g_sLangDataIniPart2 = _
 "    ExtractingProfile=The configuration file is being extracted, please wait ..." & @CRLF & _
 "    ExtractProfileSuccess=Extracted profile successfully!" & @CRLF & _
 "    ExtractProfileFailed=Extracted profile failed!" & @CRLF & _
-"    ChooseBrowserExecutable=Choose browser executable(%s)" & @CRLF & _
-"    ExecutableFile=Executable(*.exe)" & @CRLF & _
-"    SpecifyProfileDirectory=Specify Profile Directory" & @CRLF
+"    ChooseBrowserExecutable=Choose browser executable(%s)" & @CRLF
 
 Global Const $g_sLangDataIniPart3 = _
+"    ExecutableFile=Executable(*.exe)" & @CRLF & _
+"    SpecifyProfileDirectory=Specify Profile Directory" & @CRLF & _
 "    JumpListFrequent=Frequent" & @CRLF & _
 "    JumpListNewTab=New tab" & @CRLF & _
 "    JumpListNewWindow=New window" & @CRLF & _
@@ -338,12 +340,14 @@ Global Const $g_sLangDataIniPart3 = _
 "    DownloadThreads=下載執行緒數（1-10）：" & @CRLF & _
 "    ProxyType=代理類型：" & @CRLF & _
 "    ProxyTypeDirect=直接連線" & @CRLF & _
+"    ProxyTypeSystem=系統代理（Windows）" & @CRLF & _
 "    ProxyTypeHttp=HTTP 代理" & @CRLF & _
 "    ProxyTypeSocks5=SOCKS5 代理" & @CRLF & _
 "    ProxyServer=代理伺服器：" & @CRLF & _
 "    ProxyPort=代理連接埠：" & @CRLF & _
 "    CurlRequiredForThreads=多執行緒下載需要 curl.exe；未偵測到時固定使用單執行緒。" & @CRLF & _
-"    CurlRequiredForProxy=HTTP 與 SOCKS5 代理需要 curl.exe。請安裝 curl，或改用直接連線。" & @CRLF & _
+"    CurlRequiredForProxy=HTTP、SOCKS5 與系統代理需要 curl.exe。請安裝 curl，或改用直接連線。" & @CRLF & _
+"    SystemProxyHint=Windows 會針對每個網址解析系統代理，包括 PAC/WPAD 和略過清單；解析失敗時會改用直連。" & @CRLF & _
 "    ProxyServerRequired=使用代理時必須填寫代理伺服器。" & @CRLF & _
 "    ProxyServerInvalid=代理伺服器不能包含空白字元或雙引號。" & @CRLF & _
 "    ProxyPortInvalid=代理連接埠必須是 1-65535 之間的整數。" & @CRLF & _
@@ -361,13 +365,13 @@ Global Const $g_sLangDataIniPart3 = _
 "    ChromePlusKeepLastTab=保留最後一個分頁" & @CRLF & _
 "    ChromePlusWheelTab=用滑鼠滾輪切換分頁" & @CRLF & _
 "    ChromePlusWheelTabWhenPressRButton=按住右鍵時以滾輪切換分頁" & @CRLF & _
-"    ChromePlusHoverTab=滑鼠懸停時啟用分頁" & @CRLF & _
+"    ChromePlusHoverTab=滑鼠懸停時啟用分頁" & @CRLF
+
+Global Const $g_sLangDataIniPart4 = _
 "    ChromePlusHoverTabDelay=延遲（毫秒）" & @CRLF & _
 "    ChromePlusHoverTabDelayTooltip=滑鼠需要在分頁上停留多久才會啟用，範圍為 0-5000 毫秒；無效值會使用 400 毫秒。" & @CRLF & _
 "    ChromePlusHoverTabVersionRequired=滑鼠懸停啟用分頁需要 Chrome++ 1.18.0 或更新版本。目前版本：%s" & @CRLF & _
-"    ChromePlusOpenUrlNewTab=網址列輸入在新分頁開啟" & @CRLF
-
-Global Const $g_sLangDataIniPart4 = _
+"    ChromePlusOpenUrlNewTab=網址列輸入在新分頁開啟" & @CRLF & _
 "    ChromePlusOpenBookmarkNewTab=書籤在新分頁開啟" & @CRLF & _
 "    ChromePlusDisableNewTab=新分頁時停用上兩項" & @CRLF & _
 "    ChromePlusDisableNewTabName=額外匹配標題" & @CRLF & _
@@ -483,13 +487,13 @@ Global Const $g_sLangDataIniPart4 = _
 "    ExtractingBrowser=Extracting browser, please wait ..." & @CRLF & _
 "    ExtractingBrowserDetail=Please do not close {AppName} while extraction is running." & @CRLF & _
 "    BrowserExtractLogKept=診斷檔案已保留在：\n%s" & @CRLF & _
-"    RunInBackgroundMessage=允許 RunFirefox 在背景執行可以帶來更好的使用體驗。若取消此選項，請注意以下幾點：\n\n 1. 將瀏覽器釘選到工作列或設為預設瀏覽器後，需再執行一次 RunFirefox 才能生效；\n\n 2. RunFirefox 設定介面中帶「#」符號的功能/選項將不會執行，包括瀏覽器結束後關閉外部程式、執行外部程式等。\n\n確定要取消此選項嗎？" & @CRLF & _
+"    RunInBackgroundMessage=允許 RunFirefox 在背景執行可以帶來更好的使用體驗。若取消此選項，請注意以下幾點：\n\n 1. 將瀏覽器釘選到工作列或設為預設瀏覽器後，需再執行一次 RunFirefox 才能生效；\n\n 2. RunFirefox 設定介面中帶「#」符號的功能/選項將不會執行，包括瀏覽器結束後關閉外部程式、執行外部程式等。\n\n確定要取消此選項嗎？" & @CRLF
+
+Global Const $g_sLangDataIniPart5 = _
 "    BrowserPathErrorMessage=瀏覽器路徑錯誤，請重新設定。\n\n%s" & @CRLF & _
 "    PleaseProfileFolder=請設定設定檔資料夾！" & @CRLF & _
 "    CannotExtratProfileFromSystem=瀏覽器正在執行，無法提取設定檔！\n請關閉瀏覽器後繼續。" & @CRLF & _
-"    ExtractingProfile=正在提取設定檔，請稍候 ..." & @CRLF
-
-Global Const $g_sLangDataIniPart5 = _
+"    ExtractingProfile=正在提取設定檔，請稍候 ..." & @CRLF & _
 "    ExtractProfileSuccess=提取設定檔成功！" & @CRLF & _
 "    ExtractProfileFailed=提取設定檔失敗！" & @CRLF & _
 "    ChooseBrowserExecutable=Choose browser executable(%s)" & @CRLF & _

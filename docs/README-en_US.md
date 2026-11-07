@@ -13,7 +13,7 @@ Features:
 3. Support for running external programs when the browser starts or exits.
 4. Support for launching the browser by clicking on the taskbar icon (right-click and select "Pin to taskbar" after opening the browser).
 5. Jump Lists for Gecko and Chromium-based browsers include frequent sites, browser launch tasks, and a launcher settings entry.
-6. Network settings support 1–10 concurrent download segments plus HTTP and SOCKS5 proxies; proxy connections use original upstream URLs instead of download mirrors. Multi-threading and proxies require `curl.exe`; when it is unavailable, the thread count is fixed at 1 and the original direct downloader is used.
+6. Network settings support 1–10 concurrent download segments plus HTTP, SOCKS5, and Windows system proxies; proxy connections use original upstream URLs instead of download mirrors. System proxy mode supports PAC/WPAD and bypass rules, resolves the proxy again after redirects, and connects directly if resolution fails. Multi-threading and proxies require `curl.exe`; when it is unavailable, the thread count is fixed at 1 and the original direct downloader is used.
 
 **[View the full changelog](CHANGELOG-en_US.md)**
 

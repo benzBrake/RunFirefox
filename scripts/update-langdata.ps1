@@ -45,7 +45,7 @@ for ($start = 0; $start -lt $parts.Count; $start += $chunkSize) {
 $out += 'Global Const $g_sLangDataIni = _'
 $out += ($chunkNames -join ' & _' + "`n")
 
-$utf8Bom = [System.Text.UTF8Encoding]::new($true)
-[System.IO.File]::WriteAllText($target, ($out -join "`n") + "`n", $utf8Bom)
+$utf8 = [System.Text.UTF8Encoding]::new($false)
+[System.IO.File]::WriteAllText($target, ($out -join "`n") + "`n", $utf8)
 
 Write-Host "Generated $target from $source ($($lines.Count) lines)"

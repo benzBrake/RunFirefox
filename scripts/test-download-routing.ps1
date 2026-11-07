@@ -93,6 +93,10 @@ $Url = "https://github.com/example/project/releases/download/v1.0.0/file.zip"
 $Urls = _DownloadToolsBuildUrlCandidates($Url)
 TestAssert(UBound($Urls) = 1 And $Urls[0] = $Url, "user proxy bypasses route mirrors")
 
+_DownloadToolsConfigure(1, "system", "", 0, "zh-CN", "", "", "")
+$Urls = _DownloadToolsBuildUrlCandidates($Url)
+TestAssert(UBound($Urls) = 1 And $Urls[0] = $Url, "system proxy mode bypasses route mirrors")
+
 _DownloadToolsConfigure(1, "direct", "", 0, "en-US", "https://mirror.example/", "", "")
 $Urls = _DownloadToolsBuildUrlCandidates($Url)
 TestAssert(UBound($Urls) = 2 And $Urls[0] = "https://mirror.example/" & $Url, "routing survives proxy mode changes")

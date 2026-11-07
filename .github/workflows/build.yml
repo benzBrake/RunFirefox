@@ -50,6 +50,10 @@ jobs:
         shell: pwsh
         run: .\scripts\test-network-settings.ps1
 
+      - name: Test system proxy redirects
+        shell: pwsh
+        run: .\scripts\test-system-proxy.ps1
+
       - name: Test Opera downloads
         shell: pwsh
         run: .\scripts\test-opera-download.ps1

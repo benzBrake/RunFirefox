@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- Added transaction journals to browser auto-updates and manual download replacements. After an interrupted update, the next launch restores the old version or finishes cleanup of a committed update. If recovery cannot safely finish, launch stops and preserves the journal and folders for retry after closing programs using them.
+
 - Added Windows system proxy settings with PAC/WPAD, destination-host bypass rules, proxy resolution for each redirect, and synchronized embedded translations.
 
 - Browser auto-updates and downloads over an existing installation now replace the browser directory as a complete tree, preventing obsolete Chrome files from accumulating; Chrome++'s `chrome++.ini` and `version.dll` are preserved during replacement.

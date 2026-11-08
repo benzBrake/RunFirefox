@@ -140,8 +140,8 @@ Global $idBrowserStartApps, $idCloseStartAppsAfterBrowserExit, $idBrowserExitApp
 Global $idBossKeyEnabled, $idBossKey, $idBossKeyHideToTray, $BossKeyCaptureValue = "", $BossKeyHotkeyProc = 0, $BossKeyInputWndProc = 0, $BossKeyKeys = 0
 Global $aBrowserStartApps, $aBrowserExitApps, $aBrowserStartAppPids[2]
 #include "libs\DownloadTools.au3"
-#include "libs\BrowserDownload.au3"
 #include "libs\BrowserAutoUpdate.au3"
+#include "libs\BrowserDownload.au3"
 #include "libs\ChromePlusBundled.au3"
 
 Func GetBrowserLocale($DefaultLocale = "")
@@ -306,6 +306,14 @@ EndIf
 Opt("ExpandEnvStrings", 1)
 EnvSet("APP", @ScriptDir)
 
+; Recover before a missing browser EXE can be mistaken for a first install.
+Local $RecoveryDir = "", $RecoveryExe = ""
+SplitPath(_BrowserAutoUpdateCanonical(FullPath($BrowserPath)), $RecoveryDir, $RecoveryExe)
+If $BrowserPath <> "" And Not _BrowserAutoUpdateRecover($RecoveryDir) Then
+	MsgBox(16, $AppName, _BrowserAutoUpdateTransactionMessage($RecoveryDir))
+	Exit 1
+EndIf
+
 ;~ 第一个启动参数为“-set”，或第一次运行，Firefox、配置文件夹、插件目录不存在，则显示设置窗口
 If ($cmdline[0] = 1 And $cmdline[1] = "-set") Or $FirstRun Or Not FileExists($BrowserPath) Or Not FileExists($ProfileDir) Then
 	CreateSettingsShortcut(@ScriptDir & "\" & $ScriptNameWithoutSuffix & ".vbs")
@@ -401,6 +409,12 @@ EndIf
 If _BrowserAutoUpdateIsSupported($BrowserType) And Not $BrowserIsRunning Then BrowserAutoUpdateApplyPendingInteractive()
 
 ;~ Start browser
+If Not _BrowserAutoUpdateRecover($BrowserDirectory) Then
+	MsgBox(16, $AppName, _BrowserAutoUpdateTransactionMessage($BrowserDirectory))
+	Exit 1
+EndIf
+$BrowserIsRunning = FindRunningAppPid($BrowserPath)
+If IsMozillaBrowser($BrowserType) Then $BrowserIsRunning = ProfileInUse($ProfileDir)
 $BaseParams = BuildBrowserLaunchParams($BrowserType)
 $LaunchParams = $BaseParams & $Params
 If NeedsOutdatedBuildDetectorParam() Then $LaunchParams = AppendOutdatedBuildDetectorParam($LaunchParams)
@@ -2360,12 +2374,14 @@ Func MarkBrowserVersionCheckStarted()
 EndFunc   ;==>MarkBrowserVersionCheckStarted
 
 ;~ Apply a staged browser update while the browser is not running (Firefox-style
-;~ "update on next launch"). Failures are reported but never block the launch.
+;~ "update on next launch"). An unresolved transaction blocks this launch.
 Func BrowserAutoUpdateApplyPendingInteractive()
 	_BrowserAutoUpdateCleanPartialDownloads()
 	Local $Result = _BrowserAutoUpdateApplyPending($BrowserPath, $BrowserType)
 	If @error Then
+		Local $ApplyError = @error
 		If $Result <> "" Then MsgBox(16, $AppName, _t("BrowserUpdateApplyFailed", "应用浏览器更新失败：\n%s", $Result))
+		If $ApplyError = 7 Then Exit 1
 		Return
 	EndIf
 	; Success stays silent so applying an update never delays the launch.

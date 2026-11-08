@@ -5,6 +5,217 @@
 ; The update package is downloaded to a staging directory first and applied on
 ; the next RunFirefox launch, before the browser process starts (like Firefox).
 Global $BAU_StagingDir = ""
+; Transaction errors: 1 = failed but rolled back, 2 = recovery/busy/unsafe,
+; 3 = committed, cleanup still pending. Never discard a journal on error 2/3.
+Global Const $BAU_TX_FAILED = 1, $BAU_TX_PENDING = 2, $BAU_TX_CLEANUP = 3
+
+Func _BrowserAutoUpdateTransactionPath($TargetDir)
+	Return $TargetDir & ".RunFirefoxUpdate.ini"
+EndFunc
+
+Func _BrowserAutoUpdateTransactionMessage($TargetDir)
+	Local $Message = _t("BrowserUpdateRecoveryFailed", "浏览器更新事务尚未完成，已停止本次操作。请关闭相关浏览器及占用目录的程序后重试。\n目标目录：{Target}\n事务日志：{Journal}")
+	Return StringReplace(StringReplace($Message, "{Target}", $TargetDir), "{Journal}", _BrowserAutoUpdateTransactionPath($TargetDir))
+EndFunc
+
+; Canonicalize before comparing paths; FullPath alone does not collapse all '..'.
+Func _BrowserAutoUpdateCanonical($Path)
+	Local $Result = DllCall("kernel32.dll", "dword", "GetFullPathNameW", "wstr", $Path, "dword", 32768, "wstr", "", "ptr", 0)
+	If @error Or $Result[0] = 0 Or $Result[0] >= 32768 Then Return ""
+	Return StringRegExpReplace($Result[3], "\\+$", "")
+EndFunc
+
+; Reject reparse points anywhere in the path, including parent directories.
+Func _BrowserAutoUpdateSafePath($Path)
+	Local $Current = $Path
+	While $Current <> ""
+		Local $Attr = DllCall("kernel32.dll", "dword", "GetFileAttributesW", "wstr", $Current)
+		If @error Then Return False
+		If $Attr[0] <> 4294967295 And BitAND($Attr[0], 0x400) Then Return False
+		Local $Parent = "", $Name = ""
+		SplitPath($Current, $Parent, $Name)
+		If $Parent = $Current Or $Parent = "." Then ExitLoop
+		$Current = $Parent
+	WEnd
+	Return True
+EndFunc
+
+; Check a tree before copying/deleting it, never following junctions or symlinks.
+Func _BrowserAutoUpdateSafeTree($Path)
+	If Not _BrowserAutoUpdateSafePath($Path) Then Return False
+	If Not FileExists($Path) Then Return True
+	If Not StringInStr(FileGetAttrib($Path), "D") Then Return False
+	Local $Search = FileFindFirstFile($Path & "\*")
+	If $Search = -1 Then Return True
+	Local $Safe = True
+	While 1
+		Local $Name = FileFindNextFile($Search)
+		If @error Then ExitLoop
+		Local $Child = $Path & "\" & $Name
+		If Not _BrowserAutoUpdateSafePath($Child) Then
+			$Safe = False
+			ExitLoop
+		EndIf
+		If StringInStr(FileGetAttrib($Child), "D") And Not _BrowserAutoUpdateSafeTree($Child) Then
+			$Safe = False
+			ExitLoop
+		EndIf
+	WEnd
+	FileClose($Search)
+	Return $Safe
+EndFunc
+
+Func _BrowserAutoUpdateTransactionLock($TargetDir)
+	If $TargetDir = "" Or Not _BrowserAutoUpdateSafePath($TargetDir) Then Return SetError($BAU_TX_PENDING, 0, 0)
+	Local $Parent = "", $Name = ""
+	SplitPath($TargetDir, $Parent, $Name)
+	If $Parent = "" Or $Parent = "." Or Not StringRegExp($Name, '^[^<>:"/\\|?*\x00-\x1f]+$') Or StringRegExp($Name, '[ .]$') Then Return SetError($BAU_TX_PENDING, 0, 0)
+	Local $Journal = _BrowserAutoUpdateTransactionPath($TargetDir)
+	If Not _BrowserAutoUpdateSafePath($Journal) Or Not _BrowserAutoUpdateSafePath($Journal & ".lock") Or Not _BrowserAutoUpdateSafePath($Journal & ".tmp") Then Return SetError($BAU_TX_PENDING, 0, 0)
+	Local $Result = DllCall("kernel32.dll", "handle", "CreateFileW", "wstr", $Journal & ".lock", "dword", 0xC0000000, "dword", 0, "ptr", 0, "dword", 4, "dword", 0x80, "ptr", 0)
+	If @error Or $Result[0] = Ptr(-1) Then Return SetError($BAU_TX_PENDING, 0, 0)
+	Return $Result[0]
+EndFunc
+
+Func _BrowserAutoUpdateUnlock($Handle)
+	DllCall("kernel32.dll", "bool", "CloseHandle", "handle", $Handle)
+EndFunc
+
+; MoveFileEx gives us an OS error for bounded retries. No replace for trees.
+Func _BrowserAutoUpdateMove($From, $To, $Flags = 0)
+	Local $Timer = TimerInit()
+	While 1
+		Local $Result = DllCall("kernel32.dll", "bool", "MoveFileExW", "wstr", $From, "wstr", $To, "dword", $Flags)
+		If @error Then Return False
+		If $Result[0] Then Return True
+		Local $Code = DllCall("kernel32.dll", "dword", "GetLastError")
+		If @error Then Return False
+		If ($Code[0] <> 5 And $Code[0] <> 32 And $Code[0] <> 33) Or TimerDiff($Timer) >= 2000 Then Return False
+		Sleep(50)
+	WEnd
+EndFunc
+
+Func _BrowserAutoUpdateRemoveTree($Path)
+	If Not _BrowserAutoUpdateSafeTree($Path) Then Return False
+	If Not FileExists($Path) Then Return True
+	Local $Search = FileFindFirstFile($Path & "\*")
+	If $Search <> -1 Then
+		Local $Success = True
+		While 1
+			Local $Name = FileFindNextFile($Search)
+			If @error Then ExitLoop
+			Local $Child = $Path & "\" & $Name
+			If StringInStr(FileGetAttrib($Child), "D") Then
+				$Success = _BrowserAutoUpdateRemoveTree($Child)
+			Else
+				$Success = _BrowserAutoUpdateDeleteFile($Child)
+			EndIf
+			If Not $Success Then ExitLoop
+		WEnd
+		FileClose($Search)
+		If Not $Success Then Return False
+	EndIf
+	Local $Timer = TimerInit()
+	While 1
+		Local $Result = DllCall("kernel32.dll", "bool", "RemoveDirectoryW", "wstr", $Path)
+		If @error Then Return False
+		If $Result[0] Then Return True
+		Local $Code = DllCall("kernel32.dll", "dword", "GetLastError")
+		If @error Then Return False
+		If ($Code[0] <> 5 And $Code[0] <> 32 And $Code[0] <> 33) Or TimerDiff($Timer) >= 2000 Then Return False
+		Sleep(50)
+	WEnd
+EndFunc
+
+Func _BrowserAutoUpdateDeleteFile($Path)
+	If Not _BrowserAutoUpdateSafePath($Path) Then Return False
+	If Not FileExists($Path) Then Return True
+	Local $Timer = TimerInit()
+	While 1
+		Local $Result = DllCall("kernel32.dll", "bool", "DeleteFileW", "wstr", $Path)
+		If @error Then Return False
+		If $Result[0] Then Return True
+		Local $Code = DllCall("kernel32.dll", "dword", "GetLastError")
+		If @error Then Return False
+		If ($Code[0] <> 5 And $Code[0] <> 32 And $Code[0] <> 33) Or TimerDiff($Timer) >= 2000 Then Return False
+		Sleep(50)
+	WEnd
+EndFunc
+
+Func _BrowserAutoUpdateWriteTransaction($TargetDir, $Id, $HadTarget, $Committed)
+	Local $Parent = "", $Name = ""
+	SplitPath($TargetDir, $Parent, $Name)
+	Local $Journal = _BrowserAutoUpdateTransactionPath($TargetDir)
+	Local $Text = "[Transaction]" & @LF & "Format=1" & @LF & "Target=" & $Name & @LF & "Id=" & $Id & @LF & "HadTarget=" & Int($HadTarget) & @LF & "Committed=" & Int($Committed) & @LF
+	Local $File = FileOpen($Journal & ".tmp", 2 + 256)
+	If $File = -1 Then Return False
+	Local $Written = FileWrite($File, $Text)
+	Local $Flushed = FileFlush($File)
+	FileClose($File)
+	If Not $Written Or Not $Flushed Then Return False
+	Return _BrowserAutoUpdateMove($Journal & ".tmp", $Journal, 1 + 8)
+EndFunc
+
+; Called only under the target lock. Inferring progress from the three paths
+; makes recovery idempotent even if a process dies during recovery itself.
+Func _BrowserAutoUpdateRecoverLocked($TargetDir)
+	Local $Journal = _BrowserAutoUpdateTransactionPath($TargetDir)
+	If Not FileExists($Journal) Then Return True
+	If _BrowserAutoUpdateDirectoryRunning($TargetDir) Then Return SetError($BAU_TX_PENDING, 0, False)
+	Local $Parent = "", $Name = ""
+	SplitPath($TargetDir, $Parent, $Name)
+	; Parse the complete UTF-8 record rather than Windows' ANSI profile API.
+	; Reject duplicate/unknown fields and incomplete records, including truncation.
+	If FileGetSize($Journal) > 8192 Then Return SetError($BAU_TX_PENDING, 0, False)
+	Local $File = FileOpen($Journal, 256)
+	If $File = -1 Then Return SetError($BAU_TX_PENDING, 0, False)
+	Local $Text = FileRead($File)
+	FileClose($File)
+	Local $Record = StringRegExp($Text, '\A\[Transaction\]\nFormat=1\nTarget=([^\n]+)\nId=([0-9]{1,10}_[0-9]{9}_[0-9]{9})\nHadTarget=([01])\nCommitted=([01])\n\z', 1)
+	If Not IsArray($Record) Then Return SetError($BAU_TX_PENDING, 0, False)
+	If $Record[0] <> $Name Then Return SetError($BAU_TX_PENDING, 0, False)
+	Local $Id = $Record[1], $Had = $Record[2], $Committed = $Record[3]
+	Local $New = $TargetDir & ".RunFirefoxNew_" & $Id
+	Local $Old = $TargetDir & ".RunFirefoxOld_" & $Id
+	If Not _BrowserAutoUpdateSafeTree($TargetDir) Or Not _BrowserAutoUpdateSafeTree($New) Or Not _BrowserAutoUpdateSafeTree($Old) Then Return SetError($BAU_TX_PENDING, 0, False)
+	If _BrowserAutoUpdateDirectoryRunning($New) Or _BrowserAutoUpdateDirectoryRunning($Old) Then Return SetError($BAU_TX_PENDING, 0, False)
+	Local $Error = $BAU_TX_PENDING
+	If $Committed = "1" Then
+		$Error = $BAU_TX_CLEANUP
+		If Not FileExists($TargetDir) Or FileExists($New) Or ($Had = "0" And FileExists($Old)) Then Return SetError($Error, 0, False)
+		If Not _BrowserAutoUpdateRemoveTree($Old) Then Return SetError($Error, 0, False)
+	Else
+		If $Had = "1" Then
+			If FileExists($Old) Then
+				If FileExists($TargetDir) Then
+					If FileExists($New) Then Return SetError($Error, 0, False)
+					If Not _BrowserAutoUpdateMove($TargetDir, $New) Then Return SetError($Error, 0, False)
+				EndIf
+				If Not _BrowserAutoUpdateMove($Old, $TargetDir) Then Return SetError($Error, 0, False)
+			ElseIf Not FileExists($TargetDir) Then
+				Return SetError($Error, 0, False)
+			EndIf
+		Else
+			If FileExists($Old) Or (FileExists($TargetDir) And FileExists($New)) Then Return SetError($Error, 0, False)
+			If FileExists($TargetDir) And Not _BrowserAutoUpdateMove($TargetDir, $New) Then Return SetError($Error, 0, False)
+		EndIf
+		If Not _BrowserAutoUpdateRemoveTree($New) Then Return SetError($Error, 0, False)
+	EndIf
+	If Not _BrowserAutoUpdateDeleteFile($Journal & ".tmp") Or Not _BrowserAutoUpdateDeleteFile($Journal) Then Return SetError($Error, 0, False)
+	Return True
+EndFunc
+
+Func _BrowserAutoUpdateRecover($TargetDir)
+	$TargetDir = _BrowserAutoUpdateCanonical($TargetDir)
+	If $TargetDir = "" Then Return SetError($BAU_TX_PENDING, 0, False)
+	; A lock alone also protects a writer before its initial journal is published.
+	If Not FileExists(_BrowserAutoUpdateTransactionPath($TargetDir)) And Not FileExists(_BrowserAutoUpdateTransactionPath($TargetDir) & ".lock") Then Return True
+	Local $Lock = _BrowserAutoUpdateTransactionLock($TargetDir)
+	If @error Then Return SetError($BAU_TX_PENDING, 0, False)
+	Local $Result = _BrowserAutoUpdateRecoverLocked($TargetDir), $Error = @error
+	_BrowserAutoUpdateUnlock($Lock)
+	Return SetError($Error, 0, $Result)
+EndFunc
 
 Func _BrowserAutoUpdateConfigure($StagingDir)
 	$BAU_StagingDir = $StagingDir
@@ -94,41 +305,60 @@ EndFunc
 ; backup directories live beside the target so the rename operations stay on
 ; the same volume. Only RunFirefox-managed Chrome++ files are carried over.
 Func _BrowserAutoUpdateReplaceBrowserDirectory($SourceDir, $TargetDir)
-	Local $ParentDir = "", $TargetName = ""
-	SplitPath(FullPath($TargetDir), $ParentDir, $TargetName)
-	If $ParentDir = "" Or $TargetName = "" Then Return False
+	$TargetDir = _BrowserAutoUpdateCanonical($TargetDir)
+	$SourceDir = _BrowserAutoUpdateCanonical($SourceDir)
+	If $TargetDir = "" Or $SourceDir = "" Then Return SetError($BAU_TX_PENDING, 0, False)
+	Local $SourcePrefix = StringLower($SourceDir & "\"), $TargetPrefix = StringLower($TargetDir & "\")
+	If StringLeft($SourcePrefix, StringLen($TargetPrefix)) = $TargetPrefix Or StringLeft($TargetPrefix, StringLen($SourcePrefix)) = $SourcePrefix Or StringLeft(StringLower(@ScriptDir & "\"), StringLen($TargetPrefix)) = $TargetPrefix Then Return SetError($BAU_TX_PENDING, 0, False)
+	Local $Lock = _BrowserAutoUpdateTransactionLock($TargetDir)
+	If @error Then Return SetError($BAU_TX_PENDING, 0, False)
+	Local $Result = _BrowserAutoUpdateReplaceLocked($SourceDir, $TargetDir), $Error = @error
+	_BrowserAutoUpdateUnlock($Lock)
+	Return SetError($Error, 0, $Result)
+EndFunc
 
-	Local $Suffix = @AutoItPID & "_" & StringReplace(StringReplace(@HOUR & @MIN & @SEC, ":", ""), " ", "")
-	Local $NewDir = $ParentDir & "\.RunFirefoxBrowserNew_" & $Suffix
-	Local $OldDir = $ParentDir & "\.RunFirefoxBrowserOld_" & $Suffix
-	DirRemove($NewDir, 1)
-	DirRemove($OldDir, 1)
-	If Not DirCopy($SourceDir, $NewDir, 1) Then Return False
-
+Func _BrowserAutoUpdateReplaceLocked($SourceDir, $TargetDir)
+	If Not _BrowserAutoUpdateRecoverLocked($TargetDir) Then Return SetError(@error, 0, False)
+	If _BrowserAutoUpdateDirectoryRunning($TargetDir) Or Not FileExists($SourceDir) Or Not _BrowserAutoUpdateSafeTree($SourceDir) Or Not _BrowserAutoUpdateSafeTree($TargetDir) Then Return SetError($BAU_TX_PENDING, 0, False)
+	Local $Id = @AutoItPID & "_" & Random(100000000, 999999999, 1) & "_" & Random(100000000, 999999999, 1)
+	Local $New = $TargetDir & ".RunFirefoxNew_" & $Id
+	Local $Old = $TargetDir & ".RunFirefoxOld_" & $Id
+	If FileExists($New) Or FileExists($Old) Then Return SetError($BAU_TX_FAILED, 0, False)
+	Local $HadTarget = FileExists($TargetDir)
+	If Not _BrowserAutoUpdateWriteTransaction($TargetDir, $Id, $HadTarget, False) Then Return SetError($BAU_TX_PENDING, 0, False)
+	Local $Ready = DirCopy($SourceDir, $New, 0)
 	Local $ManagedFiles[2] = ["chrome++.ini", "version.dll"]
 	For $i = 0 To UBound($ManagedFiles) - 1
-		Local $ManagedFile = $ManagedFiles[$i]
-		If FileExists($TargetDir & "\" & $ManagedFile) Then
-			If Not FileCopy($TargetDir & "\" & $ManagedFile, $NewDir & "\" & $ManagedFile, 9) Then
-				DirRemove($NewDir, 1)
-				Return False
-			EndIf
-		EndIf
+		If $Ready And FileExists($TargetDir & "\" & $ManagedFiles[$i]) Then $Ready = FileCopy($TargetDir & "\" & $ManagedFiles[$i], $New & "\" & $ManagedFiles[$i], 1)
 	Next
-
-	Local $HadTarget = FileExists($TargetDir)
-	If $HadTarget And Not DirMove($TargetDir, $OldDir) Then
-		DirRemove($NewDir, 1)
-		Return False
+	If $Ready And $HadTarget Then $Ready = _BrowserAutoUpdateMove($TargetDir, $Old)
+	If $Ready Then $Ready = _BrowserAutoUpdateMove($New, $TargetDir)
+	If $Ready Then $Ready = _BrowserAutoUpdateWriteTransaction($TargetDir, $Id, $HadTarget, True)
+	If Not $Ready Then
+		If Not _BrowserAutoUpdateRecoverLocked($TargetDir) Then Return SetError(@error, 0, False)
+		Return SetError($BAU_TX_FAILED, 0, False)
 	EndIf
-	If Not DirMove($NewDir, $TargetDir) Then
-		If $HadTarget Then DirMove($OldDir, $TargetDir)
-		DirRemove($NewDir, 1)
-		Return False
-	EndIf
-
-	DirRemove($OldDir, 1)
+	If Not _BrowserAutoUpdateRecoverLocked($TargetDir) Then Return SetError(@error, 0, False)
 	Return True
+EndFunc
+
+; A directory swap must not race a running browser, including child processes.
+Func _BrowserAutoUpdateDirectoryRunning($TargetDir)
+	Local $Processes = ProcessList()
+	For $i = 1 To $Processes[0][0]
+		; Limited query works across x86/x64 and does not need WMI or VM_READ.
+		Local $Process = DllCall("kernel32.dll", "handle", "OpenProcess", "dword", 0x1000, "bool", False, "dword", $Processes[$i][1])
+		If @error Then ContinueLoop
+		If Not $Process[0] Then ContinueLoop
+		Local $Image = DllCall("kernel32.dll", "bool", "QueryFullProcessImageNameW", "handle", $Process[0], "dword", 0, "wstr", "", "dword*", 32768)
+		Local $QueryError = @error
+		DllCall("kernel32.dll", "bool", "CloseHandle", "handle", $Process[0])
+		If $QueryError Then ContinueLoop
+		If Not $Image[0] Then ContinueLoop
+		Local $Path = $Image[3]
+		If $Path <> "" And StringLeft(StringLower($Path), StringLen($TargetDir) + 1) = StringLower($TargetDir & "\") Then Return True
+	Next
+	Return False
 EndFunc
 
 ; Downloads the update package atomically: *.part first, integrity check,
@@ -202,6 +432,9 @@ EndFunc
 ; Applies a staged update over the browser directory. The caller must ensure
 ; the browser process is not running. Returns the new version on success.
 Func _BrowserAutoUpdateApplyPending($BrowserPath, $BrowserType, $Parent = 0)
+	Local $TargetDir = "", $TargetFile = ""
+	SplitPath(_BrowserAutoUpdateCanonical(FullPath($BrowserPath)), $TargetDir, $TargetFile)
+	If Not _BrowserAutoUpdateRecover($TargetDir) Then Return SetError(7, 0, _BrowserAutoUpdateTransactionMessage($TargetDir))
 	Local $Pending = _BrowserAutoUpdateGetPendingUpdate()
 	If Not IsArray($Pending) Then Return SetError(1, 0, "")
 
@@ -212,9 +445,6 @@ Func _BrowserAutoUpdateApplyPending($BrowserPath, $BrowserType, $Parent = 0)
 		Return SetError(1, 0, "")
 	EndIf
 
-	Local $TargetDir = ""
-	Local $TargetFile = ""
-	SplitPath(FullPath($BrowserPath), $TargetDir, $TargetFile)
 	If $TargetDir = "" Or $TargetDir = "." Then $TargetDir = @ScriptDir
 
 	Local $TempDir = @TempDir & "\RunFirefox_BrowserUpdateApply"
@@ -253,7 +483,9 @@ Func _BrowserAutoUpdateApplyPending($BrowserPath, $BrowserType, $Parent = 0)
 
 	Local $ExtractedDir = "", $ExtractedFile = ""
 	SplitPath($ExtractedBrowserPath, $ExtractedDir, $ExtractedFile)
-	If Not _BrowserAutoUpdateReplaceBrowserDirectory($ExtractedDir, $TargetDir) Or Not FileExists($TargetDir & "\" & $ExtractedFile) Then
+	Local $Replaced = _BrowserAutoUpdateReplaceBrowserDirectory($ExtractedDir, $TargetDir), $ReplaceError = @error
+	If Not $Replaced Or Not FileExists($TargetDir & "\" & $ExtractedFile) Then
+		If $ReplaceError = $BAU_TX_PENDING Or $ReplaceError = $BAU_TX_CLEANUP Then Return SetError(7, 0, _BrowserAutoUpdateTransactionMessage($TargetDir))
 		DirRemove($TempDir, 1)
 		_BrowserAutoUpdateCleanStaging()
 		Return SetError(6, 0, _t("FailToExtractBrowserInstaller", "解压浏览器安装包失败。"))

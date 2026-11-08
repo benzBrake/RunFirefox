@@ -38,6 +38,10 @@ jobs:
         shell: pwsh
         run: .\scripts\test-download-routing.ps1
 
+      - name: Test browser update transaction recovery
+        shell: pwsh
+        run: .\scripts\test-browser-update-transaction.ps1
+
       - name: Test Helium downloads
         shell: pwsh
         run: .\scripts\test-helium-download.ps1

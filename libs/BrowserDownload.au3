@@ -1747,6 +1747,8 @@ Func _BrowserDownloadBuildOperaDownloadUrls($OfficialUrl)
 EndFunc   ;==>BuildOperaDownloadUrls
 
 Func _BrowserDownloadDownloadAndExtract($aDownloadUrls, $TargetDir, $os, $Channel, $CurrentBrowserType, $Parent = 0)
+	$TargetDir = _BrowserAutoUpdateCanonical($TargetDir)
+	If Not _BrowserAutoUpdateRecover($TargetDir) Then Return SetError(7, 0, _BrowserAutoUpdateTransactionMessage($TargetDir))
 	Local $TempDir = @TempDir & "\RunFirefox_BrowserDownload"
 	If Not IsArray($aDownloadUrls) Or UBound($aDownloadUrls) = 0 Then Return SetError(1, 0, _t("CannotStartBrowserDownload", "无法开始下载浏览器。"))
 	Local $DownloadUrl
@@ -1808,6 +1810,8 @@ Func _BrowserDownloadDownloadAndExtract($aDownloadUrls, $TargetDir, $os, $Channe
 		Local $ExtractedBrowserDir, $ExtractedBrowserFile
 		SplitPath($ExtractedBrowserPath, $ExtractedBrowserDir, $ExtractedBrowserFile)
 		$CopiedBrowserFiles = _BrowserAutoUpdateReplaceBrowserDirectory($ExtractedBrowserDir, $TargetDir)
+		Local $ReplaceError = @error
+		If $ReplaceError = $BAU_TX_PENDING Or $ReplaceError = $BAU_TX_CLEANUP Then Return SetError(7, 0, _BrowserAutoUpdateTransactionMessage($TargetDir))
 		$TargetBrowserPath = $TargetDir & "\" & $ExtractedBrowserFile
 	EndIf
 

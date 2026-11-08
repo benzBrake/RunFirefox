@@ -3,6 +3,7 @@
 
 Global Const $g_sLangDataIniPart1 = _
 "[en-US]" & @CRLF & _
+"    BrowserUpdateRecoveryFailed=The browser update transaction is unfinished. This operation has been stopped. Close the browser and any programs using its folders, then retry.\nTarget folder: {Target}\nTransaction journal: {Journal}" & @CRLF & _
 "    LangTitle=English" & @CRLF & _
 "    ChromePlusInstalledVersion=Installed:" & @CRLF & _
 "    ChromePlusBundledVersion=Bundled:" & @CRLF & _
@@ -120,10 +121,10 @@ Global Const $g_sLangDataIniPart1 = _
 "    ChromePlusHoverTabVersionRequired=Hover activation requires Chrome++ 1.18.0 or later. Current version: %s" & @CRLF & _
 "    ChromePlusOpenUrlNewTab=Open address bar input in a new tab" & @CRLF & _
 "    ChromePlusOpenBookmarkNewTab=Open bookmarks in a new tab" & @CRLF & _
-"    ChromePlusDisableNewTab=Disable the two options above on new tabs" & @CRLF & _
-"    ChromePlusDisableNewTabName=Extra matched titles" & @CRLF
+"    ChromePlusDisableNewTab=Disable the two options above on new tabs" & @CRLF
 
 Global Const $g_sLangDataIniPart2 = _
+"    ChromePlusDisableNewTabName=Extra matched titles" & @CRLF & _
 "    ChromePlusDisableNewTabNameTooltip=Raw value for chrome++.ini new_tab_disable_name. These titles are also treated as new tabs. You can enter multiple titles and keep the quotes and commas, for example ""about:blank"",""New Tab""" & @CRLF & _
 "    ChromePlusNewTabDisableHelp=When checked, on a recognized new tab Chrome++ temporarily disables the two options above, so typed URLs and bookmarks reuse the current new tab.\n""Extra matched titles"" adds titles that are also treated as new tabs." & @CRLF & _
 "    ChromePlusSuppressFalseUpgradeNotification=Suppress the false ""out of date"" upgrade prompt" & @CRLF & _
@@ -242,10 +243,10 @@ Global Const $g_sLangDataIniPart2 = _
 "    CannotExtratProfileFromSystem=The browser is running and cannot extract the configuration file! \nPlease close the browser and continue." & @CRLF & _
 "    ExtractingProfile=The configuration file is being extracted, please wait ..." & @CRLF & _
 "    ExtractProfileSuccess=Extracted profile successfully!" & @CRLF & _
-"    ExtractProfileFailed=Extracted profile failed!" & @CRLF & _
-"    ChooseBrowserExecutable=Choose browser executable(%s)" & @CRLF
+"    ExtractProfileFailed=Extracted profile failed!" & @CRLF
 
 Global Const $g_sLangDataIniPart3 = _
+"    ChooseBrowserExecutable=Choose browser executable(%s)" & @CRLF & _
 "    ExecutableFile=Executable(*.exe)" & @CRLF & _
 "    SpecifyProfileDirectory=Specify Profile Directory" & @CRLF & _
 "    JumpListFrequent=Frequent" & @CRLF & _
@@ -254,6 +255,7 @@ Global Const $g_sLangDataIniPart3 = _
 "    JumpListPrivateWindow=New private window" & @CRLF & _
 "    JumpListLauncherSettings=Launcher settings" & @CRLF & _
 "[zh-TW]" & @CRLF & _
+"    BrowserUpdateRecoveryFailed=瀏覽器更新交易尚未完成，已停止本次操作。請關閉相關瀏覽器及占用目錄的程式後重試。\n目標目錄：{Target}\n交易日誌：{Journal}" & @CRLF & _
 "    ChromePlusInstalledVersion=已安裝版本：" & @CRLF & _
 "    ChromePlusBundledVersion=內建版本：" & @CRLF & _
 "    ChromePlusBundledHint=內建自行編譯版 Chrome++（Brave / Whale），依瀏覽器架構離線安裝。" & @CRLF & _
@@ -363,11 +365,11 @@ Global Const $g_sLangDataIniPart3 = _
 "    ChromePlusDoubleClickClose=雙擊關閉分頁" & @CRLF & _
 "    ChromePlusRightClickClose=右鍵關閉分頁" & @CRLF & _
 "    ChromePlusKeepLastTab=保留最後一個分頁" & @CRLF & _
-"    ChromePlusWheelTab=用滑鼠滾輪切換分頁" & @CRLF & _
-"    ChromePlusWheelTabWhenPressRButton=按住右鍵時以滾輪切換分頁" & @CRLF & _
-"    ChromePlusHoverTab=滑鼠懸停時啟用分頁" & @CRLF
+"    ChromePlusWheelTab=用滑鼠滾輪切換分頁" & @CRLF
 
 Global Const $g_sLangDataIniPart4 = _
+"    ChromePlusWheelTabWhenPressRButton=按住右鍵時以滾輪切換分頁" & @CRLF & _
+"    ChromePlusHoverTab=滑鼠懸停時啟用分頁" & @CRLF & _
 "    ChromePlusHoverTabDelay=延遲（毫秒）" & @CRLF & _
 "    ChromePlusHoverTabDelayTooltip=滑鼠需要在分頁上停留多久才會啟用，範圍為 0-5000 毫秒；無效值會使用 400 毫秒。" & @CRLF & _
 "    ChromePlusHoverTabVersionRequired=滑鼠懸停啟用分頁需要 Chrome++ 1.18.0 或更新版本。目前版本：%s" & @CRLF & _
@@ -485,11 +487,11 @@ Global Const $g_sLangDataIniPart4 = _
 "    BrowserInstallerSavePath=安裝包儲存路徑：" & @CRLF & _
 "    BrowserDownloadProgressTitle=Preparing browser" & @CRLF & _
 "    ExtractingBrowser=Extracting browser, please wait ..." & @CRLF & _
-"    ExtractingBrowserDetail=Please do not close {AppName} while extraction is running." & @CRLF & _
-"    BrowserExtractLogKept=診斷檔案已保留在：\n%s" & @CRLF & _
-"    RunInBackgroundMessage=允許 RunFirefox 在背景執行可以帶來更好的使用體驗。若取消此選項，請注意以下幾點：\n\n 1. 將瀏覽器釘選到工作列或設為預設瀏覽器後，需再執行一次 RunFirefox 才能生效；\n\n 2. RunFirefox 設定介面中帶「#」符號的功能/選項將不會執行，包括瀏覽器結束後關閉外部程式、執行外部程式等。\n\n確定要取消此選項嗎？" & @CRLF
+"    ExtractingBrowserDetail=Please do not close {AppName} while extraction is running." & @CRLF
 
 Global Const $g_sLangDataIniPart5 = _
+"    BrowserExtractLogKept=診斷檔案已保留在：\n%s" & @CRLF & _
+"    RunInBackgroundMessage=允許 RunFirefox 在背景執行可以帶來更好的使用體驗。若取消此選項，請注意以下幾點：\n\n 1. 將瀏覽器釘選到工作列或設為預設瀏覽器後，需再執行一次 RunFirefox 才能生效；\n\n 2. RunFirefox 設定介面中帶「#」符號的功能/選項將不會執行，包括瀏覽器結束後關閉外部程式、執行外部程式等。\n\n確定要取消此選項嗎？" & @CRLF & _
 "    BrowserPathErrorMessage=瀏覽器路徑錯誤，請重新設定。\n\n%s" & @CRLF & _
 "    PleaseProfileFolder=請設定設定檔資料夾！" & @CRLF & _
 "    CannotExtratProfileFromSystem=瀏覽器正在執行，無法提取設定檔！\n請關閉瀏覽器後繼續。" & @CRLF & _

@@ -17,6 +17,8 @@ Features:
 
 **[View the full changelog](CHANGELOG-en_US.md)**
 
+Browser auto-updates and manual download replacements protect directory swaps with a transaction journal. After an interrupted update, the next launch restores the old version or finishes cleanup of a committed update, even with automatic updates disabled. If recovery fails, launch stops: close the browser and programs using its folders, preserve the reported journal and folders, and retry. This mechanism does not provide version history or user-data backups.
+
 ### Chrome++ for Brave / Whale
 
 The Chrome++ tab retains optional installation and tab settings. Brave and Whale use bundled custom DLLs, installed offline according to the browser EXE's x86/x64 architecture regardless of launcher bitness; ARM64 is unsupported. The tab shows installed and bundled versions and allows manual replacement when files differ, without checking upstream updates. A fresh installation uses the complete bundled configuration from `libs/chrome_plus/chrome++.ini` and preserves existing custom configurations.

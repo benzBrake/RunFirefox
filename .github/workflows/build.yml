@@ -42,6 +42,10 @@ jobs:
         shell: pwsh
         run: .\scripts\test-browser-update-transaction.ps1
 
+      - name: Test command line settings
+        shell: pwsh
+        run: .\scripts\test-command-line-settings.ps1
+
       - name: Test Helium downloads
         shell: pwsh
         run: .\scripts\test-helium-download.ps1

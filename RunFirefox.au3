@@ -109,7 +109,7 @@ Global $AppPID, $TaskBarLastChange, $BrowserIconLastChange = 0, $BrowserIconStat
 Global $JumpListLastRefresh = 0, $JumpListContentSignature = ""
 Global $AllowBrowserUpdate, $AppUpdateCheckEnabled, $AppUpdateLastCheck, $BackgroundModeEnabled, $BrowserType, $BrowserPath, $ProfileDir
 Global $BrowserUpdateCheckMode, $BrowserUpdateLastCheck, $BrowserUpdateChannel
-Global $CustomPluginsDir, $CustomCacheDir, $CacheSize, $CacheSizeSmart, $DefaultBrowserCheckEnabled, $Params
+Global $CustomPluginsDir, $CustomCacheDir, $CacheSize, $CacheSizeSmart, $DefaultBrowserCheckEnabled, $Params, $ParamsEnabled
 Global $ChromiumDebugPortEnabled, $ChromiumDebugPort, $FirefoxDebugPortEnabled, $FirefoxDebugPort
 Global $BrowserStartApps, $CloseStartAppsAfterBrowserExit, $BrowserExitApps
 Global $BossKeyEnabled, $BossKey, $BossKeyHideToTray, $BossKeyBrowserHidden = 0, $BossKeyTrayVisible = 0
@@ -119,7 +119,7 @@ Global $DownloadThreads, $ProxyType, $ProxyServer, $ProxyPort
 Global $DefaultProfDir, $hSettings, $idBrowserPath, $idProfileDir, $idLanguage
 Global $idCopyProfile, $idCustomPluginsDir, $idGetPluginsDir
 Global $idCustomCacheDir, $idGetCacheDir, $idCacheSize, $idCacheSizeSmart
-Global $idParams, $hStatus, $SettingsConfirmed
+Global $idParams, $idParamsEnabled, $hStatus, $SettingsConfirmed
 Global $idAllowBrowserUpdate, $idAppUpdateCheckEnabled, $idBackgroundModeEnabled, $idBrowserType, $idChannel, $idBrowserDownloadLink, $BrowserDownloadUrl, $idCommandLineCaption
 Global $idBrowserBitness, $idBrowserUpdateCheckMode, $idCurrentBrowserVersion, $idBrowserDownloadNow
 Global $idChromePlusHint, $idChromePlusDownloadPatch, $idChromePlusConfigPath, $idChromePlusCurrentVersion, $idChromePlusLatestVersion, $idChromePlusDoubleClickClose, $idChromePlusRightClickClose, $idChromePlusKeepLastTab
@@ -195,6 +195,7 @@ If Not FileExists($inifile) Then
 	IniWrite($inifile, "Settings", "CacheSizeSmart", 1)
 	IniWrite($inifile, "Settings", "CheckDefaultBrowser", 1)
 	IniWrite($inifile, "Settings", "Params", "")
+	IniWrite($inifile, "Settings", "ParamsEnabled", 1)
 	IniWrite($inifile, "Settings", "ChromiumDebugPortEnabled", 0)
 	IniWrite($inifile, "Settings", "ChromiumDebugPort", 9222)
 	IniWrite($inifile, "Settings", "FirefoxDebugPortEnabled", 0)
@@ -242,6 +243,7 @@ $CacheSize = IniRead($inifile, "Settings", "CacheSize", "")
 $CacheSizeSmart = IniRead($inifile, "Settings", "CacheSizeSmart", 1) * 1
 $DefaultBrowserCheckEnabled = IniRead($inifile, "Settings", "CheckDefaultBrowser", 1) * 1
 $Params = IniRead($inifile, "Settings", "Params", "")
+$ParamsEnabled = IniRead($inifile, "Settings", "ParamsEnabled", 1) * 1
 $ChromiumDebugPortEnabled = IniRead($inifile, "Settings", "ChromiumDebugPortEnabled", 0) * 1
 $ChromiumDebugPort = IniRead($inifile, "Settings", "ChromiumDebugPort", 9222) * 1
 If $ChromiumDebugPort < 1 Or $ChromiumDebugPort > 65535 Then $ChromiumDebugPort = 9222
@@ -352,37 +354,39 @@ If IsMozillaBrowser($BrowserType) And $CustomPluginsDir <> "" Then
 EndIf
 
 ;~ Convert Jump List commands to browser arguments before forwarding them.
+Local $EffectiveParams = ""
+If $ParamsEnabled Then $EffectiveParams = $Params
 Local $CommandLineStart = 1
 If $cmdline[0] >= 2 And $cmdline[1] = "--jump-action" Then
 	Switch $cmdline[2]
 		Case "new-tab"
 			If IsChromeBrowser($BrowserType) Then
-				$Params &= " about:blank"
+				$EffectiveParams &= " about:blank"
 			Else
-				$Params &= " -new-tab about:blank"
+				$EffectiveParams &= " -new-tab about:blank"
 			EndIf
 		Case "new-window"
 			If IsChromeBrowser($BrowserType) Then
-				$Params &= " --new-window about:blank"
+				$EffectiveParams &= " --new-window about:blank"
 			Else
-				$Params &= " -new-window about:blank"
+				$EffectiveParams &= " -new-window about:blank"
 			EndIf
 		Case "private-window"
 			If IsChromeBrowser($BrowserType) Then
-				$Params &= " --incognito"
+				$EffectiveParams &= " --incognito"
 			Else
-				$Params &= " -private-window"
+				$EffectiveParams &= " -private-window"
 			EndIf
 	EndSwitch
 	$CommandLineStart = 3
 ElseIf $cmdline[0] >= 2 And $cmdline[1] = "--jump-url" Then
-	$Params &= " " & QuoteCommandLineArgument($cmdline[2])
+	$EffectiveParams &= " " & QuoteCommandLineArgument($cmdline[2])
 	$CommandLineStart = 3
 EndIf
 
 ;~ 给带空格的外部参数加上引号。
 For $i = $CommandLineStart To $cmdline[0]
-	$Params &= " " & QuoteCommandLineArgument($cmdline[$i])
+	$EffectiveParams &= " " & QuoteCommandLineArgument($cmdline[$i])
 Next
 
 Local $BrowserIsRunning = FindRunningAppPid($BrowserPath)
@@ -416,7 +420,7 @@ EndIf
 $BrowserIsRunning = FindRunningAppPid($BrowserPath)
 If IsMozillaBrowser($BrowserType) Then $BrowserIsRunning = ProfileInUse($ProfileDir)
 $BaseParams = BuildBrowserLaunchParams($BrowserType)
-$LaunchParams = $BaseParams & $Params
+$LaunchParams = $BaseParams & $EffectiveParams
 If NeedsOutdatedBuildDetectorParam() Then $LaunchParams = AppendOutdatedBuildDetectorParam($LaunchParams)
 $AppPID = RunBrowserProcess($LaunchParams)
 If IsMozillaBrowser($BrowserType) Then WaitAndDeleteMozillaLaunchOnLoginEntry($BrowserPath)
@@ -1911,12 +1915,18 @@ Func Settings()
 
 	Local $sCommandLineCaption = _t("CommandLineArguments", "命令行参数")
 	$idCommandLineCaption = GUICtrlCreateLabel($sCommandLineCaption, 20, 345 + $iBrowserDebugHelpH - 28, -1, 20)
+	Local $iParamsEnabledX = 20 + _ALMeasure($sCommandLineCaption) + 12
+	$idParamsEnabled = GUICtrlCreateCheckbox(_t("EnableCommandLineArguments", "启用"), $iParamsEnabledX, 342 + $iBrowserDebugHelpH - 28, 480 - $iParamsEnabledX, 20)
+	GUICtrlSetTip(-1, _t("EnableCommandLineArgumentsTooltip", "默认启用；关闭后保留已填内容。\n关闭时不附加下方自定义参数。\n不影响外部传入或程序自动生成的参数。"))
+	GUICtrlSetOnEvent(-1, "RefreshCommandLineArgumentsState")
+	If $ParamsEnabled Then GUICtrlSetState(-1, $GUI_CHECKED)
 	$idParams = GUICtrlCreateEdit("", 20, 365 + $iBrowserDebugHelpH - 28, 460, 50, BitOR($ES_WANTRETURN, $WS_VSCROLL, $ES_AUTOVSCROLL))
 	If $Params <> "" Then
 		GUICtrlSetData(-1, StringReplace($Params, " -", @CRLF & "-"))
 	EndIf
 	Local $sCommandLineTooltip = _t("CommandLineArgumentsTooltip", "浏览器命令行参数，每行写一个参数。\n支持 %TEMP% 等环境变量，\n另外，%APP% 代表 RunFirefox 所在目录")
 	GUICtrlSetTip(-1, $sCommandLineTooltip)
+	RefreshCommandLineArgumentsState()
 
 	; 网络
 	GUICtrlCreateTabItem(_t("NetworkTab", "网络"))
@@ -2327,6 +2337,12 @@ Func UpdateCommandLineHint()
 	GUICtrlSetData($idCommandLineCaption, $Caption)
 	If $idParams Then GUICtrlSetTip($idParams, $Tooltip)
 EndFunc   ;==>UpdateCommandLineHint
+
+Func RefreshCommandLineArgumentsState()
+	Local $State = $GUI_DISABLE
+	If GUICtrlRead($idParamsEnabled) = $GUI_CHECKED Then $State = $GUI_ENABLE
+	GUICtrlSetState($idParams, $State)
+EndFunc   ;==>RefreshCommandLineArgumentsState
 
 Func ChangeChannel()
 	RefreshCopyProfileState()
@@ -4532,6 +4548,8 @@ Func ApplySettings()
 	$var = GUICtrlRead($idParams)
 	$var = StringStripWS($var, 3)
 	$Params = StringReplace($var, @CRLF, " ") ; 换行符换成空格
+	$ParamsEnabled = 0
+	If GUICtrlRead($idParamsEnabled) = $GUI_CHECKED Then $ParamsEnabled = 1
 	If GUICtrlRead($idChromiumDebugPortEnabled) = $GUI_CHECKED Then
 		$ChromiumDebugPortEnabled = 1
 	Else
@@ -4545,7 +4563,7 @@ Func ApplySettings()
 			GUICtrlSetState($idChromiumDebugPort, $GUI_FOCUS)
 			Return SetError(1)
 		EndIf
-		If HasCustomCdpParameter($Params) Then
+		If $ParamsEnabled And HasCustomCdpParameter($Params) Then
 			MsgBox(16, "RunFirefox", _t("ChromiumDebugPortConflict", "自定义 CDP 调试端口设置与命令行参数中的远程调试参数冲突。请关闭此设置，或删除命令行参数中的 --remote-debugging-port / --remote-debugging-pipe。"), 0, $hSettings)
 			GUICtrlSetState($idParams, $GUI_FOCUS)
 			Return SetError(1)
@@ -4569,7 +4587,7 @@ Func ApplySettings()
 			GUICtrlSetState($idFirefoxDebugPort, $GUI_FOCUS)
 			Return SetError(1)
 		EndIf
-		If HasCustomFirefoxRemoteParameter($Params) Then
+		If $ParamsEnabled And HasCustomFirefoxRemoteParameter($Params) Then
 			MsgBox(16, "RunFirefox", _t("FirefoxDebugPortConflict", "Firefox 远程调试设置与命令行参数冲突。请关闭此设置，或删除命令行参数中的 --remote-debugging-port / --no-remote。"), 0, $hSettings)
 			GUICtrlSetState($idParams, $GUI_FOCUS)
 			Return SetError(1)
@@ -4632,6 +4650,7 @@ Func ApplySettings()
 	IniWrite($inifile, "Settings", "CacheSize", $CacheSize)
 	IniWrite($inifile, "Settings", "CacheSizeSmart", $CacheSizeSmart)
 	IniWrite($inifile, "Settings", "Params", $Params)
+	IniWrite($inifile, "Settings", "ParamsEnabled", $ParamsEnabled)
 	IniWrite($inifile, "Settings", "ChromiumDebugPortEnabled", $ChromiumDebugPortEnabled)
 	IniWrite($inifile, "Settings", "ChromiumDebugPort", $ChromiumDebugPort)
 	IniWrite($inifile, "Settings", "FirefoxDebugPortEnabled", $FirefoxDebugPortEnabled)

@@ -305,7 +305,7 @@ EnvSet("APP", @ScriptDir)
 ; Recover before a missing browser EXE can be mistaken for a first install.
 Local $RecoveryDir = "", $RecoveryExe = ""
 SplitPath(_BrowserAutoUpdateCanonical(FullPath($BrowserPath)), $RecoveryDir, $RecoveryExe)
-If $BrowserPath <> "" And Not _BrowserAutoUpdateRecover($RecoveryDir) Then
+If $BrowserPath <> "" And Not _BrowserAutoUpdateRecover($RecoveryDir, $ProfileDir) Then
 	MsgBox(16, $AppName, _BrowserAutoUpdateTransactionMessage($RecoveryDir))
 	Exit 1
 EndIf
@@ -407,7 +407,7 @@ EndIf
 If _BrowserAutoUpdateIsSupported($BrowserType) And Not $BrowserIsRunning Then BrowserAutoUpdateApplyPendingInteractive()
 
 ;~ Start browser
-If Not _BrowserAutoUpdateRecover($BrowserDirectory) Then
+If Not _BrowserAutoUpdateRecover($BrowserDirectory, $ProfileDir) Then
 	MsgBox(16, $AppName, _BrowserAutoUpdateTransactionMessage($BrowserDirectory))
 	Exit 1
 EndIf
@@ -2387,7 +2387,7 @@ EndFunc   ;==>MarkBrowserVersionCheckStarted
 ;~ "update on next launch"). An unresolved transaction blocks this launch.
 Func BrowserAutoUpdateApplyPendingInteractive()
 	_BrowserAutoUpdateCleanPartialDownloads()
-	Local $Result = _BrowserAutoUpdateApplyPending($BrowserPath, $BrowserType)
+	Local $Result = _BrowserAutoUpdateApplyPending($BrowserPath, $BrowserType, 0, $ProfileDir)
 	If @error Then
 		Local $ApplyError = @error
 		If $Result <> "" Then MsgBox(16, $AppName, _t("BrowserUpdateApplyFailed", "应用浏览器更新失败：\n%s", $Result))
@@ -4189,14 +4189,24 @@ Func DownloadBrowser()
 	SplitPath($TargetBrowserPath, $TargetDir, $TargetFile)
 	If $TargetDir = "" Or $TargetDir = "." Then $TargetDir = @ScriptDir
 
+	Local $DraftProfileDir = GUICtrlRead($idProfileDir)
+	Local $SavedProfileDir = IniRead($inifile, "Settings", "ProfileDir", $ProfileDir)
+	Local $ProfileConflict = _BrowserAutoUpdateProfileConflict($TargetDir, $DraftProfileDir, $SavedProfileDir)
+	If $ProfileConflict <> "" Then
+		MsgBox(48, $AppName, $ProfileConflict, 0, $hSettings)
+		Return
+	EndIf
+
 	If _BrowserDownloadBrowserExecutableExistsInDir($TargetDir, $CurrentBrowserType) Or _DownloadToolsIsDirectoryNotEmpty($TargetDir) Then
-		Local $ConfirmOverwrite = _t("ConfirmOverwriteBrowserFiles", "目标目录已有浏览器文件或其他文件：\n%s\n\n是否继续下载并覆盖/合并文件？", $TargetDir)
+		Local $ConfirmOverwrite = _t("ConfirmOverwriteBrowserFiles", "目标目录已有文件：\n%s\n\n继续将替换整个目录，现有的其他文件可能被删除。是否继续？", $TargetDir)
 		If MsgBox(36 + 256, $AppName, $ConfirmOverwrite, 0, $hSettings) <> 6 Then Return
 	EndIf
 
-	Local $DownloadedBrowserPath = _BrowserDownloadDownloadAndExtract($BrowserDownloadUrls, $TargetDir, $os, $Channel, $CurrentBrowserType, $hSettings)
+	Local $DownloadedBrowserPath = _BrowserDownloadDownloadAndExtract($BrowserDownloadUrls, $TargetDir, $os, $Channel, $CurrentBrowserType, $hSettings, $DraftProfileDir, $SavedProfileDir)
 	If @error Then
-		Local $ErrorMessage = _t("BrowserDownloadFailed", "浏览器下载或解压失败：\n%s\n\n请检查网络和目标目录权限后重试。", $DownloadedBrowserPath)
+		Local $DownloadError = @error
+		Local $ErrorMessage = $DownloadedBrowserPath
+		If $DownloadError <> 8 Then $ErrorMessage = _t("BrowserDownloadFailed", "浏览器下载或解压失败：\n%s\n\n请检查网络和目标目录权限后重试。", $DownloadedBrowserPath)
 		MsgBox(16, $AppName, $ErrorMessage, 0, $hSettings)
 		Return
 	EndIf

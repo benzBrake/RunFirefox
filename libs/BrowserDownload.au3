@@ -1746,9 +1746,11 @@ Func _BrowserDownloadBuildOperaDownloadUrls($OfficialUrl)
 	Return _UpgradeBuildUrlProxyUrls($OfficialUrl, $BD_GithubDirectMirror)
 EndFunc   ;==>BuildOperaDownloadUrls
 
-Func _BrowserDownloadDownloadAndExtract($aDownloadUrls, $TargetDir, $os, $Channel, $CurrentBrowserType, $Parent = 0)
+Func _BrowserDownloadDownloadAndExtract($aDownloadUrls, $TargetDir, $os, $Channel, $CurrentBrowserType, $Parent = 0, $ProfileDir = "", $OtherProfileDir = "")
 	$TargetDir = _BrowserAutoUpdateCanonical($TargetDir)
-	If Not _BrowserAutoUpdateRecover($TargetDir) Then Return SetError(7, 0, _BrowserAutoUpdateTransactionMessage($TargetDir))
+	If Not _BrowserAutoUpdateRecover($TargetDir, $ProfileDir, $OtherProfileDir) Then Return SetError(7, 0, _BrowserAutoUpdateTransactionMessage($TargetDir))
+	Local $ProfileConflict = _BrowserAutoUpdateProfileConflict($TargetDir, $ProfileDir, $OtherProfileDir)
+	If $ProfileConflict <> "" Then Return SetError(8, 0, $ProfileConflict)
 	Local $TempDir = @TempDir & "\RunFirefox_BrowserDownload"
 	If Not IsArray($aDownloadUrls) Or UBound($aDownloadUrls) = 0 Then Return SetError(1, 0, _t("CannotStartBrowserDownload", "无法开始下载浏览器。"))
 	Local $DownloadUrl
@@ -1809,8 +1811,12 @@ Func _BrowserDownloadDownloadAndExtract($aDownloadUrls, $TargetDir, $os, $Channe
 	If $ExtractedBrowserPath Then
 		Local $ExtractedBrowserDir, $ExtractedBrowserFile
 		SplitPath($ExtractedBrowserPath, $ExtractedBrowserDir, $ExtractedBrowserFile)
-		$CopiedBrowserFiles = _BrowserAutoUpdateReplaceBrowserDirectory($ExtractedBrowserDir, $TargetDir)
+		$CopiedBrowserFiles = _BrowserAutoUpdateReplaceBrowserDirectory($ExtractedBrowserDir, $TargetDir, $ProfileDir, $OtherProfileDir)
 		Local $ReplaceError = @error
+		If $ReplaceError = $BAU_TX_PROFILE Then
+			DirRemove($TempDir, 1)
+			Return SetError(8, 0, _BrowserAutoUpdateProfileConflict($TargetDir, $ProfileDir, $OtherProfileDir))
+		EndIf
 		If $ReplaceError = $BAU_TX_PENDING Or $ReplaceError = $BAU_TX_CLEANUP Then Return SetError(7, 0, _BrowserAutoUpdateTransactionMessage($TargetDir))
 		$TargetBrowserPath = $TargetDir & "\" & $ExtractedBrowserFile
 	EndIf

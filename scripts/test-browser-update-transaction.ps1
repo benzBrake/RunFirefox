@@ -102,6 +102,33 @@ Switch $TxMode
         _BrowserAutoUpdateConfigure($TxRoot & "\cache")
         BrowserAutoUpdateApplyPendingInteractive()
         Exit 9
+    Case "replace-profile", "recover-profile", "manual-profile", "pending-profile", "interactive-profile"
+        Local $ProtectedProfile = FileRead($TxRoot & "\profile-path.txt")
+        Switch $TxMode
+            Case "replace-profile"
+                $TxResult = _BrowserAutoUpdateReplaceBrowserDirectory($TxRoot & "\source", $TxRoot & "\App", $ProtectedProfile)
+                $TxError = @error
+            Case "recover-profile"
+                $TxResult = _BrowserAutoUpdateRecover($TxRoot & "\App", $ProtectedProfile)
+                $TxError = @error
+            Case "manual-profile"
+                _BrowserDownloadDownloadAndExtract("", $TxRoot & "\App", "win64", "stable", $BrowserChrome, 0, $TxRoot & "\external", $ProtectedProfile)
+                $TxError = @error
+            Case "pending-profile", "interactive-profile"
+                _BrowserAutoUpdateConfigure($TxRoot & "\cache")
+                Local $TxMetadata = _BrowserAutoUpdateGetMetadataPath()
+                IniWrite($TxMetadata, "Update", "Version", "9999.0.0.0")
+                IniWrite($TxMetadata, "Update", "Package", "package.7z")
+                If $TxMode = "interactive-profile" Then
+                    $BrowserPath = $TxRoot & "\App\browser.exe"
+                    $BrowserType = $BrowserChrome
+                    $ProfileDir = $ProtectedProfile
+                    BrowserAutoUpdateApplyPendingInteractive()
+                    Exit 0
+                EndIf
+                _BrowserAutoUpdateApplyPending($TxRoot & "\App\browser.exe", $BrowserChrome, 0, $ProtectedProfile)
+                $TxError = @error
+        EndSwitch
     Case "lock"
         Local $TxLock = _BrowserAutoUpdateTransactionLock($TxRoot & "\App")
         If @error Then Exit 9
@@ -189,6 +216,36 @@ EndFunc
         Assert ((RunChild 'pending' $dir) -eq 7) 'Pending update did not stop before staging cleanup'
         Assert ((RunChild 'interactive' $dir) -eq 1) 'Interactive update failure did not stop launch'
         Assert ([IO.File]::ReadAllText("$dir\cache\package.7z") -eq 'keep') 'Pending recovery failure lost package'
+        $dir = Fixture "$arch-profile"
+        [IO.Directory]::CreateDirectory("$dir\App\Profile") | Out-Null
+        [IO.File]::WriteAllText("$dir\App\Profile\sentinel", 'keep profile', $utf8)
+        [IO.Directory]::CreateDirectory("$dir\cache") | Out-Null
+        [IO.File]::WriteAllText("$dir\cache\package.7z", 'keep package', $utf8)
+        foreach ($profile in @("$dir\APP", "$dir\App\sub\..\Profile", "$dir\App\Profile\not-created")) {
+            [IO.File]::WriteAllText("$dir\profile-path.txt", $profile, $utf8)
+            Assert ((RunChild 'replace-profile' $dir) -eq 4) "Unsafe profile was not blocked: $profile"
+        }
+        [IO.File]::WriteAllText("$dir\profile-path.txt", "$dir\App\Profile", $utf8)
+        Assert ((RunChild 'manual-profile' $dir) -eq 8) 'Manual replacement ignored the saved profile'
+        Assert ((RunChild 'pending-profile' $dir) -eq 8) 'Staged update ignored the profile'
+        Assert ((RunChild 'interactive-profile' $dir) -eq 0) 'Profile conflict stopped the browser launch'
+        Assert ((Test-Path "$dir\stopped") -and (Test-Path "$dir\cache\package.7z")) 'Profile conflict was not reported or removed the staged update'
+        Assert (-not (Test-Path "$dir\App.RunFirefoxUpdate.ini")) 'Profile conflict created a transaction'
+        Assert ([IO.File]::ReadAllText("$dir\App\Profile\sentinel") -eq 'keep profile') 'Profile contents changed'
+        Assert ([IO.File]::ReadAllText("$dir\App\browser.exe") -eq 'old') 'Browser was replaced despite profile conflict'
+        New-Item -ItemType Junction -Path "$dir\alias" -Target "$dir\App\Profile" | Out-Null
+        try {
+            [IO.File]::WriteAllText("$dir\profile-path.txt", "$dir\alias\uncreated", $utf8)
+            Assert ((RunChild 'replace-profile' $dir) -eq 4) 'External profile alias pointing into App was missed'
+        } finally { [IO.Directory]::Delete("$dir\alias") }
+        [IO.File]::WriteAllText("$dir\profile-path.txt", "$dir\App\Profile", $utf8)
+        CrashAt $dir 'committed'
+        Assert ((RunChild 'recover-profile' $dir) -eq 3) 'Recovery did not protect legacy committed backup'
+        $old = Get-ChildItem -LiteralPath $dir -Filter 'App.RunFirefoxOld_*' -Directory
+        Assert ([IO.File]::ReadAllText("$($old.FullName)\Profile\sentinel") -eq 'keep profile') 'Legacy backup lost the profile'
+        $dir = Fixture "$arch-profile-sibling"
+        [IO.File]::WriteAllText("$dir\profile-path.txt", "$dir\App-Profile", $utf8)
+        Assert ((RunChild 'replace-profile' $dir) -eq 0) 'Sibling directory was mistaken for an App subdirectory'
         $dir = Fixture "$arch-lock"
         $p = StartChild 'lock' $dir
         $timer = [Diagnostics.Stopwatch]::StartNew()

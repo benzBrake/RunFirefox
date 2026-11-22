@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- RunFirefox stops automatic updates and manual replacements when the configured profile is inside the target program folder. Close the browser, move the profile outside that folder, and update the profile path in Settings before retrying.
+
 - Restored official Bush2021 Chrome++ releases for Google Chrome. RunFirefox reads the version, size, and SHA-256 from `update.json` without calling the GitHub API, and supports manually reinstalling the same version or confirming a downgrade while preserving existing custom settings.
 
 - Added an Enable checkbox beside Command Line Arguments on the Advanced tab, defaulting to on for both new and existing configurations. Turning it off preserves the saved text and skips custom arguments and their debug-port conflict checks, without affecting external or automatically generated arguments.

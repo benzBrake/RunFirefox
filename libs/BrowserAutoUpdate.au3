@@ -6,8 +6,8 @@
 ; the next RunFirefox launch, before the browser process starts (like Firefox).
 Global $BAU_StagingDir = ""
 ; Transaction errors: 1 = failed but rolled back, 2 = recovery/busy/unsafe,
-; 3 = committed, cleanup still pending. Never discard a journal on error 2/3.
-Global Const $BAU_TX_FAILED = 1, $BAU_TX_PENDING = 2, $BAU_TX_CLEANUP = 3
+; 3 = committed, cleanup still pending, 4 = profile conflict. Never discard a journal on error 2/3.
+Global Const $BAU_TX_FAILED = 1, $BAU_TX_PENDING = 2, $BAU_TX_CLEANUP = 3, $BAU_TX_PROFILE = 4
 
 Func _BrowserAutoUpdateTransactionPath($TargetDir)
 	Return $TargetDir & ".RunFirefoxUpdate.ini"
@@ -23,6 +23,47 @@ Func _BrowserAutoUpdateCanonical($Path)
 	Local $Result = DllCall("kernel32.dll", "dword", "GetFullPathNameW", "wstr", $Path, "dword", 32768, "wstr", "", "ptr", 0)
 	If @error Or $Result[0] = 0 Or $Result[0] >= 32768 Then Return ""
 	Return StringRegExpReplace($Result[3], "\\+$", "")
+EndFunc
+
+; Resolve aliases such as junctions and short names, even for an uncreated profile.
+Func _BrowserAutoUpdatePhysicalPath($Path)
+	Local $Tail = ""
+	While $Path <> ""
+		Local $Open = DllCall("kernel32.dll", "handle", "CreateFileW", "wstr", $Path, "dword", 0, "dword", 7, "ptr", 0, "dword", 3, "dword", 0x02000000, "ptr", 0)
+		If @error Then Return ""
+		If $Open[0] <> Ptr(-1) Then
+			Local $Final = DllCall("kernel32.dll", "dword", "GetFinalPathNameByHandleW", "handle", $Open[0], "wstr", "", "dword", 32768, "dword", 0)
+			Local $CallError = @error
+			DllCall("kernel32.dll", "bool", "CloseHandle", "handle", $Open[0])
+			If $CallError Or $Final[0] = 0 Or $Final[0] >= 32768 Then Return ""
+			Return StringRegExpReplace($Final[2], "\\+$", "") & $Tail
+		EndIf
+		Local $Parent, $Name
+		SplitPath($Path, $Parent, $Name)
+		If $Name = "" Or $Parent = "." Or $Parent = $Path Then ExitLoop
+		$Tail = "\" & $Name & $Tail
+		$Path = $Parent
+		If StringRegExp($Path, "^[A-Za-z]:$") Then $Path &= "\"
+	WEnd
+	Return ""
+EndFunc
+
+Func _BrowserAutoUpdatePathWithin($TargetDir, $ProfileDir)
+	Return $TargetDir <> "" And $ProfileDir <> "" And StringLeft($ProfileDir & "\", StringLen($TargetDir) + 1) = $TargetDir & "\"
+EndFunc
+
+Func _BrowserAutoUpdateProfileConflict($TargetDir, $ProfileDir, $OtherProfileDir = "")
+	If $OtherProfileDir <> "" And $OtherProfileDir <> $ProfileDir Then
+		Local $OtherConflict = _BrowserAutoUpdateProfileConflict($TargetDir, $OtherProfileDir)
+		If $OtherConflict <> "" Then Return $OtherConflict
+	EndIf
+	If $ProfileDir = "" Then Return ""
+	$ProfileDir = _BrowserAutoUpdateCanonical(FullPath(StringReplace($ProfileDir, "/", "\")))
+	$TargetDir = _BrowserAutoUpdateCanonical($TargetDir)
+	If Not _BrowserAutoUpdatePathWithin($TargetDir, $ProfileDir) And _
+			Not _BrowserAutoUpdatePathWithin(_BrowserAutoUpdatePhysicalPath($TargetDir), _BrowserAutoUpdatePhysicalPath($ProfileDir)) Then Return ""
+	Local $Message = _t("BrowserUpdateProfileInsideTarget", "浏览器配置目录位于目标程序目录内，本次替换已停止。请关闭浏览器，将配置目录移到程序目录之外，并在设置中更新路径后重试。\n程序目录：{Target}\n配置目录：{Profile}")
+	Return StringReplace(StringReplace($Message, "{Target}", $TargetDir), "{Profile}", $ProfileDir)
 EndFunc
 
 ; Reject reparse points anywhere in the path, including parent directories.
@@ -158,7 +199,7 @@ EndFunc
 
 ; Called only under the target lock. Inferring progress from the three paths
 ; makes recovery idempotent even if a process dies during recovery itself.
-Func _BrowserAutoUpdateRecoverLocked($TargetDir)
+Func _BrowserAutoUpdateRecoverLocked($TargetDir, $ProfileDir = "", $OtherProfileDir = "")
 	Local $Journal = _BrowserAutoUpdateTransactionPath($TargetDir)
 	If Not FileExists($Journal) Then Return True
 	If _BrowserAutoUpdateDirectoryRunning($TargetDir) Then Return SetError($BAU_TX_PENDING, 0, False)
@@ -183,6 +224,8 @@ Func _BrowserAutoUpdateRecoverLocked($TargetDir)
 	If $Committed = "1" Then
 		$Error = $BAU_TX_CLEANUP
 		If Not FileExists($TargetDir) Or FileExists($New) Or ($Had = "0" And FileExists($Old)) Then Return SetError($Error, 0, False)
+		; An older launcher may have committed a swap with the profile still in $Old.
+		If FileExists($Old) And _BrowserAutoUpdateProfileConflict($TargetDir, $ProfileDir, $OtherProfileDir) <> "" Then Return SetError($Error, 0, False)
 		If Not _BrowserAutoUpdateRemoveTree($Old) Then Return SetError($Error, 0, False)
 	Else
 		If $Had = "1" Then
@@ -205,14 +248,14 @@ Func _BrowserAutoUpdateRecoverLocked($TargetDir)
 	Return True
 EndFunc
 
-Func _BrowserAutoUpdateRecover($TargetDir)
+Func _BrowserAutoUpdateRecover($TargetDir, $ProfileDir = "", $OtherProfileDir = "")
 	$TargetDir = _BrowserAutoUpdateCanonical($TargetDir)
 	If $TargetDir = "" Then Return SetError($BAU_TX_PENDING, 0, False)
 	; A lock alone also protects a writer before its initial journal is published.
 	If Not FileExists(_BrowserAutoUpdateTransactionPath($TargetDir)) And Not FileExists(_BrowserAutoUpdateTransactionPath($TargetDir) & ".lock") Then Return True
 	Local $Lock = _BrowserAutoUpdateTransactionLock($TargetDir)
 	If @error Then Return SetError($BAU_TX_PENDING, 0, False)
-	Local $Result = _BrowserAutoUpdateRecoverLocked($TargetDir), $Error = @error
+	Local $Result = _BrowserAutoUpdateRecoverLocked($TargetDir, $ProfileDir, $OtherProfileDir), $Error = @error
 	_BrowserAutoUpdateUnlock($Lock)
 	Return SetError($Error, 0, $Result)
 EndFunc
@@ -304,7 +347,7 @@ EndFunc
 ; Replace a browser directory with a fully extracted tree. The staging and
 ; backup directories live beside the target so the rename operations stay on
 ; the same volume. Only RunFirefox-managed Chrome++ files are carried over.
-Func _BrowserAutoUpdateReplaceBrowserDirectory($SourceDir, $TargetDir)
+Func _BrowserAutoUpdateReplaceBrowserDirectory($SourceDir, $TargetDir, $ProfileDir = "", $OtherProfileDir = "")
 	$TargetDir = _BrowserAutoUpdateCanonical($TargetDir)
 	$SourceDir = _BrowserAutoUpdateCanonical($SourceDir)
 	If $TargetDir = "" Or $SourceDir = "" Then Return SetError($BAU_TX_PENDING, 0, False)
@@ -312,12 +355,13 @@ Func _BrowserAutoUpdateReplaceBrowserDirectory($SourceDir, $TargetDir)
 	If StringLeft($SourcePrefix, StringLen($TargetPrefix)) = $TargetPrefix Or StringLeft($TargetPrefix, StringLen($SourcePrefix)) = $SourcePrefix Or StringLeft(StringLower(@ScriptDir & "\"), StringLen($TargetPrefix)) = $TargetPrefix Then Return SetError($BAU_TX_PENDING, 0, False)
 	Local $Lock = _BrowserAutoUpdateTransactionLock($TargetDir)
 	If @error Then Return SetError($BAU_TX_PENDING, 0, False)
-	Local $Result = _BrowserAutoUpdateReplaceLocked($SourceDir, $TargetDir), $Error = @error
+	Local $Result = _BrowserAutoUpdateReplaceLocked($SourceDir, $TargetDir, $ProfileDir, $OtherProfileDir), $Error = @error
 	_BrowserAutoUpdateUnlock($Lock)
 	Return SetError($Error, 0, $Result)
 EndFunc
 
-Func _BrowserAutoUpdateReplaceLocked($SourceDir, $TargetDir)
+Func _BrowserAutoUpdateReplaceLocked($SourceDir, $TargetDir, $ProfileDir, $OtherProfileDir)
+	If _BrowserAutoUpdateProfileConflict($TargetDir, $ProfileDir, $OtherProfileDir) <> "" Then Return SetError($BAU_TX_PROFILE, 0, False)
 	If Not _BrowserAutoUpdateRecoverLocked($TargetDir) Then Return SetError(@error, 0, False)
 	If _BrowserAutoUpdateDirectoryRunning($TargetDir) Or Not FileExists($SourceDir) Or Not _BrowserAutoUpdateSafeTree($SourceDir) Or Not _BrowserAutoUpdateSafeTree($TargetDir) Then Return SetError($BAU_TX_PENDING, 0, False)
 	Local $Id = @AutoItPID & "_" & Random(100000000, 999999999, 1) & "_" & Random(100000000, 999999999, 1)
@@ -431,10 +475,10 @@ EndFunc
 
 ; Applies a staged update over the browser directory. The caller must ensure
 ; the browser process is not running. Returns the new version on success.
-Func _BrowserAutoUpdateApplyPending($BrowserPath, $BrowserType, $Parent = 0)
+Func _BrowserAutoUpdateApplyPending($BrowserPath, $BrowserType, $Parent = 0, $ProfileDir = "")
 	Local $TargetDir = "", $TargetFile = ""
 	SplitPath(_BrowserAutoUpdateCanonical(FullPath($BrowserPath)), $TargetDir, $TargetFile)
-	If Not _BrowserAutoUpdateRecover($TargetDir) Then Return SetError(7, 0, _BrowserAutoUpdateTransactionMessage($TargetDir))
+	If Not _BrowserAutoUpdateRecover($TargetDir, $ProfileDir) Then Return SetError(7, 0, _BrowserAutoUpdateTransactionMessage($TargetDir))
 	Local $Pending = _BrowserAutoUpdateGetPendingUpdate()
 	If Not IsArray($Pending) Then Return SetError(1, 0, "")
 
@@ -446,6 +490,9 @@ Func _BrowserAutoUpdateApplyPending($BrowserPath, $BrowserType, $Parent = 0)
 	EndIf
 
 	If $TargetDir = "" Or $TargetDir = "." Then $TargetDir = @ScriptDir
+
+	Local $ProfileConflict = _BrowserAutoUpdateProfileConflict($TargetDir, $ProfileDir)
+	If $ProfileConflict <> "" Then Return SetError(8, 0, $ProfileConflict)
 
 	Local $TempDir = @TempDir & "\RunFirefox_BrowserUpdateApply"
 	DirRemove($TempDir, 1)
@@ -483,7 +530,11 @@ Func _BrowserAutoUpdateApplyPending($BrowserPath, $BrowserType, $Parent = 0)
 
 	Local $ExtractedDir = "", $ExtractedFile = ""
 	SplitPath($ExtractedBrowserPath, $ExtractedDir, $ExtractedFile)
-	Local $Replaced = _BrowserAutoUpdateReplaceBrowserDirectory($ExtractedDir, $TargetDir), $ReplaceError = @error
+	Local $Replaced = _BrowserAutoUpdateReplaceBrowserDirectory($ExtractedDir, $TargetDir, $ProfileDir), $ReplaceError = @error
+	If $ReplaceError = $BAU_TX_PROFILE Then
+		DirRemove($TempDir, 1)
+		Return SetError(8, 0, _BrowserAutoUpdateProfileConflict($TargetDir, $ProfileDir))
+	EndIf
 	If Not $Replaced Or Not FileExists($TargetDir & "\" & $ExtractedFile) Then
 		If $ReplaceError = $BAU_TX_PENDING Or $ReplaceError = $BAU_TX_CLEANUP Then Return SetError(7, 0, _BrowserAutoUpdateTransactionMessage($TargetDir))
 		DirRemove($TempDir, 1)

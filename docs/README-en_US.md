@@ -21,6 +21,8 @@ The Advanced tab has an Enable checkbox beside Command Line Arguments. It defaul
 
 Browser auto-updates and manual download replacements protect directory swaps with a transaction journal. After an interrupted update, the next launch restores the old version or finishes cleanup of a committed update, even with automatic updates disabled. If recovery fails, launch stops: close the browser and programs using its folders, preserve the reported journal and folders, and retry. This mechanism does not provide version history or user-data backups.
 
+RunFirefox stops automatic updates and manual replacements when the configured profile is inside the target program folder. Close the browser, move the profile outside that folder, and update the profile path in Settings before retrying.
+
 ### Chrome++ patch sources
 
 Google Chrome uses `update.json` from the [official Bush2021 release](https://github.com/Bush2021/chrome_plus/releases/latest), without calling the GitHub API. RunFirefox verifies the archive size and SHA-256 before installing the patch that matches the browser executable's architecture. If the installed version is at least as new as the official release, select **Install official version** in the Chrome++ tab to replace it manually. Downgrades require confirmation, and existing custom settings are preserved.

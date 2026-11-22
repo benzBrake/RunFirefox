@@ -21,6 +21,10 @@ The Advanced tab has an Enable checkbox beside Command Line Arguments. It defaul
 
 Browser auto-updates and manual download replacements protect directory swaps with a transaction journal. After an interrupted update, the next launch restores the old version or finishes cleanup of a committed update, even with automatic updates disabled. If recovery fails, launch stops: close the browser and programs using its folders, preserve the reported journal and folders, and retry. This mechanism does not provide version history or user-data backups.
 
+### Chrome++ patch sources
+
+Google Chrome uses `update.json` from the [official Bush2021 release](https://github.com/Bush2021/chrome_plus/releases/latest), without calling the GitHub API. RunFirefox verifies the archive size and SHA-256 before installing the patch that matches the browser executable's architecture. If the installed version is at least as new as the official release, select **Install official version** in the Chrome++ tab to replace it manually. Downgrades require confirmation, and existing custom settings are preserved.
+
 ### Chrome++ for Brave / Whale
 
 The Chrome++ tab retains optional installation and tab settings. Brave and Whale use bundled custom DLLs, installed offline according to the browser EXE's x86/x64 architecture regardless of launcher bitness; ARM64 is unsupported. The tab shows installed and bundled versions and allows manual replacement when files differ, without checking upstream updates. A fresh installation uses the complete bundled configuration from `libs/chrome_plus/chrome++.ini` and preserves existing custom configurations.

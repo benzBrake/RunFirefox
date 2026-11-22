@@ -64,12 +64,6 @@ Opt("WinTitleMatchMode", 4)
 
 Global Const $AppName = "RunFirefox"
 Global Const $AppVersion = "2.8.19"
-Global Const $ChromePlusRepo = "Bush2021/chrome_plus"
-Global Const $ChromePlusReleasesApiUrl = "https://api.github.com/repos/" & $ChromePlusRepo & "/releases?per_page=30"
-Global Const $ChromePlusJsDelivrVersionsUrl = "https://data.jsdelivr.com/v1/package/gh/" & $ChromePlusRepo
-Global Const $ChromePlusGitCodeTagsUrl = "https://gitcode.com/gh_mirrors/ch/chrome_plus/tags"
-Global Const $ChromePlusGitCodeTagsApiUrl = "https://web-api.gitcode.com/api/v2/projects/gh_mirrors%2Fch%2Fchrome_plus/repository/tags?order_by=committed&sort=desc&repoId=gh_mirrors%252Fch%252Fchrome_plus&page=1&per_page=10"
-Global Const $ChromePlusApiUserAgent = "RunFirefox/" & $AppVersion
 Global Const $ChromePlusCacheRoot = @TempDir & "\RunFirefox_ChromePlus"
 Global Const $ChromiumGoogleApiKeyEnv = "GOOGLE_API_KEY"
 Global Const $ChromiumGoogleClientIdEnv = "GOOGLE_DEFAULT_CLIENT_ID"
@@ -132,7 +126,6 @@ Global $idChromiumDebugPortEnabled, $idChromiumDebugPort, $idChromiumDebugPortLa
 Global $idFirefoxSettingsGroup, $idFirefoxDebugPortEnabled, $idFirefoxDebugPort, $idFirefoxDebugPortLabel, $idFirefoxDebugPortHelp
 Global $idDownloadThreads, $idDownloadThreadsUpDown, $idProxyType, $idProxyServer, $idProxyPort, $idGithubApiMirror, $idNetworkCurlHint
 Global $LANG_DATA, $LANGUAGE, $LANGUAGES
-Global $ChromePlusReleaseInfoLoaded = False, $ChromePlusReleaseTag = "", $ChromePlusArchiveUrl = ""
 Global $BrowserVersionLoadAnim = 0
 Global $ChromePlusVersionLoadHandle = 0, $ChromePlusVersionLoadFile = "", $ChromePlusVersionLoadAnim = 0
 Global $AppUpdateCheckHandle = 0, $AppUpdateCheckFile = ""
@@ -143,6 +136,7 @@ Global $aBrowserStartApps, $aBrowserExitApps, $aBrowserStartAppPids[2]
 #include "libs\BrowserAutoUpdate.au3"
 #include "libs\BrowserDownload.au3"
 #include "libs\ChromePlusBundled.au3"
+#include "libs\ChromePlusRelease.au3"
 
 Func GetBrowserLocale($DefaultLocale = "")
 	Local $Locale = StringReplace($LANGUAGE, "_", "-")
@@ -3396,8 +3390,21 @@ EndFunc   ;==>RefreshChromePlusTabState
 
 Func DownloadChromePlusPatchFromSettings()
 	Local $BrowserPath = GetCurrentSettingsBrowserPath()
+	Local $CurrentVersion = GetChromePlusInstalledVersion($BrowserPath)
+	Local $OfficialVersion = $ChromePlusReleaseTag
+	If CanReplaceWithOfficialChromePlus(GetSelectedBrowserType(), $CurrentVersion, $OfficialVersion) And Not UsesBundledChromePlus($BrowserPath) Then
+		Local $Message = StringFormat(_t("ConfirmOfficialChromePlus", "要用官方 Chrome++ %s 替换当前的 %s 吗？"), $OfficialVersion, $CurrentVersion)
+		If VersionCompare($OfficialVersion, $CurrentVersion) < 0 Then $Message &= @CRLF & @CRLF & _t("OfficialChromePlusDowngrade", "官方版本较旧。继续将降级补丁。")
+		If MsgBox(36 + 256, $AppName, $Message, 0, $hSettings) <> 6 Then Return
+	EndIf
 	If InstallChromePlusPatchInteractive($BrowserPath) Then RefreshChromePlusTabState()
 EndFunc   ;==>DownloadChromePlusPatchFromSettings
+
+Func CanReplaceWithOfficialChromePlus($SelectedBrowserType, $CurrentVersion, $OfficialVersion)
+	If Not IsGoogleChromeBrowser($SelectedBrowserType) Or Not $ChromePlusReleaseInfoLoaded Then Return False
+	If $CurrentVersion = "" Or $OfficialVersion = "" Then Return False
+	Return VersionCompare($OfficialVersion, $CurrentVersion) <= 0
+EndFunc   ;==>CanReplaceWithOfficialChromePlus
 
 Func UpdateChromePlusVersionLabels($Unavailable = False)
 	If Not $idChromePlusCurrentVersion Or Not $idChromePlusLatestVersion Then Return
@@ -3455,9 +3462,15 @@ Func UpdateChromePlusDownloadPatchState()
 		Return
 	EndIf
 
-	Local $CurrentVersion = NormalizeChromePlusVersionText(GetChromePlusInstalledVersion($BrowserPath))
-	Local $LatestVersion = NormalizeChromePlusVersionText(GetChromePlusVersionFromTag($ChromePlusReleaseTag))
-	If $LatestVersion = "" Or $CurrentVersion = "" Or VersionCompare($LatestVersion, $CurrentVersion) > 0 Then
+	Local $CurrentVersion = GetChromePlusInstalledVersion($BrowserPath)
+	Local $LatestVersion = $ChromePlusReleaseTag
+	Local $ReplaceWithOfficial = CanReplaceWithOfficialChromePlus(GetSelectedBrowserType(), $CurrentVersion, $LatestVersion)
+	If $ReplaceWithOfficial Then
+		GUICtrlSetData($idChromePlusDownloadPatch, _t("InstallOfficialChromePlus", "安装官方版"))
+	Else
+		GUICtrlSetData($idChromePlusDownloadPatch, _t("UpdateChromePlusPatch", "更新 Chrome++"))
+	EndIf
+	If $ReplaceWithOfficial Or $LatestVersion = "" Or $CurrentVersion = "" Or VersionCompare($LatestVersion, $CurrentVersion) > 0 Then
 		GUICtrlSetState($idChromePlusDownloadPatch, $GUI_ENABLE)
 	Else
 		GUICtrlSetState($idChromePlusDownloadPatch, $GUI_DISABLE)
@@ -3547,30 +3560,6 @@ Func PollChromePlusVersionLoad()
 	$ChromePlusVersionLoadFile = ""
 	UpdateChromePlusVersionLabels(Not $Loaded)
 EndFunc   ;==>PollChromePlusVersionLoad
-
-Func WriteChromePlusReleaseInfoFile($OutputFile)
-	FileDelete($OutputFile)
-	Local $ReleaseTag = "", $ArchiveUrl = "", $InstallLog = ""
-	If GetChromePlusReleaseInfo($ReleaseTag, $ArchiveUrl, $InstallLog) Then
-		IniWrite($OutputFile, "ChromePlus", "Success", 1)
-		IniWrite($OutputFile, "ChromePlus", "ReleaseTag", $ReleaseTag)
-		IniWrite($OutputFile, "ChromePlus", "ArchiveUrl", $ArchiveUrl)
-	Else
-		IniWrite($OutputFile, "ChromePlus", "Success", 0)
-	EndIf
-EndFunc   ;==>WriteChromePlusReleaseInfoFile
-
-Func LoadChromePlusReleaseInfoFile($OutputFile)
-	If Not FileExists($OutputFile) Then Return False
-	If IniRead($OutputFile, "ChromePlus", "Success", 0) <> 1 Then Return False
-
-	Local $ReleaseTag = IniRead($OutputFile, "ChromePlus", "ReleaseTag", "")
-	Local $ArchiveUrl = IniRead($OutputFile, "ChromePlus", "ArchiveUrl", "")
-	If $ReleaseTag = "" Or $ArchiveUrl = "" Then Return False
-
-	SetChromePlusReleaseInfo($ReleaseTag, $ArchiveUrl)
-	Return True
-EndFunc   ;==>LoadChromePlusReleaseInfoFile
 
 Func SaveChromePlusTabsSettings($BrowserPath)
 	Local $ResolvedBrowserPath = FullPath($BrowserPath)
@@ -3867,8 +3856,8 @@ Func InstallChromePlusPatchInteractive($BrowserPath, $PreferredArch = "")
 	SplitPath($BrowserPath, $BrowserDir, $BrowserExe)
 	If Not IsChromePlusSupportedExecutable($BrowserExe) Then Return False
 
-	Local $Arch = ResolveChromePlusArch($PreferredArch, $BrowserPath)
-	Local $ReleaseTag = "", $ArchiveUrl = ""
+	Local $Arch = GetChromePlusPEArch($BrowserPath)
+	Local $ReleaseTag = "", $ArchiveSize = 0, $ArchiveSha256 = ""
 	Local $VersionDir, $ArchivePath, $ExtractDir, $SourceDir, $SevenZipExe, $ExtractLog, $ExtractPid
 	Local $ErrorMessage = "", $Success = False
 	Local $InstallLog = "Chrome++ patch install log" & @CRLF & _
@@ -3883,55 +3872,50 @@ Func InstallChromePlusPatchInteractive($BrowserPath, $PreferredArch = "")
 
 	_DownloadToolsShowDownloadProgress(_t("ChromePlusPatchProgressTitle", "正在准备 Chrome++ 补丁"), _t("PreparingChromePlusPatch", "正在准备 Chrome++ 补丁 ..."), _t("PreparingChromePlusPatchDetail", "正在读取补丁版本信息，请稍候 ..."), $hSettings, _t("Cancel", "取消"))
 
-	If GetChromePlusReleaseInfo($ReleaseTag, $ArchiveUrl, $InstallLog) Then
+	If $Arch = "" Then
+		$ErrorMessage = _t("FailToExtractChromePlusPatch", "解压或安装 Chrome++ 补丁失败。")
+	ElseIf GetChromePlusReleaseInfo($ReleaseTag, $ArchiveSize, $ArchiveSha256, $InstallLog) Then
+		Local $ArchiveUrl = BuildChromePlusArchiveUrlFromTag($ReleaseTag)
 		$InstallLog &= "Release tag: " & $ReleaseTag & @CRLF
 		$InstallLog &= "Archive URL: " & $ArchiveUrl & @CRLF
-		$VersionDir = $ChromePlusCacheRoot & "\" & StringRegExpReplace($ReleaseTag, '[\\/:*?"<>|]', "_")
+		$VersionDir = $ChromePlusCacheRoot & "\official\" & $ReleaseTag & "-" & $ArchiveSha256
 		$ArchivePath = $VersionDir & "\chrome_plus.7z"
-		$ExtractDir = $VersionDir & "\extract"
-		$SourceDir = $ExtractDir & "\" & $Arch & "\App"
-		$InstallLog &= "Version dir: " & $VersionDir & @CRLF
-		$InstallLog &= "Archive path: " & $ArchivePath & @CRLF
-		$InstallLog &= "Extract dir: " & $ExtractDir & @CRLF
-		$InstallLog &= "Source dir: " & $SourceDir & @CRLF & @CRLF
-		If Not FileExists($SourceDir & "\version.dll") Then
-			If Not FileExists($ChromePlusCacheRoot) Then DirCreate($ChromePlusCacheRoot)
-			If Not FileExists($VersionDir) Then DirCreate($VersionDir)
-
-			If Not FileExists($ArchivePath) Then
-				If Not DownloadChromePlusArchiveWithProgress($ArchiveUrl, $ArchivePath, $InstallLog) Then
-					If _DownloadToolsIsDownloadProgressCancelled() Then
-						_DownloadToolsCloseDownloadProgress()
-						If $hStatus Then _GUICtrlStatusBar_SetText($hStatus, _t("ChromePlusPatchInstallCancelled", "已取消 Chrome++ 补丁下载。"))
-						Return False
-					EndIf
-					$ErrorMessage = _t("FailToDownloadChromePlusPatch", "下载 Chrome++ 补丁失败。")
+		If Not ChromePlusArchiveMatchesManifest($ArchivePath, $ArchiveSize, $ArchiveSha256) Then
+			If Not DownloadChromePlusArchiveWithProgress($ArchiveUrl, $ArchivePath, $ArchiveSize, $ArchiveSha256, $InstallLog) Then
+				If _DownloadToolsIsDownloadProgressCancelled() Then
+					_DownloadToolsCloseDownloadProgress()
+					If $hStatus Then _GUICtrlStatusBar_SetText($hStatus, _t("ChromePlusPatchInstallCancelled", "已取消 Chrome++ 补丁下载。"))
+					Return False
 				EndIf
+				$ErrorMessage = _t("FailToDownloadChromePlusPatch", "下载 Chrome++ 补丁失败。")
 			EndIf
+		EndIf
 
-			If $ErrorMessage = "" Then
-				$SevenZipExe = _DownloadToolsPrepareSevenZipTool($VersionDir)
-				If @error Or $SevenZipExe = "" Then
+		If $ErrorMessage = "" Then
+			$SevenZipExe = _DownloadToolsPrepareSevenZipTool($VersionDir)
+			If @error Or $SevenZipExe = "" Then
+				$ErrorMessage = _t("FailToExtractChromePlusPatch", "解压或安装 Chrome++ 补丁失败。")
+			Else
+				$ExtractDir = _TempFile($ChromePlusCacheRoot, "extract-" & @AutoItPID & "-")
+				$SourceDir = $ExtractDir & "\" & $Arch & "\App"
+				$ExtractLog = $ExtractDir & ".log"
+				$InstallLog &= "Extract log: " & $ExtractLog & @CRLF
+				_DownloadToolsSetDownloadProgressBusy(_t("ExtractingChromePlusPatch", "正在安装 Chrome++ 补丁，请稍候 ..."), _t("ExtractingChromePlusPatchDetail", "安装期间请不要关闭 {AppName}。"))
+				If Not DirCreate($ExtractDir) Then
+					$ExtractDir = ""
 					$ErrorMessage = _t("FailToExtractChromePlusPatch", "解压或安装 Chrome++ 补丁失败。")
 				Else
-					If FileExists($ExtractDir) Then DirRemove($ExtractDir, 1)
-					If Not FileExists($ExtractDir) Then DirCreate($ExtractDir)
-					_DownloadToolsSetDownloadProgressBusy(_t("ExtractingChromePlusPatch", "正在安装 Chrome++ 补丁，请稍候 ..."), _t("ExtractingChromePlusPatchDetail", "安装期间请不要关闭 {AppName}。"))
-					$ExtractLog = $VersionDir & "\extract.log"
-					$InstallLog &= "Extract log: " & $ExtractLog & @CRLF
 					$ExtractPid = _DownloadToolsRunArchiveExtraction($SevenZipExe, $ArchivePath, $ExtractDir, $ExtractLog, $VersionDir)
 					If $ExtractPid <> 0 Then
 						$InstallLog &= "Extractor failed. Return code=" & $ExtractPid & @CRLF
 						$ErrorMessage = _t("FailToExtractChromePlusPatch", "解压或安装 Chrome++ 补丁失败。")
-					Else
-						$InstallLog &= "Extractor process finished." & @CRLF
 					EndIf
 				EndIf
 			EndIf
 		EndIf
 
-		If $ErrorMessage = "" And Not FileExists($SourceDir & "\version.dll") Then
-			$InstallLog &= "version.dll was not found in source dir." & @CRLF
+		If $ErrorMessage = "" And GetChromePlusPEArch($SourceDir & "\version.dll") <> $Arch Then
+			$InstallLog &= "version.dll is missing or does not match the browser architecture." & @CRLF
 			$ErrorMessage = _t("FailToExtractChromePlusPatch", "解压或安装 Chrome++ 补丁失败。")
 		EndIf
 		If $ErrorMessage = "" And Not FileExists($SourceDir & "\chrome++.ini") Then
@@ -3949,6 +3933,7 @@ Func InstallChromePlusPatchInteractive($BrowserPath, $PreferredArch = "")
 			$InstallLog &= "Failed to install chrome++.ini from release archive." & @CRLF
 			$ErrorMessage = _t("FailToExtractChromePlusPatch", "解压或安装 Chrome++ 补丁失败。")
 		EndIf
+		If $ExtractDir <> "" Then DirRemove($ExtractDir, 1)
 		If $ErrorMessage = "" Then $Success = True
 	Else
 		$ErrorMessage = _t("FailToGetChromePlusReleaseInfo", "读取 Chrome++ 发布信息失败。")
@@ -3967,24 +3952,6 @@ Func InstallChromePlusPatchInteractive($BrowserPath, $PreferredArch = "")
 	Return False
 EndFunc   ;==>InstallChromePlusPatchInteractive
 
-Func ResolveChromePlusArch($PreferredArch, $BrowserPath)
-	Local $Arch = StringLower(StringStripWS($PreferredArch, 3))
-	Switch $Arch
-		Case "x86", "win32", "32", "i386"
-			Return "x86"
-		Case "x64", "amd64", "64"
-			Return "x64"
-		Case "arm64", "aarch64"
-			Return "arm64"
-	EndSwitch
-
-	$Arch = GetExecutableArch($BrowserPath)
-	If $Arch <> "" Then Return $Arch
-
-	If @OSArch = "X86" Then Return "x86"
-	Return "x64"
-EndFunc   ;==>ResolveChromePlusArch
-
 Func GetExecutableArch($ExePath)
 	Local $aCall = DllCall("kernel32.dll", "bool", "GetBinaryTypeW", "wstr", $ExePath, "dword*", 0)
 	If @error Or Not IsArray($aCall) Or Not $aCall[0] Then Return ""
@@ -3998,15 +3965,14 @@ Func GetExecutableArch($ExePath)
 	Return ""
 EndFunc   ;==>GetExecutableArch
 
-Func DownloadChromePlusArchiveWithProgress($ArchiveUrl, $ArchivePath, ByRef $InstallLog)
-	Local $aUrls = _UpgradeBuildGithubReleaseDownloadUrls($ArchiveUrl, GetEffectiveGithubDirectMirror(), GetEffectiveGithubJsDelivrMirror())
-	_UpgradePrioritizeGithubUrls($aUrls)
+Func DownloadChromePlusArchiveWithProgress($ArchiveUrl, $ArchivePath, $ArchiveSize, $ArchiveSha256, ByRef $InstallLog)
+	Local $aUrls[1] = [$ArchiveUrl]
 	Local $TargetDir, $TargetFile
 	SplitPath($ArchivePath, $TargetDir, $TargetFile)
 	If Not FileExists($TargetDir) Then DirCreate($TargetDir)
 
 	Local $TriedUrls = ""
-	Local $DownloadResult = _DownloadToolsDownloadUrls($aUrls, $ArchivePath, _t("DownloadingChromePlusPatch", "正在下载 Chrome++ 补丁 ..."), _t("BrowserDownloadProgressKnown", "已下载 {Downloaded} / {Total}"), _t("BrowserDownloadProgressUnknown", "已下载 %s"), $TriedUrls)
+	Local $DownloadResult = _DownloadToolsDownloadUrls($aUrls, $ArchivePath, _t("DownloadingChromePlusPatch", "正在下载 Chrome++ 补丁 ..."), _t("BrowserDownloadProgressKnown", "已下载 {Downloaded} / {Total}"), _t("BrowserDownloadProgressUnknown", "已下载 %s"), $TriedUrls, 600000, $ArchiveSha256)
 	If $TriedUrls <> "" Then
 		Local $TriedUrlList = StringSplit($TriedUrls, @CRLF, 2)
 		For $i = 0 To UBound($TriedUrlList) - 1
@@ -4014,117 +3980,12 @@ Func DownloadChromePlusArchiveWithProgress($ArchiveUrl, $ArchivePath, ByRef $Ins
 		Next
 	EndIf
 	$InstallLog &= "Download result: " & $DownloadResult & ", file exists: " & FileExists($ArchivePath) & ", size: " & FileGetSize($ArchivePath) & @CRLF
-	Return $DownloadResult And FileExists($ArchivePath) And FileGetSize($ArchivePath) > 0
+	If Not $DownloadResult Then Return False
+	If FileGetSize($ArchivePath) = $ArchiveSize Then Return True
+	$InstallLog &= "Archive size does not match update.json." & @CRLF
+	FileDelete($ArchivePath)
+	Return False
 EndFunc   ;==>DownloadChromePlusArchiveWithProgress
-
-Func GetChromePlusReleaseInfo(ByRef $ReleaseTag, ByRef $ArchiveUrl, ByRef $InstallLog)
-	Static $CachedReleaseTag = "", $CachedArchiveUrl = ""
-	If $ChromePlusReleaseInfoLoaded And $ChromePlusReleaseTag <> "" And $ChromePlusArchiveUrl <> "" Then
-		$ReleaseTag = $ChromePlusReleaseTag
-		$ArchiveUrl = $ChromePlusArchiveUrl
-		$InstallLog &= "Using global cached release info." & @CRLF
-		Return True
-	EndIf
-	If $CachedReleaseTag <> "" And $CachedArchiveUrl <> "" Then
-		$ReleaseTag = $CachedReleaseTag
-		$ArchiveUrl = $CachedArchiveUrl
-		SetChromePlusReleaseInfo($CachedReleaseTag, $CachedArchiveUrl)
-		$InstallLog &= "Using cached release info." & @CRLF
-		Return True
-	EndIf
-
-	Local $HttpDiagnostic = "", $sJson = ""
-	Local $ChromePlusApiUrls = _UpgradeBuildGithubApiUrls($ChromePlusReleasesApiUrl, GetEffectiveGithubApiMirror(), GetEffectiveGithubDirectMirror())
-	For $i = 0 To UBound($ChromePlusApiUrls) - 1
-		$sJson = _DownloadToolsHttpGetTextDiagnostic($ChromePlusApiUrls[$i], $ChromePlusApiUserAgent, "application/vnd.github+json", $HttpDiagnostic)
-		$InstallLog &= $HttpDiagnostic & @CRLF
-		If $sJson <> "" Then ExitLoop
-	Next
-	If $sJson <> "" Then
-		Local $ApiTags = StringRegExp($sJson, '"tag_name"\s*:\s*"([^"]+)"', 3)
-		$CachedReleaseTag = GetLatestChromePlusStableTag($ApiTags)
-		$InstallLog &= "API parsed tag: " & $CachedReleaseTag & @CRLF
-	EndIf
-
-	If $CachedReleaseTag = "" And Not _DownloadToolsUsesProxy() Then
-		Local $JsDelivrBinary = _DownloadToolsReadUrl($ChromePlusJsDelivrVersionsUrl)
-		Local $JsDelivrError = @error
-		Local $JsDelivrJson = BinaryToString($JsDelivrBinary, 4)
-		$InstallLog &= "jsDelivr versions InetRead @error: " & $JsDelivrError & ", bytes: " & BinaryLen($JsDelivrBinary) & ", text length: " & StringLen($JsDelivrJson) & @CRLF
-		If $JsDelivrJson <> "" Then
-			Local $VersionsMatch = StringRegExp($JsDelivrJson, '"versions"\s*:\s*\[([^\]]*)\]', 1)
-			If Not @error And IsArray($VersionsMatch) Then
-				Local $JsDelivrTags = StringRegExp($VersionsMatch[0], '"(v?\d+\.\d+\.\d+)"', 3)
-				$CachedReleaseTag = GetLatestChromePlusStableTag($JsDelivrTags)
-			EndIf
-			$InstallLog &= "jsDelivr parsed tag: " & $CachedReleaseTag & @CRLF
-		EndIf
-	EndIf
-
-	If $CachedReleaseTag = "" Then
-		Local $LatestPageUrl = _UpgradeBuildGithubPageUrl("https://github.com/" & $ChromePlusRepo & "/releases/latest", GetEffectiveGithubDirectMirror())
-		$InstallLog &= "Fallback latest page URL: " & $LatestPageUrl & @CRLF
-		Local $LatestPageBinary = _DownloadToolsReadUrl($LatestPageUrl)
-		Local $InetReadError = @error
-		Local $LatestPage = BinaryToString($LatestPageBinary, 4)
-		$InstallLog &= "Fallback InetRead @error: " & $InetReadError & ", bytes: " & BinaryLen($LatestPageBinary) & ", text length: " & StringLen($LatestPage) & @CRLF
-		If $LatestPage <> "" Then
-			Local $PageTags = StringRegExp($LatestPage, '/' & $ChromePlusRepo & '/releases/tag/([^"?/#<>]+)', 3)
-			$CachedReleaseTag = GetLatestChromePlusStableTag($PageTags)
-			$InstallLog &= "Fallback parsed tag: " & $CachedReleaseTag & @CRLF
-		EndIf
-
-		If Not _DownloadToolsUsesProxy() Then
-			Local $GitCodeDiagnostic = ""
-			Local $GitCodeJson = _DownloadToolsHttpGetTextDiagnostic($ChromePlusGitCodeTagsApiUrl, $ChromePlusApiUserAgent, "application/json", $GitCodeDiagnostic, $ChromePlusGitCodeTagsUrl)
-			$InstallLog &= "GitCode tags fallback page: " & $ChromePlusGitCodeTagsUrl & @CRLF
-			$InstallLog &= $GitCodeDiagnostic & @CRLF
-			If $GitCodeJson <> "" Then
-				Local $GitCodeTags = StringRegExp($GitCodeJson, '"name"\s*:\s*"([^"]+)"', 3)
-				Local $GitCodeTag = GetLatestChromePlusStableTag($GitCodeTags)
-				If $GitCodeTag <> "" And ($CachedReleaseTag = "" Or VersionCompare(NormalizeChromePlusVersionText($GitCodeTag), NormalizeChromePlusVersionText($CachedReleaseTag)) > 0) Then $CachedReleaseTag = $GitCodeTag
-				$InstallLog &= "GitCode parsed tag: " & $CachedReleaseTag & @CRLF
-			EndIf
-		EndIf
-	EndIf
-
-	If $CachedArchiveUrl = "" And $CachedReleaseTag <> "" Then $CachedArchiveUrl = BuildChromePlusArchiveUrlFromTag($CachedReleaseTag)
-	If $CachedArchiveUrl <> "" Then $InstallLog &= "Archive URL built from tag: " & $CachedArchiveUrl & @CRLF
-	If $CachedReleaseTag = "" Or $CachedArchiveUrl = "" Then Return False
-
-	$ReleaseTag = $CachedReleaseTag
-	$ArchiveUrl = $CachedArchiveUrl
-	SetChromePlusReleaseInfo($CachedReleaseTag, $CachedArchiveUrl)
-	Return True
-EndFunc   ;==>GetChromePlusReleaseInfo
-
-Func GetLatestChromePlusStableTag($Tags)
-	If Not IsArray($Tags) Then Return ""
-
-	Local $LatestTag = "", $LatestVersion = ""
-	For $i = 0 To UBound($Tags) - 1
-		Local $Tag = StringStripWS($Tags[$i], 3)
-		If Not StringRegExp($Tag, "(?i)^v?\d+\.\d+\.\d+$") Then ContinueLoop
-
-		Local $Version = NormalizeChromePlusVersionText($Tag)
-		If $LatestVersion = "" Or VersionCompare($Version, $LatestVersion) > 0 Then
-			$LatestTag = $Tag
-			$LatestVersion = $Version
-		EndIf
-	Next
-	Return $LatestTag
-EndFunc   ;==>GetLatestChromePlusStableTag
-
-Func SetChromePlusReleaseInfo($ReleaseTag, $ArchiveUrl)
-	$ChromePlusReleaseInfoLoaded = True
-	$ChromePlusReleaseTag = $ReleaseTag
-	$ChromePlusArchiveUrl = $ArchiveUrl
-EndFunc   ;==>SetChromePlusReleaseInfo
-
-Func BuildChromePlusArchiveUrlFromTag($ReleaseTag)
-	Local $Version = StringRegExpReplace($ReleaseTag, "^[vV]", "")
-	Return "https://github.com/" & $ChromePlusRepo & "/releases/download/" & $ReleaseTag & "/Chrome%2B%2B_v" & $Version & "_x86_x64_arm64.7z"
-EndFunc   ;==>BuildChromePlusArchiveUrlFromTag
 
 Func InstallChromePlusConfig($SourcePath, $ConfigPath)
 	If $SourcePath = "" Or $ConfigPath = "" Or Not FileExists($SourcePath) Then Return False

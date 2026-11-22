@@ -25,6 +25,8 @@ Opera 会优先从 BrowserArchive 获取所选渠道（stable/beta/dev）的最�
 
 Cốc Cốc 仅支持 Windows x64 和 release 通道。版本、ZIP 地址与 SHA-256 只读取 BrowserArchive 的 `coccoc.json`，不回退其他元数据源；ZIP 下载完成并通过校验后才会解压到 `CocCoc` 目录。
 
+原版 Chrome 的补丁使用 [Bush2021 官方发布的 `update.json`](https://github.com/Bush2021/chrome_plus/releases/latest/download/update.json)，不调用 GitHub API。关闭 Chrome 后，在“Chrome++”标签页下载安装或更新补丁。若当前补丁版本等于或高于官方版本，点击“安装官方版”并确认即可手动替换，已有自定义配置会保留。Brave 和 Whale 仍使用内置补丁。
+
 ## 方式二：手动制作（适用于未内置下载的浏览器）
 
 1. 下载对应的 RunFirefox 启动器并放入目标浏览器目录。

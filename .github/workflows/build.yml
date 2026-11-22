@@ -78,6 +78,10 @@ jobs:
         shell: pwsh
         run: .\scripts\test-coccoc-download.ps1
 
+      - name: Test official and bundled Chrome++
+        shell: pwsh
+        run: .\scripts\test-bundled-chrome-plus.ps1
+
       - name: Generate nightly scripts
         shell: pwsh
         run: |

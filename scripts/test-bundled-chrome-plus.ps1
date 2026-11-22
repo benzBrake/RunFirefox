@@ -1,4 +1,4 @@
-param([string]$AutoItDir = $env:AUTOIT_DIR)
+param([string]$AutoItDir = $env:AUTOIT_DIR, [switch]$LiveOfficial)
 
 if ([string]::IsNullOrWhiteSpace($AutoItDir)) {
     $AutoItDir = 'C:\Program Files\AutoIt3'
@@ -146,6 +146,7 @@ GUICtrlSetData($idBrowserPath, $TestDir & "\chrome.exe")
 $BrowserType = $BrowserChrome
 UpdateChromePlusVersionLabels()
 TestAssert(GUICtrlRead($idChromePlusLatestVersion) = "99.0.0", "switch back to upstream")
+TestOfficialChromePlus()
 If @Compiled Then
     Local $Cached = PrepareBundledChromePlus("x64")
     FileCopy(PrepareBundledChromePlus("x86"), $Cached, 9)
@@ -156,6 +157,64 @@ EndIf
 GUIDelete($hSettings)
 ConsoleWrite("Failures: " & $TestFailures & @CRLF)
 Exit $TestFailures
+
+Func TestOfficialChromePlus()
+    Local $Version = "", $Size = 0, $Sha256 = "", $Log = ""
+    Local Const $Hash = "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
+    Local $Json = '{"version":"1.20.1","size":3,"sha256":"' & StringUpper($Hash) & '"}'
+    TestAssert(ParseChromePlusManifest($Json, $Version, $Size, $Sha256), "valid official manifest")
+    TestAssert($Version = "1.20.1" And $Size = 3 And $Sha256 == $Hash, "manifest fields normalized")
+    TestAssert($ChromePlusManifestUrl = "https://github.com/Bush2021/chrome_plus/releases/latest/download/update.json", "official manifest without API")
+    TestAssert(BuildChromePlusArchiveUrlFromTag($Version) = "https://github.com/Bush2021/chrome_plus/releases/download/1.20.1/Chrome%2B%2B_v1.20.1_x86_x64_arm64.7z", "version-pinned asset URL")
+    TestAssert(Not ParseChromePlusManifest("<html>not a manifest</html>", $Version, $Size, $Sha256), "reject HTML")
+    TestAssert(Not ParseChromePlusManifest(StringReplace($Json, '1.20.1', '../bad'), $Version, $Size, $Sha256), "reject unsafe version")
+    TestAssert(Not ParseChromePlusManifest(StringReplace($Json, ':3,', ':"3",'), $Version, $Size, $Sha256), "reject quoted size")
+    TestAssert(Not ParseChromePlusManifest(StringReplace($Json, ':3,', ':0,'), $Version, $Size, $Sha256), "reject empty size")
+    TestAssert(Not ParseChromePlusManifest(StringReplace($Json, ':3,', ':3.5,'), $Version, $Size, $Sha256), "reject fractional size")
+    TestAssert(Not ParseChromePlusManifest(StringReplace($Json, StringUpper($Hash), 'bad'), $Version, $Size, $Sha256), "reject invalid digest")
+    SetChromePlusReleaseInfo($Version, $Size, $Sha256)
+    TestAssert(CanReplaceWithOfficialChromePlus($BrowserChrome, "1.20.1.0", $Version), "official reinstall for same version")
+    TestAssert(CanReplaceWithOfficialChromePlus($BrowserChrome, "1.21.0", $Version), "manual return from a newer patch")
+    TestAssert(Not CanReplaceWithOfficialChromePlus($BrowserChrome, "1.19.0", $Version), "normal upgrade")
+    TestAssert(Not CanReplaceWithOfficialChromePlus($BrowserHelium, "1.21.0", $Version), "replacement option limited to Google Chrome")
+
+    Local $IPC = $TestDir & "\official-release.ini"
+    WriteChromePlusReleaseInfoFile($IPC)
+    $ChromePlusReleaseInfoLoaded = False
+    TestAssert(LoadChromePlusReleaseInfoFile($IPC), "read child process release metadata")
+    TestAssert($ChromePlusReleaseTag = $Version And $ChromePlusArchiveSize = $Size And $ChromePlusArchiveSha256 = $Hash, "IPC preserves all manifest fields")
+    IniDelete($IPC, "ChromePlus", "Sha256")
+    TestAssert(Not LoadChromePlusReleaseInfoFile($IPC), "reject incomplete child metadata")
+    Local $Archive = $TestDir & "\test.7z"
+    FileWrite($Archive, "abc")
+    TestAssert(ChromePlusArchiveMatchesManifest($Archive, 3, $Hash), "accept verified cache")
+    TestAssert(Not ChromePlusArchiveMatchesManifest($Archive, 4, $Hash), "reject wrong cache size")
+    FileDelete($Archive)
+    FileWrite($Archive, "abd")
+    TestAssert(Not ChromePlusArchiveMatchesManifest($Archive, 3, $Hash), "reject same-size corrupted cache")
+
+    If $CmdLine[0] < 2 Or $CmdLine[2] <> "live" Then Return
+    $ChromePlusReleaseInfoLoaded = False
+    Local $BrowserDir = $TestDir & "\Chrome"
+    DirCreate($BrowserDir)
+    Local $Browser = $BrowserDir & "\chrome.exe"
+    TestAssert(FileCopy(@AutoItExe, $Browser), "create isolated browser PE fixture")
+    If Not GetChromePlusReleaseInfo($Version, $Size, $Sha256, $Log) Then
+        ConsoleWrite($Log & @CRLF)
+        TestAssert(False, "fetch official release manifest through DownloadTools")
+        Return
+    EndIf
+    Local $ArchivePath = $ChromePlusCacheRoot & "\official\" & $Version & "-" & $Sha256 & "\chrome_plus.7z"
+    Local $ConfigPath = $BrowserDir & "\chrome++.ini"
+    TestAssert(InstallChromePlusPatchInteractive($Browser), "install official release into fixture")
+    TestAssert(ChromePlusArchiveMatchesManifest($ArchivePath, $Size, $Sha256), "verify downloaded official archive")
+    TestAssert(GetChromePlusPEArch($BrowserDir & "\version.dll") = GetChromePlusPEArch($Browser), "installed DLL matches fixture architecture")
+    TestAssert(FileExists($ConfigPath), "installed release configuration")
+    IniWrite($ConfigPath, "tabs", "custom", "retained")
+    TestAssert(InstallChromePlusPatchInteractive($Browser), "reinstall from verified cache")
+    TestAssert(IniRead($ConfigPath, "tabs", "custom", "") = "retained", "preserve custom config on official reinstall")
+    ConsoleWrite("Official Chrome++ " & $Version & ", archive bytes: " & $Size & @CRLF)
+EndFunc
 
 Func TestAssert($Condition, $Name)
     If $Condition Then Return
@@ -174,7 +233,7 @@ try {
     $marker = 'If Not @AutoItX64 Then ; 32-bit Autoit'
     if (-not $source.Contains($marker)) { throw 'Test insertion point missing' }
     $source = $source.Replace($marker, $tests + "`n" + $marker)
-    $source = [regex]::Replace($source, '(?ms)^Func ShowChromePlusPatchInstallFailedDialog\([^\r\n]*\).*?^EndFunc[^\r\n]*', "Func ShowChromePlusPatchInstallFailedDialog(`$ErrorMessage, `$LogPath)`n`$TestError = `$ErrorMessage`nEndFunc")
+    $source = [regex]::Replace($source, '(?ms)^Func ShowChromePlusPatchInstallFailedDialog\([^\r\n]*\).*?^EndFunc[^\r\n]*', "Func ShowChromePlusPatchInstallFailedDialog(`$ErrorMessage, `$LogPath)`n`$TestError = `$ErrorMessage`nIf `$CmdLine[0] > 1 And Not UsesBundledChromePlus(GetCurrentSettingsBrowserPath()) Then ConsoleWrite(FileRead(`$LogPath) & @CRLF)`nEndFunc")
     [IO.File]::WriteAllText($harness, $source, [Text.UTF8Encoding]::new($false))
     Push-Location $root
     try {
@@ -184,7 +243,9 @@ try {
             $runner = Join-Path $AutoItDir $(if ($arch -eq 'x86') { 'AutoIt3.exe' } else { 'AutoIt3_x64.exe' })
             $fixture = Join-Path $temp "source-$arch"
             New-Item -ItemType Directory -Path $fixture | Out-Null
-            & $runner /ErrorStdOut $harness $fixture | Write-Output
+            $harnessArgs = @($fixture)
+            if ($LiveOfficial) { $harnessArgs += 'live' }
+            & $runner /ErrorStdOut $harness @harnessArgs | Write-Output
             if ($LASTEXITCODE) { throw "Source $arch tests failed" }
             $exe = Join-Path $temp "test-$arch.exe"
             $compiler = Join-Path $AutoItDir 'Aut2Exe\Aut2exe.exe'

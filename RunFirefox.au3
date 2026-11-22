@@ -8,7 +8,7 @@
 #AutoIt3Wrapper_UseX64=y
 #AutoIt3Wrapper_Res_Comment=Portable Browser Launcher
 #AutoIt3Wrapper_Res_Description=Portable Browser Launcher
-#AutoIt3Wrapper_Res_Fileversion=2.8.19.0
+#AutoIt3Wrapper_Res_Fileversion=2.8.20.0
 #AutoIt3Wrapper_Res_LegalCopyright=Ryan <github-benzBrake@woai.ru>
 #AutoIt3Wrapper_Res_Language=2052
 #AutoIt3Wrapper_Res_requestedExecutionLevel=None
@@ -63,7 +63,7 @@ Opt("GUIOnEventMode", 1)
 Opt("WinTitleMatchMode", 4)
 
 Global Const $AppName = "RunFirefox"
-Global Const $AppVersion = "2.8.19"
+Global Const $AppVersion = "2.8.20"
 Global Const $ChromePlusCacheRoot = @TempDir & "\RunFirefox_ChromePlus"
 Global Const $ChromiumGoogleApiKeyEnv = "GOOGLE_API_KEY"
 Global Const $ChromiumGoogleClientIdEnv = "GOOGLE_DEFAULT_CLIENT_ID"

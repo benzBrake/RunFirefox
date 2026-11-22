@@ -19,7 +19,7 @@ Features:
 
 The Advanced tab has an Enable checkbox beside Command Line Arguments. It defaults to on, including for older configurations. Turning it off preserves the saved text but skips those custom arguments at launch; external arguments and automatically generated arguments are unaffected.
 
-Browser auto-updates and manual download replacements protect directory swaps with a transaction journal. After an interrupted update, the next launch restores the old version or finishes cleanup of a committed update, even with automatic updates disabled. If recovery fails, launch stops: close the browser and programs using its folders, preserve the reported journal and folders, and retry. This mechanism does not provide version history or user-data backups.
+Browser auto-updates and manual download replacements protect directory swaps with a transaction journal. After an interrupted update, the next launch restores the old version or finishes cleanup of a committed update, even with automatic updates disabled. If a committed update has a valid target executable, cleanup failures leave the journal for a later retry. The browser can launch while further replacements wait. An inconsistent transaction or a missing new executable stops launch and preserves the reported journal and folders. This mechanism does not provide version history or user-data backups.
 
 RunFirefox stops automatic updates and manual replacements when the configured profile is inside the target program folder. Close the browser, move the profile outside that folder, and update the profile path in Settings before retrying.
 

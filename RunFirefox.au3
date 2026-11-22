@@ -305,9 +305,14 @@ EnvSet("APP", @ScriptDir)
 ; Recover before a missing browser EXE can be mistaken for a first install.
 Local $RecoveryDir = "", $RecoveryExe = ""
 SplitPath(_BrowserAutoUpdateCanonical(FullPath($BrowserPath)), $RecoveryDir, $RecoveryExe)
-If $BrowserPath <> "" And Not _BrowserAutoUpdateRecover($RecoveryDir, $ProfileDir) Then
-	MsgBox(16, $AppName, _BrowserAutoUpdateTransactionMessage($RecoveryDir))
-	Exit 1
+Local $DeferredCleanup = False
+If $BrowserPath <> "" Then
+	Local $Recovered = _BrowserAutoUpdateRecoverForLaunch($RecoveryDir, $RecoveryExe, $ProfileDir)
+	$DeferredCleanup = @extended = 1
+	If Not $Recovered Then
+		MsgBox(16, $AppName, _BrowserAutoUpdateTransactionMessage($RecoveryDir))
+		Exit 1
+	EndIf
 EndIf
 
 ;~ 第一个启动参数为“-set”，或第一次运行，Firefox、配置文件夹、插件目录不存在，则显示设置窗口
@@ -404,10 +409,12 @@ If IsMozillaBrowser($BrowserType) And ($LastPlatformDir <> $BrowserDirectory Or 
 EndIf
 
 ;~ Apply staged browser update before the browser process starts
-If _BrowserAutoUpdateIsSupported($BrowserType) And Not $BrowserIsRunning Then BrowserAutoUpdateApplyPendingInteractive()
+If Not $DeferredCleanup And _BrowserAutoUpdateIsSupported($BrowserType) And Not $BrowserIsRunning Then BrowserAutoUpdateApplyPendingInteractive()
 
 ;~ Start browser
-If Not _BrowserAutoUpdateRecover($BrowserDirectory, $ProfileDir) Then
+Local $LaunchDir = "", $LaunchExe = ""
+SplitPath(_BrowserAutoUpdateCanonical(FullPath($BrowserPath)), $LaunchDir, $LaunchExe)
+If Not _BrowserAutoUpdateRecoverForLaunch($LaunchDir, $LaunchExe, $ProfileDir) Then
 	MsgBox(16, $AppName, _BrowserAutoUpdateTransactionMessage($BrowserDirectory))
 	Exit 1
 EndIf
@@ -2384,12 +2391,14 @@ Func MarkBrowserVersionCheckStarted()
 EndFunc   ;==>MarkBrowserVersionCheckStarted
 
 ;~ Apply a staged browser update while the browser is not running (Firefox-style
-;~ "update on next launch"). An unresolved transaction blocks this launch.
+;~ "update on next launch"). An unresolved directory swap blocks this launch.
 Func BrowserAutoUpdateApplyPendingInteractive()
 	_BrowserAutoUpdateCleanPartialDownloads()
 	Local $Result = _BrowserAutoUpdateApplyPending($BrowserPath, $BrowserType, 0, $ProfileDir)
 	If @error Then
-		Local $ApplyError = @error
+		Local $ApplyError = @error, $TransactionError = @extended
+		; Startup recovery below validates the executable before allowing launch.
+		If $ApplyError = 7 And $TransactionError = $BAU_TX_CLEANUP Then Return
 		If $Result <> "" Then MsgBox(16, $AppName, _t("BrowserUpdateApplyFailed", "应用浏览器更新失败：\n%s", $Result))
 		If $ApplyError = 7 Then Exit 1
 		Return

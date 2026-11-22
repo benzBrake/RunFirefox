@@ -87,7 +87,7 @@ Switch $TxMode
     Case "recover", "recover-unicode"
         $TxResult = _BrowserAutoUpdateRecover($TxRoot & "\" & $TxName)
         $TxError = @error
-    Case "startup"
+    Case "startup", "pre-launch"
         TxStartup()
         Exit 0
     Case "manual"
@@ -154,7 +154,10 @@ EndFunc
     $startup = [regex]::Match($source, '(?s); Recover before a missing browser EXE.*?\nEndIf').Value
     Assert ($startup.Length -gt 0) 'Startup recovery block missing'
     $startup = $startup.Replace('MsgBox(16, $AppName, _BrowserAutoUpdateTransactionMessage($RecoveryDir))', 'FileWrite($TxRoot & "\stopped", "stopped")')
-    $dispatch += "`nFunc TxStartup()`n`$BrowserPath = `$TxRoot & `"\App\browser.exe`"`n$startup`nIf Not FileExists(`$BrowserPath) Then FileWrite(`$TxRoot & `"\settings`", `"settings`")`nEndFunc`n"
+    $preLaunch = [regex]::Match($source, '(?s);~ Start browser\r?\nLocal \$LaunchDir.*?\nEndIf').Value
+    Assert ($preLaunch.Length -gt 0) 'Pre-launch recovery block missing'
+    $preLaunch = $preLaunch.Replace('MsgBox(16, $AppName, _BrowserAutoUpdateTransactionMessage($BrowserDirectory))', 'FileWrite($TxRoot & "\stopped", "stopped")')
+    $dispatch += "`nFunc TxStartup()`n`$BrowserPath = `$TxRoot & `"\App\browser.exe`"`nIf `$TxMode = `"pre-launch`" Then`n$preLaunch`nReturn`nEndIf`n$startup`nIf Not FileExists(`$BrowserPath) Then FileWrite(`$TxRoot & `"\settings`", `"settings`")`nEndFunc`n"
     $marker = 'If Not @AutoItX64 Then ; 32-bit Autoit'
     Assert ($source.Contains($marker)) 'Dispatch point missing'
     $source = $source.Replace($marker, $dispatch + "`n" + $marker)
@@ -240,7 +243,7 @@ EndFunc
         } finally { [IO.Directory]::Delete("$dir\alias") }
         [IO.File]::WriteAllText("$dir\profile-path.txt", "$dir\App\Profile", $utf8)
         CrashAt $dir 'committed'
-        Assert ((RunChild 'recover-profile' $dir) -eq 3) 'Recovery did not protect legacy committed backup'
+        Assert ((RunChild 'recover-profile' $dir) -eq 2) 'Recovery did not protect legacy committed backup'
         $old = Get-ChildItem -LiteralPath $dir -Filter 'App.RunFirefoxOld_*' -Directory
         Assert ([IO.File]::ReadAllText("$($old.FullName)\Profile\sentinel") -eq 'keep profile') 'Legacy backup lost the profile'
         $dir = Fixture "$arch-profile-sibling"
@@ -259,12 +262,46 @@ EndFunc
         $p.WaitForExit()
         Assert ((RunChild 'replace' $dir) -eq 0) 'OS did not release lock on exit'
 
+        $dir = Fixture "$arch-cleanup-readonly"
+        [IO.File]::SetAttributes("$dir\App\obsolete", [IO.FileAttributes]'ReadOnly, Hidden, Archive')
+        CrashAt $dir 'committed'
+        Assert ((RunChild 'startup' $dir) -eq 0) 'Read-only old file blocked launch'
+        Assert (-not (Test-Path "$dir\App.RunFirefoxUpdate.ini")) 'Read-only cleanup was deferred at startup'
+        AssertRecovered $dir $true
+
+        $dir = Fixture "$arch-cleanup-journal-locked"
+        CrashAt $dir 'committed'
+        $journal = "$dir\App.RunFirefoxUpdate.ini"
+        $held = [IO.File]::Open($journal, 'Open', 'Read', 'Read')
+        try {
+            Assert ((RunChild 'startup' $dir) -eq 0) 'A readable but locked journal blocked startup'
+            Assert (Test-Path $journal) 'Locked journal was not retained'
+            Assert (@(Get-ChildItem -LiteralPath $dir -Filter 'App.RunFirefoxOld_*').Count -eq 0) 'Backup was not cleaned before journal deletion'
+        } finally { $held.Dispose() }
+        AssertRecovered $dir $true
+
+        $dir = Fixture "$arch-cleanup-missing-exe"
+        CrashAt $dir 'committed'
+        $old = Get-ChildItem -LiteralPath $dir -Filter 'App.RunFirefoxOld_*' -Directory
+        [IO.File]::Delete("$dir\App\browser.exe")
+        Assert ((RunChild 'startup' $dir) -eq 1) 'Missing committed EXE was accepted at startup'
+        Assert ((RunChild 'pre-launch' $dir) -eq 1) 'Missing committed EXE was accepted before launch'
+        Assert (Test-Path "$dir\App.RunFirefoxUpdate.ini") 'Missing EXE recovery discarded the journal'
+        Assert (Test-Path "$($old.FullName)\browser.exe") 'Missing EXE recovery discarded the backup'
+
         $dir = Fixture "$arch-cleanup-locked"
         CrashAt $dir 'committed'
         $old = Get-ChildItem -LiteralPath $dir -Filter 'App.RunFirefoxOld_*' -Directory
         $held = [IO.File]::Open("$($old.FullName)\browser.exe", 'Open', 'Read', 'None')
-        try { Assert ((RunChild 'recover' $dir) -eq 3) 'Cleanup failure not distinguished' }
-        finally { $held.Dispose() }
+        try {
+            Assert ((RunChild 'recover' $dir) -eq 3) 'Cleanup failure not distinguished'
+            Assert ((RunChild 'startup' $dir) -eq 0) 'Locked backup blocked startup'
+            Assert ((RunChild 'pre-launch' $dir) -eq 0) 'Locked backup blocked launch'
+            Assert ((RunChild 'interactive' $dir) -eq 9) 'Pending cleanup stopped the interactive launch path'
+            Assert ((RunChild 'replace' $dir) -eq 3) 'Replacement proceeded while cleanup was pending'
+            Assert (-not (Test-Path "$dir\stopped")) 'Deferred cleanup was reported as a launch failure'
+            Assert ([IO.File]::ReadAllText("$dir\App\browser.exe") -eq 'new') 'Deferred cleanup changed the installed browser'
+        } finally { $held.Dispose() }
         Assert (Test-Path "$dir\App.RunFirefoxUpdate.ini") 'Cleanup failure lost journal'
         AssertRecovered $dir $true
 

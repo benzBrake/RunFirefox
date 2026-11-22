@@ -8,7 +8,7 @@
 
 - Added an Enable checkbox beside Command Line Arguments on the Advanced tab, defaulting to on for both new and existing configurations. Turning it off preserves the saved text and skips custom arguments and their debug-port conflict checks, without affecting external or automatically generated arguments.
 
-- Added transaction journals to browser auto-updates and manual download replacements. After an interrupted update, the next launch restores the old version or finishes cleanup of a committed update. If recovery cannot safely finish, launch stops and preserves the journal and folders for retry after closing programs using them.
+- Added transaction journals to browser auto-updates and manual download replacements. After an interrupted update, the next launch restores the old version or finishes cleanup of a committed update. Cleanup clears the read-only attribute on old files awaiting deletion. If the update is committed and the new executable is in place, cleanup can be retried later while the browser launches and further replacements wait. An inconsistent transaction or a missing new executable stops launch and preserves the journal and folders.
 
 - Added Windows system proxy settings with PAC/WPAD, destination-host bypass rules, proxy resolution for each redirect, and synchronized embedded translations.
 

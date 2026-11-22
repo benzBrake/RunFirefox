@@ -60,7 +60,13 @@ try {
                     $context.Response.ContentLength64 = $bytes.Length
                     $context.Response.OutputStream.Write($bytes, 0, $bytes.Length)
                 }
-                $context.Response.Close()
+                try {
+                    $context.Response.Close()
+                } catch [Net.HttpListenerException] {
+                    # Cancellation and deadline tests can disconnect before the response closes.
+                    # ERROR_CONNECTION_INVALID applies to this request, so keep the listener running.
+                    if ($_.Exception.GetBaseException().NativeErrorCode -ne 1229) { throw }
+                }
             }
         } finally { $listener.Stop() }
     }

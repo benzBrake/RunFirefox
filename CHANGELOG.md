@@ -10,6 +10,8 @@
 
 - 网络设置新增 Windows 系统代理，支持 PAC/WPAD、目标主机绕过规则与逐跳重定向代理解析，并同步内嵌语言文案。
 
+- 修复设置页自动识别覆盖用户所选浏览器的问题，并将 Ungoogled Chromium 的下载通道限定为 `release`。
+
 - 浏览器自动升级和下载覆盖改为使用完整目录替换，避免新版本未携带的旧 Chrome 文件继续遗留；Chrome++ 的 `chrome++.ini` 与 `version.dll` 会在替换时保留。
 
 - Firefox 下载频道新增 `esr-next`，可在当前 ESR 与下一代 ESR 之间分别获取版本并下载。

@@ -10,6 +10,8 @@
 
 - Added Windows system proxy settings with PAC/WPAD, destination-host bypass rules, proxy resolution for each redirect, and synchronized embedded translations.
 
+- Fixed browser detection overriding the user's selection in Settings and limited Ungoogled Chromium downloads to the `release` channel.
+
 - Browser auto-updates and downloads over an existing installation now replace the browser directory as a complete tree, preventing obsolete Chrome files from accumulating; Chrome++'s `chrome++.ini` and `version.dll` are preserved during replacement.
 
 - Added a separate `esr-next` Firefox download channel so users can choose between the current ESR and the next ESR.
